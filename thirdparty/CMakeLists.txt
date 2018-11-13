@@ -1,1 +1,3 @@
+set(SL_DOWNLOAD_PREBUILTS OFF CACHE BOOL "disable SLProject prebuilt download")
+set(SL_BUILD_APPS OFF CACHE BOOL "disable SLProject sample apps")
 add_subdirectory(SLProject)
