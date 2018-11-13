@@ -1,0 +1,3 @@
+[submodule "thirdparty/SLProject"]
+	path = thirdparty/SLProject
+	url = git@github.com:cpvrlab/SLProject.git

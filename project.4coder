@@ -1,0 +1,34 @@
+version(1);
+
+project_name = "WAI";
+
+patterns = {
+	"*.c", "*.cpp", "*.vs", "*.fs", "*.h", "*.cs", "*.sh"
+};
+
+blacklist_patterns = {
+".*"
+};
+
+load_paths = {
+	{
+		{
+			{"lib-WAI/source", .relative = true, .recursive = false},
+			{"thirdparty/SLProject/lib-SLProject/source", .relative = true, .recursive = false},
+			{"thirdparty/SLProject/lib-SLProject/include", .relative = true, .recursive = false},
+			{"thirdparty/SLProject/lib-SLProject/source/CV", .relative = true, .recursive = false},
+			{"thirdparty/SLProject/lib-SLProject/include/CV", .relative = true, .recursive = false},
+			{"thirdparty/SLProject/lib-SLProject/source/GL", .relative = true, .recursive = false},
+			{"thirdparty/SLProject/lib-SLProject/include/GL", .relative = true, .recursive = false},
+			{"thirdparty/SLProject/lib-SLProject/source/GUI", .relative = true, .recursive = false},
+			{"thirdparty/SLProject/lib-SLProject/include/GUI", .relative = true, .recursive = false},
+			{"thirdparty/SLProject/lib-SLProject/source/math", .relative = true, .recursive = false},
+			{"thirdparty/SLProject/lib-SLProject/include/math", .relative = true, .recursive = false},
+			{"thirdparty/SLProject/lib-SLProject/source/SL", .relative = true, .recursive = false},
+			{"thirdparty/SLProject/lib-SLProject/include/SL", .relative = true, .recursive = false},
+			{"examples/app-Demo-WAI/source", .relative = true, .recursive = false},
+			{"examples/app-Demo-WAI/GLFW", .relative = true, .recursive = false},
+		},
+		.os = "linux"
+	}
+};

@@ -1,0 +1,3 @@
+_build*
+CMakeLists.txt.user
+thirdparty/prebuilt/*
