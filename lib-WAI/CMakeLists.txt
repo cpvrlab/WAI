@@ -3,13 +3,55 @@
 #
 
 set(target lib-WAI)
+#set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DWAI_BUILD_DEBUG")
 
 file(GLOB headers
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAI.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIFrame.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIKeyFrame.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIKeyFrameDB.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIMap.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIMapPoint.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIOrbVocabulary.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIMath.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIMode.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIModeAruco.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIModeOrbSlam2.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAISensor.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAISensorCamera.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/Converter.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/Initializer.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/LocalMapping.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/LoopClosing.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/Optimizer.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/ORBextractor.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/ORBmatcher.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/ORBVocabulary.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/PnPsolver.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/Sim3Solver.h
     )
 
 file(GLOB sources
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAI.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIFrame.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIKeyFrame.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIKeyFrameDB.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIMap.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIMapPoint.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIOrbVocabulary.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIMode.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIModeAruco.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIModeOrbSlam2.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAISensor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAISensorCamera.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/Converter.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/Initializer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/LocalMapping.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/LoopClosing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/Optimizer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/ORBmatcher.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/PnPsolver.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/Sim3Solver.cpp
     )
 
 add_library(${target}
@@ -27,12 +69,17 @@ set_target_properties(${target}
     ${DEFAULT_PROJECT_OPTIONS}
     )
 
+message(STATUS "g2o_INCLUDE_DIR ${g2o_INCLUDE_DIR}")
 target_include_directories(${target}
     PRIVATE
 
     PUBLIC
     ${DEFAULT_INCLUDE_DIRECTORIES}
     ${CMAKE_CURRENT_SOURCE_DIR}/source
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam
+    ${g2o_INCLUDE_DIR}
+    ${WAI_ROOT}/thirdparty/eigen
+    ${WAI_ROOT}/thirdparty/DBoW2
 
     INTERFACE
     )

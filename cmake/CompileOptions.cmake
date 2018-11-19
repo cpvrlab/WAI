@@ -68,8 +68,9 @@ if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU" OR "${CMAKE_CXX_COMPILER_ID}" MATCH
     set(DEFAULT_COMPILE_OPTIONS ${DEFAULT_COMPILE_OPTIONS}
 		-Werror
         -Wall
-        -Wno-c++98-compat
-        -Wno-c++98-compat-pedantic
+        -Wno-sign-compare
+        -Wno-int-in-bool-context
+        -Wno-reorder
 
         $<$<CXX_COMPILER_ID:Clang>:
             -Weverything

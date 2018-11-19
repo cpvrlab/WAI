@@ -24,6 +24,14 @@ class SLGLTexture;
 class SLImGuiInfosDialog;
 
 //-----------------------------------------------------------------------------
+enum SceneID
+{
+    Scene_None,
+    Scene_Empty,
+    Scene_Minimal,
+    Scene_WAI
+};
+//-----------------------------------------------------------------------------
 //! ImGui UI class for the UI of the demo applications
 /* The UI is completely built within this class by calling build function
 AppDemoGui::build. This build function is passed in the slCreateSceneView and
