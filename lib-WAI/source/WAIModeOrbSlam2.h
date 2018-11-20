@@ -11,6 +11,13 @@
 
 #include <OrbSlam/LocalMapping.h>
 #include <OrbSlam/LoopClosing.h>
+#include <OrbSlam/Initializer.h>
+#include <OrbSlam/ORBmatcher.h>
+#include <OrbSlam/Optimizer.h>
+#include <OrbSlam/PnPsolver.h>
+
+#define OPTFLOW_GRID_COLS 7
+#define OPTFLOW_GRID_ROWS 4
 
 namespace WAI
 {
@@ -18,23 +25,125 @@ namespace WAI
 class ModeOrbSlam2 : public Mode
 {
     public:
-    ModeOrbSlam2(SensorCamera* camera, bool serial);
+    ModeOrbSlam2(SensorCamera* camera, bool serial, bool retainImg, bool onlyTracking, bool trackOptFlow);
     ~ModeOrbSlam2();
     bool getPose(M4x4* pose);
+    void notifyUpdate();
 
     private:
-    SensorCamera*             _camera;
+    enum TrackingState
+    {
+        TrackingState_None,
+        TrackingState_Initializing,
+        TrackingState_TrackingOK,
+        TrackingState_TrackingLost
+    };
+
+    void initialize();
+    bool createInitialMapMonocular();
+    void track3DPts();
+    void reset();
+    //void pause();
+    //void resume();
+
+    bool relocalization();
+    bool trackReferenceKeyFrame();
+    bool trackWithMotionModel();
+    bool trackLocalMap();
+    bool trackWithOptFlow();
+
+    bool needNewKeyFrame();
+    void createNewKeyFrame();
+
+    bool posInGrid(const cv::KeyPoint& kp, int& posX, int& posY, int minX, int minY);
+    void checkReplacedInLastFrame();
+    void updateLocalMap();
+    void updateLocalKeyFrames();
+    void updateLocalPoints();
+    void searchLocalPoints();
+    void updateLastFrame();
+    void globalBundleAdjustment();
+
+    WAIKeyFrame* currentKeyFrame();
+
+    bool _serial;
+    bool _retainImg;
+    bool _initialized;
+    bool _onlyTracking;
+    bool _trackOptFlow;
+
+    SensorCamera*  _camera;
+    TrackingState  _state;
+    WAIKeyFrameDB* mpKeyFrameDatabase;
+    WAIMap*        _map;
+
     ORB_SLAM2::ORBVocabulary* mpVocabulary;
-    WAIKeyFrameDB*            mpKeyFrameDatabase;
-    WAIMap*                   _map;
-    bool                      _initialized;
     ORB_SLAM2::ORBextractor*  _extractor;
     ORB_SLAM2::ORBextractor*  mpIniORBextractor;
     ORB_SLAM2::LocalMapping*  mpLocalMapper;
     ORB_SLAM2::LoopClosing*   mpLoopCloser;
-    std::thread*              mptLocalMapping;
-    std::thread*              mptLoopClosing;
-    bool                      _serial;
+    ORB_SLAM2::Initializer*   mpInitializer;
+
+    std::thread* mptLocalMapping;
+    std::thread* mptLoopClosing;
+
+    std::mutex _meanProjErrorLock;
+    std::mutex _poseDiffLock;
+    std::mutex _mapLock;
+    std::mutex _nMapMatchesLock;
+    std::mutex _optFlowLock;
+
+    WAIFrame                 mCurrentFrame;
+    WAIFrame                 mInitialFrame;
+    WAIFrame                 mLastFrame;
+    std::vector<int>         mvIniMatches;
+    std::vector<cv::Point2f> mvbPrevMatched;
+    std::vector<cv::Point3f> mvIniP3D;
+    bool                     _bOK;
+    bool                     _mapHasChanged = false;
+
+    //New KeyFrame rules (according to fps)
+    // Max/Min Frames to insert keyframes and to check relocalisation
+    int mMinFrames = 0;
+    int mMaxFrames = 30; //= fps
+
+    // In case of performing only localization, this flag is true when there are no matches to
+    // points in the map. Still tracking will continue if there are enough matches with temporal points.
+    // In that case we are doing visual odometry. The system will try to do relocalization to recover
+    // "zero-drift" localization to the map.
+    bool mbVO = false;
+
+    // Lists used to recover the full camera trajectory at the end of the execution.
+    // Basically we store the reference keyframe for each frame and its relative transformation
+    list<cv::Mat>      mlRelativeFramePoses;
+    list<WAIKeyFrame*> mlpReferences;
+    list<double>       mlFrameTimes;
+    list<bool>         mlbLost;
+
+    //Current matches in frame
+    int mnMatchesInliers = 0;
+
+    //Last Frame, KeyFrame and Relocalisation Info
+    WAIKeyFrame* mpLastKeyFrame     = NULL;
+    unsigned int mnLastRelocFrameId = 0;
+    unsigned int mnLastKeyFrameId;
+
+    //Local Map
+    //(maybe always the last inserted keyframe?)
+    WAIKeyFrame*              mpReferenceKF = NULL;
+    std::vector<WAIMapPoint*> mvpLocalMapPoints;
+    std::vector<WAIKeyFrame*> mvpLocalKeyFrames;
+
+    //Motion Model
+    cv::Mat mVelocity;
+
+    //optical flow
+    bool                 _optFlowOK = false;
+    cv::Mat              _optFlowTcw;
+    vector<WAIMapPoint*> _optFlowMapPtsLastFrame;
+    vector<cv::KeyPoint> _optFlowKeyPtsLastFrame;
+    float                _optFlowGridElementWidthInv;
+    float                _optFlowGridElementHeightInv;
 };
 }
 

@@ -21,12 +21,18 @@
 #ifndef LOCALMAPPING_H
 #define LOCALMAPPING_H
 
+#include <list>
 #include <condition_variable>
 #include <mutex>
+
+#include <opencv2/core.hpp>
+
+#include <OrbSlam/ORBVocabulary.h>
 
 class WAIKeyFrame;
 class WAIMap;
 class WAIKeyFrameDB;
+class WAIMapPoint;
 
 namespace ORB_SLAM2
 {

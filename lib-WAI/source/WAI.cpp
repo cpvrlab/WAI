@@ -14,7 +14,11 @@ void WAI::WAI::setMode(ModeType modeType)
                 return;
             }
 
-            _mode = new ModeOrbSlam2((SensorCamera*)_sensors[SensorType_Camera], false);
+            _mode = new ModeOrbSlam2((SensorCamera*)_sensors[SensorType_Camera],
+                                     false,
+                                     false,
+                                     false,
+                                     false);
         }
         break;
 
@@ -52,7 +56,7 @@ void WAI::WAI::activateSensor(SensorType sensorType, void* sensorInfo)
     {
         case SensorType_Camera:
         {
-            _sensors[SensorType_Camera] = new SensorCamera((SensorCamera::CameraCalibration*)sensorInfo);
+            _sensors[SensorType_Camera] = new SensorCamera((CameraCalibration*)sensorInfo);
         }
         break;
 

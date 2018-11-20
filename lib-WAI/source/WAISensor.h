@@ -1,4 +1,7 @@
 #ifndef WAI_SENSOR_H
+#define WAI_SENSOR_H
+
+#include <WAIMode.h>
 
 namespace WAI
 {
@@ -10,10 +13,9 @@ enum SensorType
 
 class Sensor
 {
-public:
+    public:
     virtual void update(void* data) = 0;
 };
 }
 
-#define WAI_SENSOR_H
 #endif

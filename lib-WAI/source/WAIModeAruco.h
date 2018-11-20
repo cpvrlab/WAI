@@ -12,6 +12,7 @@ class ModeAruco : public Mode
     ModeAruco(SensorCamera* camera);
     ~ModeAruco() {}
     bool getPose(M4x4* pose);
+    void notifyUpdate() {}
 
     private:
     SensorCamera*                          _camera;

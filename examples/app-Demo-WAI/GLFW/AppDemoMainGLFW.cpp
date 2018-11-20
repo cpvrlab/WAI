@@ -729,6 +729,16 @@ int main(int argc, char* argv[])
     glfwSetScrollCallback(window, onMouseWheel);
     glfwSetWindowCloseCallback(window, onClose);
 
+    SLCVCalibration*       activeCalib = SLApplication::activeCalib;
+    WAI::CameraCalibration calibration = {activeCalib->fx(),
+                                          activeCalib->fy(),
+                                          activeCalib->cx(),
+                                          activeCalib->cy(),
+                                          activeCalib->k1(),
+                                          activeCalib->k2(),
+                                          activeCalib->p1(),
+                                          activeCalib->p2()};
+    wai.activateSensor(WAI::SensorType_Camera, &calibration);
     wai.setMode(WAI::ModeType_ORB_SLAM2);
 
     // Event loop

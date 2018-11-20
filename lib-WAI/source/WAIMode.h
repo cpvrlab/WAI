@@ -1,6 +1,7 @@
 #ifndef WAI_MODE_H
+#define WAI_MODE_H
 
-#    include <WAIMath.h>
+#include <WAIMath.h>
 
 namespace WAI
 {
@@ -15,10 +16,10 @@ enum ModeType
 class Mode
 {
     public:
-    virtual bool getPose(M4x4* pose) = 0;
     virtual ~Mode()                  = 0;
+    virtual bool getPose(M4x4* pose) = 0;
+    virtual void notifyUpdate()      = 0;
 };
 }
 
-#    define WAI_MODE_H
 #endif

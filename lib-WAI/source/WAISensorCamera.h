@@ -15,22 +15,28 @@ struct CameraFrame
     void* memory;
 };
 
+struct CameraCalibration
+{
+    float fx, fy, cx, cy, k1, k2, p1, p2;
+};
+
 class SensorCamera : public Sensor
 {
     public:
-    struct CameraCalibration
-    {
-        float fx, fy, cx, cy, k1, k2, p1, p2;
-    };
-
     SensorCamera(CameraCalibration* cameraCalibration);
     void              update(void* imageGray);
     cv::Mat           getImageGray() { return _imageGray; }
     CameraCalibration getCameraCalibration() { return _cameraCalibration; }
+    cv::Mat           getCameraMatrix() { return _cameraMatrix; }
+    cv::Mat           getDistortionMatrix() { return _distortionMatrix; }
+    void              subscribeToUpdate(Mode* mode);
 
     private:
-    cv::Mat           _imageGray;         // TODO(jan): this will be loaded from a sensor class
-    CameraCalibration _cameraCalibration; // TODO(jan): move to sensor class
+    cv::Mat           _imageGray;
+    cv::Mat           _cameraMatrix;
+    cv::Mat           _distortionMatrix;
+    CameraCalibration _cameraCalibration;
+    Mode*             _mode = 0;
 };
 }
 

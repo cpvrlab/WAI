@@ -41,7 +41,7 @@ bool WAI::ModeAruco::getPose(M4x4* pose)
 
     if (!arucoIDs.empty())
     {
-        SensorCamera::CameraCalibration cameraCalibration = _camera->getCameraCalibration();
+        CameraCalibration cameraCalibration = _camera->getCameraCalibration();
 
         cv::Mat cameraMat         = cv::Mat::zeros(3, 3, CV_32F);
         cameraMat.at<float>(0, 0) = cameraCalibration.fx;
