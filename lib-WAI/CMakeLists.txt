@@ -69,7 +69,6 @@ set_target_properties(${target}
     ${DEFAULT_PROJECT_OPTIONS}
     )
 
-message(STATUS "g2o_INCLUDE_DIR ${g2o_INCLUDE_DIR}")
 target_include_directories(${target}
     PRIVATE
 
@@ -77,6 +76,7 @@ target_include_directories(${target}
     ${DEFAULT_INCLUDE_DIRECTORIES}
     ${CMAKE_CURRENT_SOURCE_DIR}/source
     ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam
+    ${OpenCV_INCLUDE_DIR}
     ${g2o_INCLUDE_DIR}
     ${WAI_ROOT}/thirdparty/eigen
     ${WAI_ROOT}/thirdparty/DBoW2
@@ -85,7 +85,7 @@ target_include_directories(${target}
     )
 
 target_compile_definitions(${target}
-	PRIVATE
+    PRIVATE
 
     PUBLIC
     ${DEFAULT_COMPILE_DEFINITIONS}
@@ -108,6 +108,8 @@ target_link_libraries(${target}
 
     PUBLIC
     ${DEFAULT_LINKER_OPTIONS}
+    ${OpenCV_LIBS}
+    ${g2o_LIBS}
 
     INTERFACE
     )

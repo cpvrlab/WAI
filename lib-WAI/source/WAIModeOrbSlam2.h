@@ -3,6 +3,8 @@
 
 #include <thread>
 
+#include <opencv2/core.hpp>
+
 #include <WAIMode.h>
 #include <WAISensorCamera.h>
 #include <WAIKeyFrameDB.h>
@@ -66,26 +68,29 @@ class ModeOrbSlam2 : public Mode
 
     WAIKeyFrame* currentKeyFrame();
 
+    M4x4 _pose;
+
+    bool _poseSet = false;
     bool _serial;
     bool _retainImg;
     bool _initialized;
     bool _onlyTracking;
     bool _trackOptFlow;
 
-    SensorCamera*  _camera;
-    TrackingState  _state;
-    WAIKeyFrameDB* mpKeyFrameDatabase;
-    WAIMap*        _map;
+    SensorCamera*  _camera            = nullptr;
+    TrackingState  _state             = TrackingState_None;
+    WAIKeyFrameDB* mpKeyFrameDatabase = nullptr;
+    WAIMap*        _map               = nullptr;
 
-    ORB_SLAM2::ORBVocabulary* mpVocabulary;
-    ORB_SLAM2::ORBextractor*  _extractor;
-    ORB_SLAM2::ORBextractor*  mpIniORBextractor;
-    ORB_SLAM2::LocalMapping*  mpLocalMapper;
-    ORB_SLAM2::LoopClosing*   mpLoopCloser;
-    ORB_SLAM2::Initializer*   mpInitializer;
+    ORB_SLAM2::ORBVocabulary* mpVocabulary      = nullptr;
+    ORB_SLAM2::ORBextractor*  _extractor        = nullptr;
+    ORB_SLAM2::ORBextractor*  mpIniORBextractor = nullptr;
+    ORB_SLAM2::LocalMapping*  mpLocalMapper     = nullptr;
+    ORB_SLAM2::LoopClosing*   mpLoopCloser      = nullptr;
+    ORB_SLAM2::Initializer*   mpInitializer     = nullptr;
 
-    std::thread* mptLocalMapping;
-    std::thread* mptLoopClosing;
+    std::thread* mptLocalMapping = nullptr;
+    std::thread* mptLoopClosing  = nullptr;
 
     std::mutex _meanProjErrorLock;
     std::mutex _poseDiffLock;

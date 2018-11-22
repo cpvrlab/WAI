@@ -50,6 +50,9 @@ WAI::ModeOrbSlam2::ModeOrbSlam2(SensorCamera* camera,
         mptLocalMapping = new std::thread(&LocalMapping::Run, mpLocalMapper);
         mptLoopClosing  = new std::thread(&LoopClosing::Run, mpLoopCloser);
     }
+
+    _camera->subscribeToUpdate(this);
+    _state = TrackingState_Initializing;
 }
 
 WAI::ModeOrbSlam2::~ModeOrbSlam2()
@@ -85,6 +88,12 @@ WAI::ModeOrbSlam2::~ModeOrbSlam2()
 bool WAI::ModeOrbSlam2::getPose(M4x4* pose)
 {
     bool result = 0;
+
+    if (_state == TrackingState_TrackingOK && _poseSet)
+    {
+        *pose  = _pose;
+        result = 1;
+    }
 
     return result;
 }
@@ -259,6 +268,7 @@ void WAI::ModeOrbSlam2::initialize()
                 //mark tracking as initialized
                 _initialized = true;
                 _bOK         = true;
+                _state       = TrackingState_TrackingOK;
             }
 
             //ghm1: in the original implementation the initialization is defined in the track() function and this part is always called at the end!
@@ -506,7 +516,22 @@ void WAI::ModeOrbSlam2::track3DPts()
             Rwc = Tcw.rowRange(0, 3).colRange(0, 3).t();
             twc = -Rwc * Tcw.rowRange(0, 3).col(3);
 
-            // TODO(jan): set pose
+            _pose = {};
+            for (int col = 0; col < 3; col++)
+            {
+                for (int row = 0; row < 3; row++)
+                {
+                    _pose.e[col][row] = Rwc.at<float>(row, col);
+                }
+            }
+
+            for (int row = 0; row < 3; row++)
+            {
+                _pose.e[3][row] = Rwc.at<float>(row, 3);
+            }
+
+            _pose.e[3][3] = 1.0f;
+            _poseSet      = true;
 
             //conversion to SLMat4f
             //SLMat4f slMat((SLfloat)Rwc.at<float>(0, 0), (SLfloat)Rwc.at<float>(0, 1), (SLfloat)Rwc.at<float>(0, 2), (SLfloat)twc.at<float>(0, 0), (SLfloat)Rwc.at<float>(1, 0), (SLfloat)Rwc.at<float>(1, 1), (SLfloat)Rwc.at<float>(1, 2), (SLfloat)twc.at<float>(1, 0), (SLfloat)Rwc.at<float>(2, 0), (SLfloat)Rwc.at<float>(2, 1), (SLfloat)Rwc.at<float>(2, 2), (SLfloat)twc.at<float>(2, 0), 0.0f, 0.0f, 0.0f, 1.0f);

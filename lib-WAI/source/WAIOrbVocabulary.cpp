@@ -21,7 +21,7 @@ void WAIOrbVocabulary::loadFromFile()
 {
     _vocabulary = new ORB_SLAM2::ORBVocabulary();
     // TODO(jan): actual path to file
-    string strVocFile = "ORBvoc.bin";
+    string strVocFile = std::string(WAI_ROOT) + "/data/calibrations/ORBvoc.bin";
     bool   bVocLoad   = _vocabulary->loadFromBinaryFile(strVocFile);
     if (!bVocLoad)
     {

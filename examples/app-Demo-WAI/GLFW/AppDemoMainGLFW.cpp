@@ -708,6 +708,7 @@ int main(int argc, char* argv[])
 
     // This load the GUI configs that are locally stored
     AppDemoGui::loadConfig(dpi);
+    SLApplication::sceneID = (SLSceneID)Scene_WAI;
 
     /////////////////////////////////////////////////////////
     svIndex = slCreateSceneView((int)(scrWidth * scr2fbX),
@@ -756,7 +757,24 @@ int main(int argc, char* argv[])
 
         if (iKnowWhereIAm)
         {
-            SLMat4f slPose = SLMat4f(pose.e[0]);
+            SLMat4f slPose = SLMat4f(
+              pose.e[0][0],
+              pose.e[0][1],
+              pose.e[0][2],
+              pose.e[0][3],
+              pose.e[1][0],
+              pose.e[1][1],
+              pose.e[1][2],
+              pose.e[1][3],
+              pose.e[2][0],
+              pose.e[2][1],
+              pose.e[2][2],
+              pose.e[2][3],
+              pose.e[3][0],
+              pose.e[3][1],
+              pose.e[3][2],
+              pose.e[3][3]);
+
             cameraNode->om(slPose);
         }
 
