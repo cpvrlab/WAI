@@ -11,7 +11,7 @@ class ModeAruco : public Mode
     public:
     ModeAruco(SensorCamera* camera);
     ~ModeAruco() {}
-    bool getPose(M4x4* pose);
+    bool getPose(cv::Mat* pose);
     void notifyUpdate() {}
 
     private:

@@ -29,13 +29,14 @@ class ModeOrbSlam2 : public Mode
     public:
     ModeOrbSlam2(SensorCamera* camera, bool serial, bool retainImg, bool onlyTracking, bool trackOptFlow);
     ~ModeOrbSlam2();
-    bool getPose(M4x4* pose);
+    bool getPose(cv::Mat* pose);
     void notifyUpdate();
 
     private:
     enum TrackingState
     {
         TrackingState_None,
+        TrackingState_Idle,
         TrackingState_Initializing,
         TrackingState_TrackingOK,
         TrackingState_TrackingLost
@@ -68,7 +69,7 @@ class ModeOrbSlam2 : public Mode
 
     WAIKeyFrame* currentKeyFrame();
 
-    M4x4 _pose;
+    cv::Mat _pose;
 
     bool _poseSet = false;
     bool _serial;
@@ -107,7 +108,7 @@ class ModeOrbSlam2 : public Mode
     bool                     _bOK;
     bool                     _mapHasChanged = false;
 
-    //New KeyFrame rules (according to fps)
+    // New KeyFrame rules (according to fps)
     // Max/Min Frames to insert keyframes and to check relocalisation
     int mMinFrames = 0;
     int mMaxFrames = 30; //= fps
@@ -125,7 +126,7 @@ class ModeOrbSlam2 : public Mode
     list<double>       mlFrameTimes;
     list<bool>         mlbLost;
 
-    //Current matches in frame
+    //C urrent matches in frame
     int mnMatchesInliers = 0;
 
     //Last Frame, KeyFrame and Relocalisation Info
@@ -133,22 +134,50 @@ class ModeOrbSlam2 : public Mode
     unsigned int mnLastRelocFrameId = 0;
     unsigned int mnLastKeyFrameId;
 
-    //Local Map
-    //(maybe always the last inserted keyframe?)
+    // Local Map
+    // (maybe always the last inserted keyframe?)
     WAIKeyFrame*              mpReferenceKF = NULL;
     std::vector<WAIMapPoint*> mvpLocalMapPoints;
     std::vector<WAIKeyFrame*> mvpLocalKeyFrames;
 
-    //Motion Model
+    // Motion Model
     cv::Mat mVelocity;
 
-    //optical flow
+    // optical flow
     bool                 _optFlowOK = false;
     cv::Mat              _optFlowTcw;
     vector<WAIMapPoint*> _optFlowMapPtsLastFrame;
     vector<cv::KeyPoint> _optFlowKeyPtsLastFrame;
     float                _optFlowGridElementWidthInv;
     float                _optFlowGridElementHeightInv;
+
+    // state machine
+    void stateTransition();
+
+    bool       _idleRequested   = false;
+    bool       _resumeRequested = false;
+    std::mutex _mutexStates;
+
+    // debug visualization
+    void decorate();
+    void calculateMeanReprojectionError();
+    void calculatePoseDifference();
+    void decorateVideoWithKeyPoints(cv::Mat& image);
+    void decorateVideoWithKeyPointMatches(cv::Mat& image);
+
+    double _meanReprojectionError = -1.0;
+    double _poseDifference        = -1.0;
+    bool   _showKeyPoints         = false;
+    bool   _showKeyPointsMatched  = true;
+    bool   _showMapPC             = true;
+    bool   _showMatchesPC         = true;
+    bool   _showLocalMapPC        = false;
+    bool   _showKeyFrames         = true;
+    bool   _showCovisibilityGraph = false;
+    bool   _showSpanningTree      = true;
+    bool   _showLoopEdges         = true;
+    bool   _renderKfBackground    = false;
+    bool   _allowKfsAsActiveCam   = false;
 };
 }
 

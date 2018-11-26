@@ -81,7 +81,7 @@ void WAI::WAI::updateSensor(SensorType sensorType, void* value)
     _sensors[sensorType]->update(value);
 }
 
-bool WAI::WAI::whereAmI(M4x4* pose)
+bool WAI::WAI::whereAmI(cv::Mat* pose)
 {
     wai_assert(_mode && "No mode set. Call setMode before calling whereAmI.");
 

@@ -749,31 +749,36 @@ int main(int argc, char* argv[])
         if (slGetVideoType() != VT_NONE)
         {
             SLCVCapture::grabAndAdjustForSL();
-            wai.updateSensor(WAI::SensorType_Camera, &SLCVCapture::lastFrameGray);
+
+            WAI::CameraData cameraData = {};
+            cameraData.imageGray       = &SLCVCapture::lastFrameGray;
+            cameraData.imageRGB        = &SLCVCapture::lastFrame;
+
+            wai.updateSensor(WAI::SensorType_Camera, &cameraData);
         }
 
-        WAI::M4x4 pose;
-        bool      iKnowWhereIAm = wai.whereAmI(&pose);
+        cv::Mat pose          = cv::Mat(4, 4, CV_32F);
+        bool    iKnowWhereIAm = wai.whereAmI(&pose);
 
         if (iKnowWhereIAm)
         {
-            SLMat4f slPose = SLMat4f(
-              pose.e[0][0],
-              pose.e[0][1],
-              pose.e[0][2],
-              pose.e[0][3],
-              pose.e[1][0],
-              pose.e[1][1],
-              pose.e[1][2],
-              pose.e[1][3],
-              pose.e[2][0],
-              pose.e[2][1],
-              pose.e[2][2],
-              pose.e[2][3],
-              pose.e[3][0],
-              pose.e[3][1],
-              pose.e[3][2],
-              pose.e[3][3]);
+            SLMat4f slPose((SLfloat)pose.at<float>(0, 0),
+                           (SLfloat)pose.at<float>(0, 1),
+                           (SLfloat)pose.at<float>(0, 2),
+                           (SLfloat)pose.at<float>(0, 0),
+                           (SLfloat)pose.at<float>(1, 0),
+                           (SLfloat)pose.at<float>(1, 1),
+                           (SLfloat)pose.at<float>(1, 2),
+                           (SLfloat)pose.at<float>(1, 0),
+                           (SLfloat)pose.at<float>(2, 0),
+                           (SLfloat)pose.at<float>(2, 1),
+                           (SLfloat)pose.at<float>(2, 2),
+                           (SLfloat)pose.at<float>(2, 0),
+                           0.0f,
+                           0.0f,
+                           0.0f,
+                           1.0f);
+            slPose.rotate(180, 1, 0, 0);
 
             cameraNode->om(slPose);
         }

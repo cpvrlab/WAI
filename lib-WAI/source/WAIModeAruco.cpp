@@ -26,7 +26,7 @@ WAI::ModeAruco::ModeAruco(SensorCamera* camera) : _camera(camera), _edgeLength(0
     _dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::PREDEFINED_DICTIONARY_NAME(0));
 }
 
-bool WAI::ModeAruco::getPose(M4x4* pose)
+bool WAI::ModeAruco::getPose(cv::Mat* pose)
 {
     bool result = false;
 
@@ -68,22 +68,19 @@ bool WAI::ModeAruco::getPose(M4x4* pose)
         cv::Mat rotMat = cv::Mat::zeros(3, 3, CV_32F);
         cv::Rodrigues(cv::Mat(rVecs[0]), rotMat);
 
-        float sign = 1.0f;
         for (int y = 0; y < 3; y++)
         {
             for (int x = 0; x < 3; x++)
             {
                 // Transpose rotation matrix and flip y- and z-axis
-                pose->e[y][x] = sign * rotMat.at<float>(y, x);
+                pose->at<float>(y, x) = rotMat.at<float>(y, x);
             }
-
-            sign = -1.0f;
         }
 
-        pose->e[3][0] = tVecs[0].x;
-        pose->e[3][1] = -1.0f * tVecs[0].x;
-        pose->e[3][2] = -1.0f * tVecs[0].x;
-        pose->e[3][3] = 1.0f;
+        pose->at<float>(0, 3) = tVecs[0].x;
+        pose->at<float>(1, 3) = tVecs[0].y;
+        pose->at<float>(2, 3) = tVecs[0].z;
+        pose->at<float>(3, 3) = 1.0f;
 
         result = true;
     }

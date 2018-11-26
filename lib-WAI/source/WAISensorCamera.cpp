@@ -18,9 +18,10 @@ WAI::SensorCamera::SensorCamera(CameraCalibration* cameraCalibration)
     _distortionMatrix.at<float>(3, 0) = cameraCalibration->p2;
 }
 
-void WAI::SensorCamera::update(void* imageGray)
+void WAI::SensorCamera::update(void* cameraData)
 {
-    _imageGray = ((cv::Mat*)imageGray)->clone();
+    _imageGray = *((CameraData*)cameraData)->imageGray;
+    _imageRGB  = *((CameraData*)cameraData)->imageRGB;
 
     if (_mode)
     {

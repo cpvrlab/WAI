@@ -26,7 +26,7 @@ class WAI
     void setMode(ModeType mode);
     void activateSensor(SensorType sensorType, void* sensorInfo);
     void updateSensor(SensorType type, void* value);
-    bool whereAmI(M4x4* pose);
+    bool whereAmI(cv::Mat* pose);
 
     private:
     Mode*                         _mode;

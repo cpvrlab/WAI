@@ -53,6 +53,8 @@ WAI::ModeOrbSlam2::ModeOrbSlam2(SensorCamera* camera,
 
     _camera->subscribeToUpdate(this);
     _state = TrackingState_Initializing;
+
+    _pose = cv::Mat(4, 4, CV_32F);
 }
 
 WAI::ModeOrbSlam2::~ModeOrbSlam2()
@@ -85,7 +87,7 @@ WAI::ModeOrbSlam2::~ModeOrbSlam2()
     }
 }
 
-bool WAI::ModeOrbSlam2::getPose(M4x4* pose)
+bool WAI::ModeOrbSlam2::getPose(cv::Mat* pose)
 {
     bool result = 0;
 
@@ -100,6 +102,8 @@ bool WAI::ModeOrbSlam2::getPose(M4x4* pose)
 
 void WAI::ModeOrbSlam2::notifyUpdate()
 {
+    stateTransition();
+
     switch (_state)
     {
         case TrackingState_Initializing:
@@ -116,11 +120,72 @@ void WAI::ModeOrbSlam2::notifyUpdate()
         }
         break;
 
+        case TrackingState_Idle:
         case TrackingState_None:
         default:
         {
         }
         break;
+    }
+}
+
+void WAI::ModeOrbSlam2::stateTransition()
+{
+    std::lock_guard<std::mutex> guard(_mutexStates);
+
+    //store last state
+    //mLastProcessedState = _state;
+
+    if (_idleRequested)
+    {
+        _state         = TrackingState_Idle;
+        _idleRequested = false;
+    }
+    else if (_state == TrackingState_Idle)
+    {
+        if (_resumeRequested)
+        {
+            if (!_initialized)
+            {
+                _state = TrackingState_Initializing;
+            }
+            else
+            {
+                _state = TrackingState_TrackingLost;
+            }
+
+            _resumeRequested = false;
+        }
+    }
+    else if (_state == TrackingState_Initializing)
+    {
+        if (_initialized)
+        {
+            if (_bOK)
+            {
+                fprintf(stderr, "state ok\n");
+                _state = TrackingState_TrackingOK;
+            }
+            else
+            {
+                fprintf(stderr, "state lost\n");
+                _state = TrackingState_TrackingLost;
+            }
+        }
+    }
+    else if (_state == TrackingState_TrackingOK)
+    {
+        if (!_bOK)
+        {
+            _state = TrackingState_TrackingLost;
+        }
+    }
+    else if (_state == TrackingState_TrackingLost)
+    {
+        if (_bOK)
+        {
+            _state = TrackingState_TrackingOK;
+        }
     }
 }
 
@@ -268,7 +333,7 @@ void WAI::ModeOrbSlam2::initialize()
                 //mark tracking as initialized
                 _initialized = true;
                 _bOK         = true;
-                _state       = TrackingState_TrackingOK;
+                //_state       = TrackingState_TrackingOK;
             }
 
             //ghm1: in the original implementation the initialization is defined in the track() function and this part is always called at the end!
@@ -516,22 +581,21 @@ void WAI::ModeOrbSlam2::track3DPts()
             Rwc = Tcw.rowRange(0, 3).colRange(0, 3).t();
             twc = -Rwc * Tcw.rowRange(0, 3).col(3);
 
-            _pose = {};
             for (int col = 0; col < 3; col++)
             {
                 for (int row = 0; row < 3; row++)
                 {
-                    _pose.e[col][row] = Rwc.at<float>(row, col);
+                    _pose.at<float>(row, col) = Rwc.at<float>(row, col);
                 }
             }
 
             for (int row = 0; row < 3; row++)
             {
-                _pose.e[3][row] = Rwc.at<float>(row, 3);
+                _pose.at<float>(row, 3) = twc.at<float>(row, 3);
             }
 
-            _pose.e[3][3] = 1.0f;
-            _poseSet      = true;
+            _pose.at<float>(3, 3) = 1.0f;
+            _poseSet              = true;
 
             //conversion to SLMat4f
             //SLMat4f slMat((SLfloat)Rwc.at<float>(0, 0), (SLfloat)Rwc.at<float>(0, 1), (SLfloat)Rwc.at<float>(0, 2), (SLfloat)twc.at<float>(0, 0), (SLfloat)Rwc.at<float>(1, 0), (SLfloat)Rwc.at<float>(1, 1), (SLfloat)Rwc.at<float>(1, 2), (SLfloat)twc.at<float>(1, 0), (SLfloat)Rwc.at<float>(2, 0), (SLfloat)Rwc.at<float>(2, 1), (SLfloat)Rwc.at<float>(2, 2), (SLfloat)twc.at<float>(2, 0), 0.0f, 0.0f, 0.0f, 1.0f);
@@ -592,6 +656,8 @@ void WAI::ModeOrbSlam2::track3DPts()
     {
         mCurrentFrame.mpReferenceKF = mpReferenceKF;
     }
+
+    decorate();
 
     mLastFrame = WAIFrame(mCurrentFrame);
 
@@ -1776,4 +1842,152 @@ WAIKeyFrame* WAI::ModeOrbSlam2::currentKeyFrame()
     WAIKeyFrame* result = mCurrentFrame.mpReferenceKF;
 
     return result;
+}
+
+void WAI::ModeOrbSlam2::decorate()
+{
+    //calculation of mean reprojection error of all matches
+    calculateMeanReprojectionError();
+    //calculate pose difference
+    calculatePoseDifference();
+    //show rectangle for key points in video that where matched to map points
+    cv::Mat imgRGB = _camera->getImageRGB();
+    decorateVideoWithKeyPointMatches(imgRGB);
+    //decorate scene with matched map points, local map points and matched map points
+    //decorateScene();
+}
+
+void WAI::ModeOrbSlam2::calculateMeanReprojectionError()
+{
+    //calculation of mean reprojection error
+    double reprojectionError = 0.0;
+    int    n                 = 0;
+
+    //current frame extrinsic
+    const cv::Mat Rcw = mCurrentFrame.GetRotationCW();
+    const cv::Mat tcw = mCurrentFrame.GetTranslationCW();
+    //current frame intrinsics
+    const float fx = mCurrentFrame.fx;
+    const float fy = mCurrentFrame.fy;
+    const float cx = mCurrentFrame.cx;
+    const float cy = mCurrentFrame.cy;
+
+    for (size_t i = 0; i < mCurrentFrame.N; i++)
+    {
+        if (mCurrentFrame.mvpMapPoints[i])
+        {
+            if (!mCurrentFrame.mvbOutlier[i])
+            {
+                if (mCurrentFrame.mvpMapPoints[i]->Observations() > 0)
+                {
+                    // 3D in absolute coordinates
+                    cv::Mat Pw = mCurrentFrame.mvpMapPoints[i]->GetWorldPos();
+                    // 3D in camera coordinates
+                    const cv::Mat Pc  = Rcw * Pw + tcw;
+                    const float&  PcX = Pc.at<float>(0);
+                    const float&  PcY = Pc.at<float>(1);
+                    const float&  PcZ = Pc.at<float>(2);
+
+                    // Check positive depth
+                    if (PcZ < 0.0f)
+                        continue;
+
+                    // Project in image and check it is not outside
+                    const float invz = 1.0f / PcZ;
+                    const float u    = fx * PcX * invz + cx;
+                    const float v    = fy * PcY * invz + cy;
+
+                    cv::Point2f ptProj(u, v);
+                    //Use distorted points because we have to undistort the image later
+                    const auto& ptImg = mCurrentFrame.mvKeysUn[i].pt;
+
+                    ////draw projected point
+                    //cv::rectangle(image,
+                    //    cv::Rect(ptProj.x - 3, ptProj.y - 3, 7, 7),
+                    //    Scalar(255, 0, 0));
+
+                    reprojectionError += cv::norm(cv::Mat(ptImg), cv::Mat(ptProj));
+                    n++;
+                }
+            }
+        }
+    }
+
+    {
+        std::lock_guard<std::mutex> guard(_meanProjErrorLock);
+        if (n > 0)
+        {
+            _meanReprojectionError = reprojectionError / n;
+        }
+        else
+        {
+            _meanReprojectionError = -1;
+        }
+    }
+}
+
+void WAI::ModeOrbSlam2::calculatePoseDifference()
+{
+    std::lock_guard<std::mutex> guard(_poseDiffLock);
+    //calculation of L2 norm of the difference between the last and the current camera pose
+    if (!mLastFrame.mTcw.empty() && !mCurrentFrame.mTcw.empty())
+        _poseDifference = norm(mLastFrame.mTcw - mCurrentFrame.mTcw);
+    else
+        _poseDifference = -1.0;
+}
+
+void WAI::ModeOrbSlam2::decorateVideoWithKeyPoints(cv::Mat& image)
+{
+    //show rectangle for all keypoints in current image
+    if (_showKeyPoints)
+    {
+        for (size_t i = 0; i < mCurrentFrame.N; i++)
+        {
+            //Use distorted points because we have to undistort the image later
+            //const auto& pt = mCurrentFrame.mvKeys[i].pt;
+            const auto& pt = mCurrentFrame.mvKeys[i].pt;
+            cv::rectangle(image,
+                          cv::Rect(pt.x - 3, pt.y - 3, 7, 7),
+                          cv::Scalar(0, 0, 255));
+        }
+    }
+}
+
+void WAI::ModeOrbSlam2::decorateVideoWithKeyPointMatches(cv::Mat& image)
+{
+    //show rectangle for key points in video that where matched to map points
+    if (_showKeyPointsMatched)
+    {
+        if (_optFlowOK)
+        {
+            for (size_t i = 0; i < _optFlowKeyPtsLastFrame.size(); i++)
+            {
+                //Use distorted points because we have to undistort the image later
+                const auto& pt = _optFlowKeyPtsLastFrame[i].pt;
+                cv::rectangle(image,
+                              cv::Rect(pt.x - 3, pt.y - 3, 7, 7),
+                              cv::Scalar(0, 255, 0));
+            }
+        }
+        else
+        {
+            for (size_t i = 0; i < mCurrentFrame.N; i++)
+            {
+                if (mCurrentFrame.mvpMapPoints[i])
+                {
+                    if (!mCurrentFrame.mvbOutlier[i])
+                    {
+                        if (mCurrentFrame.mvpMapPoints[i]->Observations() > 0)
+                        {
+                            //Use distorted points because we have to undistort the image later
+                            const auto& pt = mCurrentFrame.mvKeys[i].pt;
+                            cv::rectangle(image,
+                                          cv::Rect(pt.x - 3, pt.y - 3, 7, 7),
+                                          cv::Scalar(0, 255, 0));
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

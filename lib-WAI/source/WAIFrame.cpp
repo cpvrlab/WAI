@@ -56,7 +56,14 @@ WAIFrame::WAIFrame()
 //-----------------------------------------------------------------------------
 //Copy Constructor
 WAIFrame::WAIFrame(const WAIFrame& frame)
-  : mpORBvocabulary(frame.mpORBvocabulary), mpORBextractorLeft(frame.mpORBextractorLeft), mTimeStamp(frame.mTimeStamp), mK(frame.mK.clone()), mDistCoef(frame.mDistCoef.clone()), N(frame.N), mvKeys(frame.mvKeys), mvKeysUn(frame.mvKeysUn), /*mvuRight(frame.mvuRight),
+  : mpORBvocabulary(frame.mpORBvocabulary),
+    mpORBextractorLeft(frame.mpORBextractorLeft),
+    mTimeStamp(frame.mTimeStamp),
+    mK(frame.mK.clone()),
+    mDistCoef(frame.mDistCoef.clone()),
+    N(frame.N),
+    mvKeys(frame.mvKeys),
+    mvKeysUn(frame.mvKeysUn), /*mvuRight(frame.mvuRight),
     mvDepth(frame.mvDepth),*/
     mBowVec(frame.mBowVec),
     mFeatVec(frame.mFeatVec),
