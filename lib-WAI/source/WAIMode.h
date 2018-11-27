@@ -15,12 +15,22 @@ enum ModeType
     ModeType_ORB_SLAM2
 };
 
+enum DebugInfoType
+{
+    DebugInfoType_None,
+    DebugInfoType_Mappoints,
+    DebugInfoType_MappointsMatched,
+    DebugInfoType_MappointsLocal,
+    DebugInfoType_Keyframes
+};
+
 class Mode
 {
     public:
-    virtual ~Mode()                     = 0;
-    virtual bool getPose(cv::Mat* pose) = 0;
-    virtual void notifyUpdate()         = 0;
+    virtual ~Mode()                                             = 0;
+    virtual bool getPose(cv::Mat* pose)                         = 0;
+    virtual void notifyUpdate()                                 = 0;
+    virtual bool getDebugInfo(DebugInfoType type, void* memory) = 0;
 };
 }
 

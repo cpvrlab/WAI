@@ -13,6 +13,7 @@ class ModeAruco : public Mode
     ~ModeAruco() {}
     bool getPose(cv::Mat* pose);
     void notifyUpdate() {}
+    bool getDebugInfo(DebugInfoType type, void* memory) { return false; }
 
     private:
     SensorCamera*                          _camera;

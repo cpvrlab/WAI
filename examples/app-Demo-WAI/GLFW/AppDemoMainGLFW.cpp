@@ -23,8 +23,8 @@
 #include <AppWAISceneView.h>
 
 #include <SLCVCapture.h>
-#include <SLCVMapNode.h>
 #include <SLCVCalibration.h>
+#include <SLCVCamera.h>
 
 #include <SLBox.h>
 #include <SLCoordAxis.h>
@@ -34,173 +34,41 @@
 #include <SLSceneView.h>
 #include <SLApplication.h>
 #include <SLLightSpot.h>
+#include <SLMaterial.h>
+#include <SLPoints.h>
 
 #include <WAI.h>
 
 //-----------------------------------------------------------------------------
 // GLobal application variables
-GLFWwindow* window;                     //!< The global glfw window handle
-SLint       svIndex;                    //!< SceneView index
-SLint       scrWidth;                   //!< Window width at start up
-SLint       scrHeight;                  //!< Window height at start up
-SLbool      fixAspectRatio;             //!< Flag if aspect ratio should be fixed
-SLfloat     scrWdivH;                   //!< aspect ratio screen width divided by height
-SLfloat     scr2fbX;                    //!< Factor from screen to framebuffer coords
-SLfloat     scr2fbY;                    //!< Factor from screen to framebuffer coords
-SLint       startX;                     //!< start position x in pixels
-SLint       startY;                     //!< start position y in pixels
-SLint       mouseX;                     //!< Last mouse position x in pixels
-SLint       mouseY;                     //!< Last mouse position y in pixels
-SLVec2i     touch2;                     //!< Last finger touch 2 position in pixels
-SLVec2i     touchDelta;                 //!< Delta between two fingers in x
-SLint       lastWidth;                  //!< Last window width in pixels
-SLint       lastHeight;                 //!< Last window height in pixels
-SLint       lastMouseWheelPos;          //!< Last mouse wheel position
-SLfloat     lastMouseDownTime = 0.0f;   //!< Last mouse press time
-SLKey       modifiers         = K_none; //!< last modifier keys
-SLbool      fullscreen        = false;  //!< flag if window is in fullscreen mode
-SLCamera*   cameraNode        = 0;
-WAI::WAI    wai;
+GLFWwindow*   window;                     //!< The global glfw window handle
+SLint         svIndex;                    //!< SceneView index
+SLint         scrWidth;                   //!< Window width at start up
+SLint         scrHeight;                  //!< Window height at start up
+SLbool        fixAspectRatio;             //!< Flag if aspect ratio should be fixed
+SLfloat       scrWdivH;                   //!< aspect ratio screen width divided by height
+SLfloat       scr2fbX;                    //!< Factor from screen to framebuffer coords
+SLfloat       scr2fbY;                    //!< Factor from screen to framebuffer coords
+SLint         startX;                     //!< start position x in pixels
+SLint         startY;                     //!< start position y in pixels
+SLint         mouseX;                     //!< Last mouse position x in pixels
+SLint         mouseY;                     //!< Last mouse position y in pixels
+SLVec2i       touch2;                     //!< Last finger touch 2 position in pixels
+SLVec2i       touchDelta;                 //!< Delta between two fingers in x
+SLint         lastWidth;                  //!< Last window width in pixels
+SLint         lastHeight;                 //!< Last window height in pixels
+SLint         lastMouseWheelPos;          //!< Last mouse wheel position
+SLfloat       lastMouseDownTime = 0.0f;   //!< Last mouse press time
+SLKey         modifiers         = K_none; //!< last modifier keys
+SLbool        fullscreen        = false;  //!< flag if window is in fullscreen mode
+WAISceneView* sceneView         = 0;
 
 //-----------------------------------------------------------------------------
-//! appDemoLoadScene builds a scene from source code.
-/*! appDemoLoadScene builds a scene from source code. Such a function must be
-passed as a void*-pointer to slCreateScene. It will be called from within
-slCreateSceneView as soon as the view is initialized. You could separate
-different scene by a different sceneID.<br>
-The purpose is to assemble a scene by creating scenegraph objects with nodes
-(SLNode) and meshes (SLMesh). See the scene with SID_Minimal for a minimal
-example of the different steps.
-*/
-void appDemoLoadScene(SLScene* s, SLSceneView* sv, SceneID sceneID)
+//! Alternative SceneView creation function passed by slCreateSceneView
+SLuint createNewWAISceneView()
 {
-    //SLApplication::sceneID = sceneID;
-
-    // remove scene specific uis
-    AppDemoGui::clearInfoDialogs();
-    // Initialize all preloaded stuff from SLScene
-    s->init();
-
-    switch (sceneID)
-    {
-        case Scene_Empty:
-        {
-            s->name("No Scene loaded.");
-            s->info("No Scene loaded.");
-            s->root3D(nullptr);
-            sv->sceneViewCamera()->background().colors(SLCol4f(0.7f, 0.7f, 0.7f),
-                                                       SLCol4f(0.2f, 0.2f, 0.2f));
-            sv->camera(nullptr);
-            sv->doWaitOnIdle(true);
-        }
-        break;
-
-        case Scene_WAI:
-        {
-            // Set scene name and info string
-            s->name("Track Keyframe based Features");
-            s->info("Example for loading an existing pose graph with map points.");
-
-            s->videoType(VT_MAIN);
-
-            //make some light
-            SLLightSpot* light1 = new SLLightSpot(1, 1, 1, 0.3f);
-            light1->ambient(SLCol4f(0.2f, 0.2f, 0.2f));
-            light1->diffuse(SLCol4f(0.8f, 0.8f, 0.8f));
-            light1->specular(SLCol4f(1, 1, 1));
-            light1->attenuation(1, 0, 0);
-
-            //always equal for tracking
-            //setup tracking camera
-            cameraNode = new SLCamera("Camera 1");
-            cameraNode->translation(0, 0, 0.1);
-            cameraNode->lookAt(0, 0, 0);
-            //for tracking we have to use the field of view from calibration
-            cameraNode->fov(SLApplication::activeCalib->cameraFovDeg());
-            cameraNode->clipNear(0.001f);
-            cameraNode->clipFar(1000000.0f); // Increase to infinity?
-            cameraNode->setInitialState();
-            cameraNode->background().texture(s->videoTexture());
-
-            //the map node contains the visual representation of the slam map
-            //SLCVMapNode* mapNode = new SLCVMapNode("map");
-
-            // Save no energy
-            sv->doWaitOnIdle(false); //for constant video feed
-            sv->camera(cameraNode);
-
-            //add yellow box and axis for augmentation
-            SLMaterial* yellow = new SLMaterial("mY", SLCol4f(1, 1, 0, 0.5f));
-            SLfloat     l = 0.593f, b = 0.466f, h = 0.257f;
-            SLBox*      box1     = new SLBox(0.0f, 0.0f, 0.0f, l, h, b, "Box 1", yellow);
-            SLNode*     boxNode  = new SLNode(box1, "boxNode");
-            SLNode*     axisNode = new SLNode(new SLCoordAxis(), "axis node");
-            boxNode->addChild(axisNode);
-
-            //setup scene
-            SLNode* scene = new SLNode("scene");
-            scene->addChild(light1);
-            scene->addChild(boxNode);
-            //scene->addChild(mapNode);
-
-            s->root3D(scene);
-        }
-        break;
-
-        case Scene_None:
-        case Scene_Minimal:
-        default:
-        {
-            // Set scene name and info string
-            s->name("Minimal Scene Test");
-            s->info("Minimal texture mapping example with one light source.");
-
-            // Create textures and materials
-            SLGLTexture* texC = new SLGLTexture("earth1024_C.jpg");
-            SLMaterial*  m1   = new SLMaterial("m1", texC);
-
-            // Create a scene group node
-            SLNode* scene = new SLNode("scene node");
-
-            // Create a light source node
-            SLLightSpot* light1 = new SLLightSpot(0.3f);
-            light1->translation(0, 0, 5);
-            light1->lookAt(0, 0, 0);
-            light1->name("light node");
-            scene->addChild(light1);
-
-            // Create meshes and nodes
-            SLMesh* rectMesh = new SLRectangle(SLVec2f(-5, -5), SLVec2f(5, 5), 1, 1, "rectangle mesh", m1);
-            SLNode* rectNode = new SLNode(rectMesh, "rectangle node");
-            scene->addChild(rectNode);
-
-            SLNode* axisNode = new SLNode(new SLCoordAxis(), "axis node");
-            scene->addChild(axisNode);
-
-            // Set background color and the root scene node
-            sv->sceneViewCamera()->background().colors(SLCol4f(0.7f, 0.7f, 0.7f),
-                                                       SLCol4f(0.2f, 0.2f, 0.2f));
-
-            // pass the scene group as root node
-            s->root3D(scene);
-
-            // Save energy
-            sv->doWaitOnIdle(true);
-        }
-        break;
-    }
-
-    ////////////////////////////////////////////////////////////////////////////
-    // call onInitialize on all scene views to init the scenegraph and stats
-    for (auto sv : s->sceneViews())
-    {
-        if (sv != nullptr)
-        {
-            sv->onInitialize();
-        }
-    }
-
-    s->onAfterLoad();
+    sceneView = new WAISceneView(SLApplication::activeCalib);
+    return sceneView->index();
 }
 //-----------------------------------------------------------------------------
 /*! 
@@ -703,7 +571,7 @@ int main(int argc, char* argv[])
                         projectRoot + "/data/calibrations/",
                         configDir,
                         "AppDemoGLFW",
-                        (void*)appDemoLoadScene);
+                        (void*)onLoadWAISceneView);
     /////////////////////////////////////////////////////////
 
     // This load the GUI configs that are locally stored
@@ -717,7 +585,7 @@ int main(int argc, char* argv[])
                                 (SLSceneID)SL_STARTSCENE,
                                 (void*)&onPaint,
                                 nullptr,
-                                nullptr,
+                                (void*)createNewWAISceneView,
                                 (void*)AppDemoGui::build);
     /////////////////////////////////////////////////////////
 
@@ -729,18 +597,6 @@ int main(int argc, char* argv[])
     glfwSetCursorPosCallback(window, onMouseMove);
     glfwSetScrollCallback(window, onMouseWheel);
     glfwSetWindowCloseCallback(window, onClose);
-
-    SLCVCalibration*       activeCalib = SLApplication::activeCalib;
-    WAI::CameraCalibration calibration = {activeCalib->fx(),
-                                          activeCalib->fy(),
-                                          activeCalib->cx(),
-                                          activeCalib->cy(),
-                                          activeCalib->k1(),
-                                          activeCalib->k2(),
-                                          activeCalib->p1(),
-                                          activeCalib->p2()};
-    wai.activateSensor(WAI::SensorType_Camera, &calibration);
-    wai.setMode(WAI::ModeType_ORB_SLAM2);
 
     // Event loop
     while (!slShouldClose())
@@ -754,34 +610,10 @@ int main(int argc, char* argv[])
             cameraData.imageGray       = &SLCVCapture::lastFrameGray;
             cameraData.imageRGB        = &SLCVCapture::lastFrame;
 
-            wai.updateSensor(WAI::SensorType_Camera, &cameraData);
+            sceneView->updateCamera(&cameraData);
         }
 
-        cv::Mat pose          = cv::Mat(4, 4, CV_32F);
-        bool    iKnowWhereIAm = wai.whereAmI(&pose);
-
-        if (iKnowWhereIAm)
-        {
-            SLMat4f slPose((SLfloat)pose.at<float>(0, 0),
-                           (SLfloat)pose.at<float>(0, 1),
-                           (SLfloat)pose.at<float>(0, 2),
-                           (SLfloat)pose.at<float>(0, 0),
-                           (SLfloat)pose.at<float>(1, 0),
-                           (SLfloat)pose.at<float>(1, 1),
-                           (SLfloat)pose.at<float>(1, 2),
-                           (SLfloat)pose.at<float>(1, 0),
-                           (SLfloat)pose.at<float>(2, 0),
-                           (SLfloat)pose.at<float>(2, 1),
-                           (SLfloat)pose.at<float>(2, 2),
-                           (SLfloat)pose.at<float>(2, 0),
-                           0.0f,
-                           0.0f,
-                           0.0f,
-                           1.0f);
-            slPose.rotate(180, 1, 0, 0);
-
-            cameraNode->om(slPose);
-        }
+        sceneView->update();
 
         /////////////////////////////
         SLbool doRepaint = onPaint();

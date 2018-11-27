@@ -260,7 +260,11 @@ class WAIKeyFrame
     const std::string& getTexturePath() { return _pathToTexture; }
 
     //! get visual representation as SLPoints
+#if 0
     WAI::M4x4 getObjectMatrix();
+#else
+    cv::Mat getObjectMatrix();
+#endif
 
     private:
     //! this is a function from Frame, but we need it here for map loading

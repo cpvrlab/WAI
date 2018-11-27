@@ -10,15 +10,21 @@
 //#############################################################################
 
 #include <jni.h>
+
 #include <stdafx.h>
 #include <SLInterface.h>
 #include <SLScene.h>
+#include <SL/SLApplication.h>
+
+#include <AppWAISceneView.h>
 #include <AppDemoGui.h>
+#include <CV/SLCVCapture.h>
 
 //-----------------------------------------------------------------------------
 // Some global variable for the JNI interface
 JNIEnv *environment;    //! Pointer to JAVA environment used in ray tracing callback
 int svIndex;            //!< SceneView index
+WAISceneView* sceneView = 0;
 //-----------------------------------------------------------------------------
 /*! Java Native Interface (JNI) function declarations. These functions are
 called by the Java interface class GLES3Lib. The function name follows the pattern
@@ -57,7 +63,12 @@ JNIEXPORT void      JNICALL Java_ch_fhnw_comgr_GLES3Lib_copyVideoYUVPlanes  (JNI
 };
 
 //-----------------------------------------------------------------------------
-extern void appDemoLoadScene(SLScene* s, SLSceneView* sv, SLSceneID sceneID);
+//! Alternative SceneView creation function passed by slCreateSceneView
+SLuint createNewWAISceneView()
+{
+    sceneView = new WAISceneView(SLApplication::activeCalib);
+    return sceneView->index();
+}
 
 //-----------------------------------------------------------------------------
 JNIEXPORT void JNICALL Java_ch_fhnw_comgr_GLES3Lib_onSetupExternalDirectories(JNIEnv *env, jobject obj, jstring  externalDirPath)
@@ -117,7 +128,7 @@ JNIEXPORT void JNICALL Java_ch_fhnw_comgr_GLES3Lib_onInit(JNIEnv *env, jobject o
                           devicePath + "/calibrations/",
                           devicePath + "/config/",
                           "AppDemoAndroid",
-                          (void*)appDemoLoadScene);
+                          (void*)onLoadWAISceneView);
     ////////////////////////////////////////////////////
 
     // This load the GUI configs that are locally stored
@@ -130,7 +141,7 @@ JNIEXPORT void JNICALL Java_ch_fhnw_comgr_GLES3Lib_onInit(JNIEnv *env, jobject o
                                 SID_Revolver,
                                 (void *) &Java_renderRaytracingCallback,
                                 0,
-                                0,
+                                (void*)createNewWAISceneView,
                                 (void*)AppDemoGui::build);
     ////////////////////////////////////////////////////////////////////
 
@@ -150,6 +161,7 @@ JNIEXPORT void JNICALL Java_ch_fhnw_comgr_GLES3Lib_onTerminate(JNIEnv *env, jobj
 //-----------------------------------------------------------------------------
 JNIEXPORT jboolean JNICALL Java_ch_fhnw_comgr_GLES3Lib_onUpdateAndPaint(JNIEnv *env, jobject obj)
 {
+    sceneView->update();
     return slUpdateAndPaint(svIndex);
 }
 //-----------------------------------------------------------------------------
@@ -246,6 +258,11 @@ JNIEXPORT void JNICALL Java_ch_fhnw_comgr_GLES3Lib_copyVideoImage(JNIEnv *env, j
         SL_EXIT_MSG("copyVideoImage: No image data pointer passed!");
 
     slCopyVideoImage(imgWidth, imgHeight, PF_yuv_420_888, srcLumaPtr, true);
+
+    WAI::CameraData cameraData = {};
+    cameraData.imageGray = &SLCVCapture::lastFrameGray;
+    cameraData.imageRGB = &SLCVCapture::lastFrame;
+    sceneView->updateCamera(&cameraData);
 }
 //-----------------------------------------------------------------------------
 

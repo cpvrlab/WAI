@@ -129,6 +129,98 @@ void WAI::ModeOrbSlam2::notifyUpdate()
     }
 }
 
+bool WAI::ModeOrbSlam2::getDebugInfo(DebugInfoType type, void* memory)
+{
+    bool result = 0;
+
+    switch (type)
+    {
+        case DebugInfoType_Mappoints:
+        {
+            std::lock_guard<std::mutex> guard(_mapLock);
+
+            std::vector<WAIMapPoint*>* mapPointsPtr = (std::vector<WAIMapPoint*>*)memory;
+            std::vector<WAIMapPoint*>  mapPoints    = _map->GetAllMapPoints();
+
+            for (WAIMapPoint* mapPoint : mapPoints)
+            {
+                mapPointsPtr->push_back(mapPoint);
+            }
+        }
+        break;
+
+        case DebugInfoType_MappointsLocal:
+        {
+            std::lock_guard<std::mutex> guard(_mapLock);
+
+            std::vector<WAIMapPoint*>* mapPointsPtr = (std::vector<WAIMapPoint*>*)memory;
+            std::vector<WAIMapPoint*>  mapPoints    = mvpLocalMapPoints;
+
+            for (WAIMapPoint* mapPoint : mapPoints)
+            {
+                mapPointsPtr->push_back(mapPoint);
+            }
+        }
+        break;
+
+        case DebugInfoType_MappointsMatched:
+        {
+            std::lock_guard<std::mutex> guard(_mapLock);
+
+            std::vector<WAIMapPoint*> mapPoints;
+
+            if (_optFlowOK)
+            {
+                mapPoints = _optFlowMapPtsLastFrame;
+            }
+            else
+            {
+                for (int i = 0; i < mCurrentFrame.N; i++)
+                {
+                    if (mCurrentFrame.mvpMapPoints[i])
+                    {
+                        if (!mCurrentFrame.mvbOutlier[i])
+                        {
+                            if (mCurrentFrame.mvpMapPoints[i]->Observations() > 0)
+                                mapPoints.push_back(mCurrentFrame.mvpMapPoints[i]);
+                        }
+                    }
+                }
+            }
+
+            std::vector<WAIMapPoint*>* mapPointsPtr = (std::vector<WAIMapPoint*>*)memory;
+
+            for (WAIMapPoint* mapPoint : mapPoints)
+            {
+                mapPointsPtr->push_back(mapPoint);
+            }
+        }
+        break;
+
+        case DebugInfoType_Keyframes:
+        {
+            std::lock_guard<std::mutex> guard(_mapLock);
+
+            std::vector<WAIKeyFrame*>* keyframesPtr = (std::vector<WAIKeyFrame*>*)memory;
+            std::vector<WAIKeyFrame*>  keyFrames    = mvpLocalKeyFrames;
+
+            for (WAIKeyFrame* kf : keyFrames)
+            {
+                keyframesPtr->push_back(kf);
+            }
+        }
+        break;
+
+        case DebugInfoType_None:
+        default:
+        {
+        }
+        break;
+    }
+
+    return result;
+}
+
 void WAI::ModeOrbSlam2::stateTransition()
 {
     std::lock_guard<std::mutex> guard(_mutexStates);
@@ -573,6 +665,7 @@ void WAI::ModeOrbSlam2::track3DPts()
                 Tcw = mCurrentFrame.mTcw.clone();
             }
 
+#if 0
             cv::Mat Rwc(3, 3, CV_32F);
             cv::Mat twc(3, 1, CV_32F);
 
@@ -591,11 +684,14 @@ void WAI::ModeOrbSlam2::track3DPts()
 
             for (int row = 0; row < 3; row++)
             {
-                _pose.at<float>(row, 3) = twc.at<float>(row, 3);
+                _pose.at<float>(row, 3) = twc.at<float>(row, 0);
             }
 
             _pose.at<float>(3, 3) = 1.0f;
-            _poseSet              = true;
+#else
+            _pose = Tcw;
+#endif
+            _poseSet = true;
 
             //conversion to SLMat4f
             //SLMat4f slMat((SLfloat)Rwc.at<float>(0, 0), (SLfloat)Rwc.at<float>(0, 1), (SLfloat)Rwc.at<float>(0, 2), (SLfloat)twc.at<float>(0, 0), (SLfloat)Rwc.at<float>(1, 0), (SLfloat)Rwc.at<float>(1, 1), (SLfloat)Rwc.at<float>(1, 2), (SLfloat)twc.at<float>(1, 0), (SLfloat)Rwc.at<float>(2, 0), (SLfloat)Rwc.at<float>(2, 1), (SLfloat)Rwc.at<float>(2, 2), (SLfloat)twc.at<float>(2, 0), 0.0f, 0.0f, 0.0f, 1.0f);

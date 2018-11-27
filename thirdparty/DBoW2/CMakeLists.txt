@@ -41,6 +41,7 @@ set_target_properties(${target}
 
 target_include_directories(${target}
     PRIVATE
+    ${OpenCV_INCLUDE_DIR}
 
     PUBLIC
     ${DEFAULT_INCLUDE_DIRECTORIES}
@@ -72,6 +73,7 @@ target_link_libraries(${target}
 
     PUBLIC
     ${DEFAULT_LINKER_OPTIONS}
+    ${OpenCV_LIBS}
 
     INTERFACE
     )

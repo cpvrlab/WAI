@@ -730,6 +730,7 @@ float WAIKeyFrame::ComputeSceneMedianDepth(const int q)
     return vDepths[(vDepths.size() - 1) / q];
 }
 //-----------------------------------------------------------------------------
+#if 0
 WAI::M4x4 WAIKeyFrame::getObjectMatrix()
 {
     //build camera position and orientation for SL
@@ -752,6 +753,14 @@ WAI::M4x4 WAIKeyFrame::getObjectMatrix()
 
     return om;
 }
+#else
+cv::Mat WAIKeyFrame::getObjectMatrix()
+{
+    cv::Mat result = _Tcw.clone();
+
+    return result;
+}
+#endif
 //-----------------------------------------------------------------------------
 //! this is a function from Frame, but we need it here for map loading
 void WAIKeyFrame::AssignFeaturesToGrid()

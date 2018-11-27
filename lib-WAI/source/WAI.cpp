@@ -89,3 +89,10 @@ bool WAI::WAI::whereAmI(cv::Mat* pose)
 
     return result;
 }
+
+bool WAI::WAI::getDebugInfo(DebugInfoType type, void* memory)
+{
+    bool result = _mode->getDebugInfo(type, memory);
+
+    return result;
+}

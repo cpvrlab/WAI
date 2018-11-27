@@ -26,10 +26,11 @@ class WAI
     void setMode(ModeType mode);
     void activateSensor(SensorType sensorType, void* sensorInfo);
     void updateSensor(SensorType type, void* value);
+    bool getDebugInfo(DebugInfoType type, void* memory);
     bool whereAmI(cv::Mat* pose);
 
     private:
-    Mode*                         _mode;
+    Mode*                         _mode = 0;
     std::map<SensorType, Sensor*> _sensors;
 };
 }

@@ -31,6 +31,7 @@ class ModeOrbSlam2 : public Mode
     ~ModeOrbSlam2();
     bool getPose(cv::Mat* pose);
     void notifyUpdate();
+    bool getDebugInfo(DebugInfoType type, void* memory);
 
     private:
     enum TrackingState

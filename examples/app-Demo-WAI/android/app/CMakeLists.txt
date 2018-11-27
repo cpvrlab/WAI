@@ -6,14 +6,15 @@ cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
 
 set(target native-lib)
 
-set(sources
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/main/cpp/AppDemoAndroidJNI.cpp
-    ${SL_PROJECT_ROOT}/apps/app-Demo-SLProject/source/AppDemoGui.cpp
-    ${SL_PROJECT_ROOT}/apps/app-Demo-SLProject/source/AppDemoLoad.cpp
+file(GLOB headers
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGui.h
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAISceneView.h
     )
 
-set(headers
-    ${SL_PROJECT_ROOT}/apps/app-Demo-SLProject/include/AppDemoGui.h
+file(GLOB sources
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGui.cpp
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAISceneView.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/main/cpp/AppDemoAndroidJNI.cpp
     )
 
 add_library(${target}
@@ -26,95 +27,86 @@ target_include_directories(${target}
     PRIVATE
 
     PUBLIC
-    ${SL_PROJECT_ROOT}/apps/app-Demo-SLProject/include
-    ${SL_PROJECT_ROOT}/lib-SLProject/include
-    ${SL_PROJECT_ROOT}/externals/lib-assimp/include
-    ${SL_PROJECT_ROOT}/externals/lib-assimp/contrib/clipper
-    ${SL_PROJECT_ROOT}/externals/lib-assimp/contrib/zlib
-    ${SL_PROJECT_ROOT}/externals/lib-assimp/contrib/irrXML
-    ${SL_PROJECT_ROOT}/externals/lib-assimp/contrib/poly2tri
-    ${SL_PROJECT_ROOT}/externals/lib-assimp/code/BoostWorkaround
-    ${SL_PROJECT_ROOT}/externals/lib-SLExternal
-    ${SL_PROJECT_ROOT}/externals/lib-SLExternal/imgui
-    ${SL_PROJECT_ROOT}/externals/lib-SLExternal/spa
-    ${SL_PROJECT_ROOT}/externals/lib-SLExternal/zlib
-    ${SL_PROJECT_ROOT}/externals/lib-SLExternal/eigen
-    ${SL_PROJECT_ROOT}/externals/lib-SLExternal/DBoW2
+    ${WAI_ROOT}/examples/app-Demo-WAI/source
+    ${WAI_ROOT}/lib-WAI/source
     ${OpenCV_INCLUDE_DIR}
     ${g2o_INCLUDE_DIR}
+    ${WAI_ROOT}/thirdparty/eigen
+    ${WAI_ROOT}/thirdparty/DBoW2
     ${DEFAULT_INCLUDE_DIRECTORIES}
     )
 
-message(STATUS "OpenCV_LIBS before linking ${OpenCV_LIBS}")
-message(STATUS "g2o_LIBS before linking ${g2o_LIBS}")
 target_link_libraries(${target}
-    ${DEFAULT_LIBRARIES}
-    ${OpenCV_LIBS}
-    ${g2o_LIBS}
-    ${META_PROJECT_NAME}::lib-SLProject
+    PRIVATE
+    lib-WAI
+    lib-SLProject
+
+    PUBLIC
+
+    INTERFACE
     )
 
 #
 # Copy APK contents
 #
 file(GLOB_RECURSE TEXTURES      
-    ${SL_PROJECT_ROOT}/data/images/textures/CompileError.png
-    ${SL_PROJECT_ROOT}/data/images/textures/brick0512_C.png
-    ${SL_PROJECT_ROOT}/data/images/textures/brick*.jpg
-    ${SL_PROJECT_ROOT}/data/images/textures/Checkerboard0512_C.png
-    ${SL_PROJECT_ROOT}/data/images/textures/Chess0256_C.bmp
-    ${SL_PROJECT_ROOT}/data/images/textures/earth*.jpg
-    ${SL_PROJECT_ROOT}/data/images/textures/grass0512_C.jpg
-    ${SL_PROJECT_ROOT}/data/images/textures/gray_0256_C.jpg
-    ${SL_PROJECT_ROOT}/data/images/textures/MuttenzerBox*.png
-    ${SL_PROJECT_ROOT}/data/images/textures/rusty-metal_2048*.png
-    ${SL_PROJECT_ROOT}/data/images/textures/Pool*.png
-    ${SL_PROJECT_ROOT}/data/images/textures/Testmap_0512_C.png
-    ${SL_PROJECT_ROOT}/data/images/textures/tile1_0256_C.jpg
-    ${SL_PROJECT_ROOT}/data/images/textures/tree1_1024_C.png
-    ${SL_PROJECT_ROOT}/data/images/textures/wood*.jpg
-    ${SL_PROJECT_ROOT}/data/images/textures/cursor.png
-    ${SL_PROJECT_ROOT}/data/images/textures/Vision*.png
-    ${SL_PROJECT_ROOT}/data/images/textures/LiveVideoError.png
-    ${SL_PROJECT_ROOT}/data/images/textures/LogoCPVR_256L.png
-    ${SL_PROJECT_ROOT}/data/images/textures/features_stones.png
-    ${SL_PROJECT_ROOT}/data/images/textures/Desert*_C.jpg
-    ${SL_PROJECT_ROOT}/data/images/textures/i*_0000b.png
+    ${WAI_ROOT}/data/images/textures/CompileError.png
+    ${WAI_ROOT}/data/images/textures/brick0512_C.png
+    ${WAI_ROOT}/data/images/textures/brick*.jpg
+    ${WAI_ROOT}/data/images/textures/Checkerboard0512_C.png
+    ${WAI_ROOT}/data/images/textures/Chess0256_C.bmp
+    ${WAI_ROOT}/data/images/textures/earth*.jpg
+    ${WAI_ROOT}/data/images/textures/grass0512_C.jpg
+    ${WAI_ROOT}/data/images/textures/gray_0256_C.jpg
+    ${WAI_ROOT}/data/images/textures/MuttenzerBox*.png
+    ${WAI_ROOT}/data/images/textures/rusty-metal_2048*.png
+    ${WAI_ROOT}/data/images/textures/Pool*.png
+    ${WAI_ROOT}/data/images/textures/Testmap_0512_C.png
+    ${WAI_ROOT}/data/images/textures/tile1_0256_C.jpg
+    ${WAI_ROOT}/data/images/textures/tree1_1024_C.png
+    ${WAI_ROOT}/data/images/textures/wood*.jpg
+    ${WAI_ROOT}/data/images/textures/cursor.png
+    ${WAI_ROOT}/data/images/textures/Vision*.png
+    ${WAI_ROOT}/data/images/textures/LiveVideoError.png
+    ${WAI_ROOT}/data/images/textures/LogoCPVR_256L.png
+    ${WAI_ROOT}/data/images/textures/features_stones.png
+    ${WAI_ROOT}/data/images/textures/Desert*_C.jpg
+    ${WAI_ROOT}/data/images/textures/i*_0000b.png
     )
 
 file(GLOB_RECURSE VIDEOS
-    ${SL_PROJECT_ROOT}/data/videos/street3.mp4
+    ${WAI_ROOT}/data/videos/street3.mp4
     )
 
 file(GLOB_RECURSE FONTS
-    ${SL_PROJECT_ROOT}/data/images/fonts/*.png
-    ${SL_PROJECT_ROOT}/data/images/fonts/*.ttf
+    ${WAI_ROOT}/data/images/fonts/*.png
+    ${WAI_ROOT}/data/images/fonts/*.ttf
     )
 
 # If you add new models you must delete ${CMAKE_CURRENT_LIST_DIR}/src/main/assets
 file(GLOB_RECURSE MODELS
-    ${SL_PROJECT_ROOT}/data/models/*
+    ${WAI_ROOT}/data/models/*
     )
 
 file(GLOB_RECURSE SHADERS
-    ${SL_PROJECT_ROOT}/data/shaders/*.vert
-    ${SL_PROJECT_ROOT}/data/shaders/*.frag
+    ${WAI_ROOT}/data/shaders/*.vert
+    ${WAI_ROOT}/data/shaders/*.frag
     )
 
 file(GLOB_RECURSE CALIBRATIONS
-    ${SL_PROJECT_ROOT}/data/calibrations/calib_in_params.yml
-    ${SL_PROJECT_ROOT}/data/calibrations/aruco_detector_params.yml
-    ${SL_PROJECT_ROOT}/data/calibrations/street1_manip.json
-    ${SL_PROJECT_ROOT}/data/calibrations/orb-slam-state-altstadtbiel1_manip.json
-    ${SL_PROJECT_ROOT}/data/calibrations/orb-slam-state-bern1-manip1.json
-    ${SL_PROJECT_ROOT}/data/calibrations/orb-slam-state-buero1.json
-    ${SL_PROJECT_ROOT}/data/calibrations/test.yml
-    ${SL_PROJECT_ROOT}/data/calibrations/cam_calibration_main_huawei_p10_640_480.xml
-    ${SL_PROJECT_ROOT}/data/calibrations/ORBvoc.bin
+    ${WAI_ROOT}/data/calibrations/calib_in_params.yml
+    ${WAI_ROOT}/data/calibrations/aruco_detector_params.yml
+    ${WAI_ROOT}/data/calibrations/street1_manip.json
+    ${WAI_ROOT}/data/calibrations/orb-slam-state-altstadtbiel1_manip.json
+    ${WAI_ROOT}/data/calibrations/orb-slam-state-bern1-manip1.json
+    ${WAI_ROOT}/data/calibrations/orb-slam-state-buero1.json
+    ${WAI_ROOT}/data/calibrations/test.yml
+    ${WAI_ROOT}/data/calibrations/cam_calibration_main_huawei_p10_640_480.xml
+    ${WAI_ROOT}/data/calibrations/ORBvoc.bin
     )
 
 file(GLOB_RECURSE CONFIG
-    ${SL_PROJECT_ROOT}/data/config/dummyFile.txt
+    ${WAI_ROOT}/data/config/dummyFile.txt
     )
 
 set(APK_ASSETS

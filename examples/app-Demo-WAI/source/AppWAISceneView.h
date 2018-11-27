@@ -11,7 +11,13 @@
 //#############################################################################
 
 #include <SLSceneView.h>
-#include <SLCVMapNode.h>
+#include <SLPoints.h>
+
+#include <SLCVCalibration.h>
+
+#include <WAI.h>
+
+void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid);
 
 //-----------------------------------------------------------------------------
 enum TransformMode
@@ -29,12 +35,26 @@ demonstrates all transform possibilities in SLNode
 class WAISceneView : public SLSceneView
 {
     public:
-    WAISceneView(SLCVMapNode* mapNode) : _mapNode(mapNode) {}
-    ~WAISceneView();
+    WAISceneView(SLCVCalibration* calib);
+    void update();
+    void updateCamera(WAI::CameraData* cameraData);
 
-    void setMapNode(SLCVMapNode* mapNode) { _mapNode = mapNode; }
+    void setCameraNode(SLCamera* cameraNode) { _cameraNode = cameraNode; }
+    void setMapNode(SLNode* mapNode) { _mapNode = mapNode; }
+    void setKeyFrameNode(SLNode* keyFrameNode) { _keyFrameNode = keyFrameNode; }
 
     private:
-    SLCVMapNode* _mapNode;
+    WAI::WAI  _wai;
+    SLCamera* _cameraNode   = 0;
+    SLNode*   _mapNode      = 0;
+    SLNode*   _keyFrameNode = 0;
+
+    SLMaterial* _redMat   = new SLMaterial(SLCol4f::RED, "Red");
+    SLMaterial* _greenMat = new SLMaterial(SLCol4f::GREEN, "Green");
+    SLMaterial* _blueMat  = new SLMaterial(SLCol4f::BLUE, "Blue");
+
+    SLPoints* _mappointsMesh        = 0;
+    SLPoints* _mappointsMatchedMesh = 0;
+    SLPoints* _mappointsLocalMesh   = 0;
 };
 //-----------------------------------------------------------------------------

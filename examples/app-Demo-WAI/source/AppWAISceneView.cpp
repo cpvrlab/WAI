@@ -1,12 +1,30 @@
 #include <SLApplication.h>
 #include <SLBox.h>
 #include <SLLightSpot.h>
+#include <SLCoordAxis.h>
+#include <SLPoints.h>
+
+#include <SLCVCamera.h>
 
 #include <AppWAISceneView.h>
 
-//-----------------------------------------------------------------------------
-void onLoad(SLScene* s, SLSceneView* sv, SLSceneID sid)
+WAISceneView::WAISceneView(SLCVCalibration* calib)
 {
+    WAI::CameraCalibration calibration = {calib->fx(),
+                                          calib->fy(),
+                                          calib->cx(),
+                                          calib->cy(),
+                                          calib->k1(),
+                                          calib->k2(),
+                                          calib->p1(),
+                                          calib->p2()};
+    _wai.activateSensor(WAI::SensorType_Camera, &calibration);
+    _wai.setMode(WAI::ModeType_ORB_SLAM2);
+}
+//-----------------------------------------------------------------------------
+void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
+{
+    WAISceneView* waiSceneView = (WAISceneView*)sv;
     // Set scene name and info string
     s->name("Track Keyframe based Features");
     s->info("Example for loading an existing pose graph with map points.");
@@ -22,31 +40,22 @@ void onLoad(SLScene* s, SLSceneView* sv, SLSceneID sid)
 
     //always equal for tracking
     //setup tracking camera
-    SLCamera* trackingCam = new SLCamera("Camera 1");
-    trackingCam->translation(0, 0, 0.1);
-    trackingCam->lookAt(0, 0, 0);
+    SLCamera* cameraNode = new SLCamera("Camera 1");
+    cameraNode->translation(0, 0, 0.1);
+    cameraNode->lookAt(0, 0, 0);
     //for tracking we have to use the field of view from calibration
-    trackingCam->fov(SLApplication::activeCalib->cameraFovDeg());
-    trackingCam->clipNear(0.001f);
-    trackingCam->clipFar(1000000.0f); // Increase to infinity?
-    trackingCam->setInitialState();
-    trackingCam->background().texture(s->videoTexture());
+    cameraNode->fov(SLApplication::activeCalib->cameraFovDeg());
+    cameraNode->clipNear(0.001f);
+    cameraNode->clipFar(1000000.0f); // Increase to infinity?
+    cameraNode->setInitialState();
+    cameraNode->background().texture(s->videoTexture());
 
     //the map node contains the visual representation of the slam map
-    SLCVMapNode* mapNode = new SLCVMapNode("map");
+    //SLCVMapNode* mapNode = new SLCVMapNode("map");
 
     // Save no energy
     sv->doWaitOnIdle(false); //for constant video feed
-    sv->camera(trackingCam);
-
-    //SLCVOrbTracking* orbT = raulMurTracker->orbTracking();
-    //setup scene specific gui dialoges
-    auto trackingInfos = std::make_shared<SLImGuiInfosTracking>("Tracking infos", tm, mapNode);
-    AppDemoGui::addInfoDialog(trackingInfos);
-    auto mapNodeTransform = std::make_shared<SLImGuiInfosMapNodeTransform>("Map node transform", mapNode, tm);
-    AppDemoGui::addInfoDialog(mapNodeTransform);
-    auto mapStorage = std::make_shared<SLImGuiMapStorage>("Map storage", tm);
-    AppDemoGui::addInfoDialog(mapStorage);
+    sv->camera(cameraNode);
 
     //add yellow box and axis for augmentation
     SLMaterial* yellow = new SLMaterial("mY", SLCol4f(1, 1, 0, 0.5f));
@@ -55,6 +64,14 @@ void onLoad(SLScene* s, SLSceneView* sv, SLSceneID sid)
     SLNode*     boxNode  = new SLNode(box1, "boxNode");
     SLNode*     axisNode = new SLNode(new SLCoordAxis(), "axis node");
     boxNode->addChild(axisNode);
+    boxNode->translation(0.0f, 0.0f, -2.0f);
+
+    SLNode* keyFrameNode = new SLNode("KeyFrames");
+
+    SLNode* mapNode = new SLNode("map");
+    mapNode->rotate(180, 1, 0, 0);
+    mapNode->addChild(cameraNode);
+    mapNode->addChild(keyFrameNode);
 
     //setup scene
     SLNode* scene = new SLNode("scene");
@@ -64,6 +81,181 @@ void onLoad(SLScene* s, SLSceneView* sv, SLSceneID sid)
 
     s->root3D(scene);
 
-    ((WAISceneView*)sv)->setMapNode(mapNode);
+    waiSceneView->setCameraNode(cameraNode);
+    waiSceneView->setMapNode(mapNode);
+    waiSceneView->setKeyFrameNode(keyFrameNode);
+
+    sv->onInitialize();
+    s->onAfterLoad();
 }
 //-----------------------------------------------------------------------------
+void WAISceneView::update()
+{
+    SL_LOG("Updating scene view\n");
+    cv::Mat pose          = cv::Mat(4, 4, CV_32F);
+    bool    iKnowWhereIAm = _wai.whereAmI(&pose);
+
+    if (iKnowWhereIAm)
+    {
+        // update map node
+        std::vector<WAIMapPoint*> mapPoints = std::vector<WAIMapPoint*>();
+        _wai.getDebugInfo(WAI::DebugInfoType_Mappoints, &mapPoints);
+
+        SLVVec3f points, normals;
+        for (WAIMapPoint* mapPoint : mapPoints)
+        {
+            SLVec3f worldPos = SLVec3f(mapPoint->worldPosVec().x,
+                                       mapPoint->worldPosVec().y,
+                                       mapPoint->worldPosVec().z);
+            SLVec3f normal   = SLVec3f(mapPoint->normalVec().x,
+                                     mapPoint->normalVec().y,
+                                     mapPoint->normalVec().z);
+            points.push_back(worldPos);
+            normals.push_back(normal);
+        }
+
+        if (_mappointsMesh)
+        {
+            _mapNode->deleteMesh(_mappointsMesh);
+        }
+        _mappointsMesh = new SLPoints(points, normals, "Map Points", _redMat);
+        _mapNode->addMesh(_mappointsMesh);
+        _mapNode->updateAABBRec();
+
+        std::vector<WAIMapPoint*> mapPointsMatched = std::vector<WAIMapPoint*>();
+        _wai.getDebugInfo(WAI::DebugInfoType_MappointsMatched, &mapPointsMatched);
+
+        points.clear();
+        normals.clear();
+        for (WAIMapPoint* mapPoint : mapPointsMatched)
+        {
+            SLVec3f worldPos = SLVec3f(mapPoint->worldPosVec().x,
+                                       mapPoint->worldPosVec().y,
+                                       mapPoint->worldPosVec().z);
+            SLVec3f normal   = SLVec3f(mapPoint->normalVec().x,
+                                     mapPoint->normalVec().y,
+                                     mapPoint->normalVec().z);
+            points.push_back(worldPos);
+            normals.push_back(normal);
+        }
+
+        if (_mappointsMatchedMesh)
+        {
+            _mapNode->deleteMesh(_mappointsMatchedMesh);
+        }
+        _mappointsMatchedMesh = new SLPoints(points, normals, "Map Points Matched", _greenMat);
+        _mapNode->addMesh(_mappointsMatchedMesh);
+        _mapNode->updateAABBRec();
+
+        std::vector<WAIMapPoint*> mapPointsLocal = std::vector<WAIMapPoint*>();
+        _wai.getDebugInfo(WAI::DebugInfoType_MappointsLocal, &mapPointsLocal);
+
+        points.clear();
+        normals.clear();
+        for (WAIMapPoint* mapPoint : mapPointsLocal)
+        {
+            SLVec3f worldPos = SLVec3f(mapPoint->worldPosVec().x,
+                                       mapPoint->worldPosVec().y,
+                                       mapPoint->worldPosVec().z);
+            SLVec3f normal   = SLVec3f(mapPoint->normalVec().x,
+                                     mapPoint->normalVec().y,
+                                     mapPoint->normalVec().z);
+            points.push_back(worldPos);
+            normals.push_back(normal);
+        }
+
+        if (_mappointsLocalMesh)
+        {
+            _mapNode->deleteMesh(_mappointsLocalMesh);
+        }
+        _mappointsLocalMesh = new SLPoints(points, normals, "Map Points Local", _blueMat);
+        _mapNode->addMesh(_mappointsLocalMesh);
+        _mapNode->updateAABBRec();
+
+        std::vector<WAIKeyFrame*> keyframes = std::vector<WAIKeyFrame*>();
+        _wai.getDebugInfo(WAI::DebugInfoType_Keyframes, &keyframes);
+
+        _keyFrameNode->deleteChildren();
+        // TODO(jan): delete keyframe textures
+        for (WAIKeyFrame* kf : keyframes)
+        {
+            // TODO(jan): maybe adjust the name per camera
+            SLCVCamera* cam = new SLCVCamera("KeyFrame " + std::to_string(kf->mnId));
+            //set background
+            if (kf->getTexturePath().size())
+            {
+                // TODO(jan): textures are saved in a global textures vector (scene->textures)
+                // and should be deleted from there. Otherwise we have a yuuuuge memory leak.
+#if 0
+                SLGLTexture* texture = new SLGLTexture(kf->getTexturePath());
+                _kfTextures.push_back(texture);
+                cam->background().texture(texture);
+#endif
+            }
+
+            cv::Mat Twc = kf->getObjectMatrix();
+            SLMat4f om;
+
+            om.setMatrix(Twc.at<float>(0, 0),
+                         -Twc.at<float>(0, 1),
+                         -Twc.at<float>(0, 2),
+                         Twc.at<float>(0, 3),
+                         Twc.at<float>(1, 0),
+                         -Twc.at<float>(1, 1),
+                         -Twc.at<float>(1, 2),
+                         Twc.at<float>(1, 3),
+                         Twc.at<float>(2, 0),
+                         -Twc.at<float>(2, 1),
+                         -Twc.at<float>(2, 2),
+                         Twc.at<float>(2, 3),
+                         Twc.at<float>(3, 0),
+                         -Twc.at<float>(3, 1),
+                         -Twc.at<float>(3, 2),
+                         Twc.at<float>(3, 3));
+
+            cam->om(om);
+
+            //calculate vertical field of view
+            SLfloat fy     = (SLfloat)kf->fy;
+            SLfloat cy     = (SLfloat)kf->cy;
+            SLfloat fovDeg = 2 * (SLfloat)atan2(cy, fy) * SL_RAD2DEG;
+            cam->fov(fovDeg);
+            cam->focalDist(0.11);
+            cam->clipNear(0.1);
+            cam->clipFar(1000.0);
+            _keyFrameNode->addChild(cam);
+        }
+
+        // update camera node position
+        cv::Mat Rwc(3, 3, CV_32F);
+        cv::Mat twc(3, 1, CV_32F);
+
+        Rwc = pose.rowRange(0, 3).colRange(0, 3).t();
+        twc = -Rwc * pose.rowRange(0, 3).col(3);
+
+        SLMat4f slPose((SLfloat)Rwc.at<float>(0, 0),
+                       (SLfloat)Rwc.at<float>(0, 1),
+                       (SLfloat)Rwc.at<float>(0, 2),
+                       (SLfloat)twc.at<float>(0, 0),
+                       (SLfloat)Rwc.at<float>(1, 0),
+                       (SLfloat)Rwc.at<float>(1, 1),
+                       (SLfloat)Rwc.at<float>(1, 2),
+                       (SLfloat)twc.at<float>(1, 0),
+                       (SLfloat)Rwc.at<float>(2, 0),
+                       (SLfloat)Rwc.at<float>(2, 1),
+                       (SLfloat)Rwc.at<float>(2, 2),
+                       (SLfloat)twc.at<float>(2, 0),
+                       0.0f,
+                       0.0f,
+                       0.0f,
+                       1.0f);
+        slPose.rotate(180, 1, 0, 0);
+
+        _cameraNode->om(slPose);
+    }
+}
+//-----------------------------------------------------------------------------
+void WAISceneView::updateCamera(WAI::CameraData* cameraData)
+{
+    _wai.updateSensor(WAI::SensorType_Camera, cameraData);
+}
