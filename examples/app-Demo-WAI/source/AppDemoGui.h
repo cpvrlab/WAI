@@ -15,13 +15,13 @@
 #include <string>
 #include <map>
 #include <memory>
-#include <SLImGuiInfosDialog.h>
+#include <AppDemoGuiInfosDialog.h>
 
 class SLScene;
 class SLSceneView;
 class SLNode;
 class SLGLTexture;
-class SLImGuiInfosDialog;
+class AppDemoGuiInfosDialog;
 
 //-----------------------------------------------------------------------------
 enum SceneID
@@ -46,7 +46,7 @@ class AppDemoGui
     static void build(SLScene* s, SLSceneView* sv);
 
     //!< Checks, if a dialog with this name already exists, and adds it if not
-    static void addInfoDialog(const std::shared_ptr<SLImGuiInfosDialog>& dialog);
+    static void addInfoDialog(const std::shared_ptr<AppDemoGuiInfosDialog>& dialog);
     static void clearInfoDialogs();
     static void buildMenuBar(SLScene* s, SLSceneView* sv);
     static void buildSceneGraph(SLScene* s);
@@ -81,7 +81,7 @@ class AppDemoGui
     static SLbool       showUIPrefs;          //!< Flag if UI preferences
     static SLbool       showTransform;        //!< Flag if tranform dialog should be shown
     //! Vector containing all info dialogs, that belong to special scenes
-    static std::map<std::string, std::shared_ptr<SLImGuiInfosDialog>> _infoDialogs;
+    static std::map<std::string, std::shared_ptr<AppDemoGuiInfosDialog>> _infoDialogs;
 };
 //-----------------------------------------------------------------------------
 #endif

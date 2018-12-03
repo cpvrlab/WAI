@@ -6,6 +6,8 @@
 
 #include <SLCVCamera.h>
 
+#include <AppDemoGui.h>
+#include <AppDemoGuiTrackedMapping.h>
 #include <AppWAISceneView.h>
 
 WAISceneView::WAISceneView(SLCVCalibration* calib)
@@ -19,7 +21,7 @@ WAISceneView::WAISceneView(SLCVCalibration* calib)
                                           calib->p1(),
                                           calib->p2()};
     _wai.activateSensor(WAI::SensorType_Camera, &calibration);
-    _wai.setMode(WAI::ModeType_ORB_SLAM2);
+    _mode = (WAI::ModeOrbSlam2*)_wai.setMode(WAI::ModeType_ORB_SLAM2);
 }
 //-----------------------------------------------------------------------------
 void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
@@ -49,9 +51,6 @@ void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
     cameraNode->clipFar(1000000.0f); // Increase to infinity?
     cameraNode->setInitialState();
     cameraNode->background().texture(s->videoTexture());
-
-    //the map node contains the visual representation of the slam map
-    //SLCVMapNode* mapNode = new SLCVMapNode("map");
 
     // Save no energy
     sv->doWaitOnIdle(false); //for constant video feed
@@ -87,19 +86,20 @@ void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
 
     sv->onInitialize();
     s->onAfterLoad();
+
+    auto trackingInfos = std::make_shared<AppDemoGuiTrackedMapping>("Tracked mapping", waiSceneView->getMode());
+    AppDemoGui::addInfoDialog(trackingInfos);
 }
 //-----------------------------------------------------------------------------
 void WAISceneView::update()
 {
-    SL_LOG("Updating scene view\n");
     cv::Mat pose          = cv::Mat(4, 4, CV_32F);
     bool    iKnowWhereIAm = _wai.whereAmI(&pose);
 
     if (iKnowWhereIAm)
     {
         // update map node
-        std::vector<WAIMapPoint*> mapPoints = std::vector<WAIMapPoint*>();
-        _wai.getDebugInfo(WAI::DebugInfoType_Mappoints, &mapPoints);
+        std::vector<WAIMapPoint*> mapPoints = _mode->getMapPoints();
 
         SLVVec3f points, normals;
         for (WAIMapPoint* mapPoint : mapPoints)
@@ -122,8 +122,7 @@ void WAISceneView::update()
         _mapNode->addMesh(_mappointsMesh);
         _mapNode->updateAABBRec();
 
-        std::vector<WAIMapPoint*> mapPointsMatched = std::vector<WAIMapPoint*>();
-        _wai.getDebugInfo(WAI::DebugInfoType_MappointsMatched, &mapPointsMatched);
+        std::vector<WAIMapPoint*> mapPointsMatched = _mode->getMatchedMapPoints();
 
         points.clear();
         normals.clear();
@@ -147,8 +146,7 @@ void WAISceneView::update()
         _mapNode->addMesh(_mappointsMatchedMesh);
         _mapNode->updateAABBRec();
 
-        std::vector<WAIMapPoint*> mapPointsLocal = std::vector<WAIMapPoint*>();
-        _wai.getDebugInfo(WAI::DebugInfoType_MappointsLocal, &mapPointsLocal);
+        std::vector<WAIMapPoint*> mapPointsLocal = _mode->getLocalMapPoints();
 
         points.clear();
         normals.clear();
@@ -172,8 +170,7 @@ void WAISceneView::update()
         _mapNode->addMesh(_mappointsLocalMesh);
         _mapNode->updateAABBRec();
 
-        std::vector<WAIKeyFrame*> keyframes = std::vector<WAIKeyFrame*>();
-        _wai.getDebugInfo(WAI::DebugInfoType_Keyframes, &keyframes);
+        std::vector<WAIKeyFrame*> keyframes = _mode->getKeyFrames();
 
         _keyFrameNode->deleteChildren();
         // TODO(jan): delete keyframe textures

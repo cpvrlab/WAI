@@ -1,4 +1,5 @@
 #include <WAIModeOrbSlam2.h>
+//#include <android/log.h>
 
 WAI::ModeOrbSlam2::ModeOrbSlam2(SensorCamera* camera,
                                 bool          serial,
@@ -11,6 +12,8 @@ WAI::ModeOrbSlam2::ModeOrbSlam2(SensorCamera* camera,
     _onlyTracking(onlyTracking),
     _trackOptFlow(trackOptFlow)
 {
+    //__android_log_print(ANDROID_LOG_INFO, "lib-WAI", "mode ORB_SLAM2 constructor");
+
     //load visual vocabulary for relocalization
     mpVocabulary = WAIOrbVocabulary::get();
 
@@ -102,12 +105,14 @@ bool WAI::ModeOrbSlam2::getPose(cv::Mat* pose)
 
 void WAI::ModeOrbSlam2::notifyUpdate()
 {
+    //__android_log_print(ANDROID_LOG_INFO, "lib-WAI", "update notified");
     stateTransition();
 
     switch (_state)
     {
         case TrackingState_Initializing:
         {
+            //__android_log_print(ANDROID_LOG_INFO, "lib-WAI", "initializing");
             initialize();
         }
         break;
@@ -116,6 +121,7 @@ void WAI::ModeOrbSlam2::notifyUpdate()
         case TrackingState_TrackingLost:
         {
             //relocalize or track 3d points
+            //__android_log_print(ANDROID_LOG_INFO, "lib-WAI", "track 3D pts");
             track3DPts();
         }
         break;
@@ -129,96 +135,154 @@ void WAI::ModeOrbSlam2::notifyUpdate()
     }
 }
 
-bool WAI::ModeOrbSlam2::getDebugInfo(DebugInfoType type, void* memory)
+uint32_t WAI::ModeOrbSlam2::getMapPointCount()
 {
-    bool result = 0;
+    uint32_t result = _map->MapPointsInMap();
 
-    switch (type)
+    return result;
+}
+
+uint32_t WAI::ModeOrbSlam2::getMapPointMatchesCount()
+{
+    uint32_t result = mnMatchesInliers;
+
+    return result;
+}
+
+uint32_t WAI::ModeOrbSlam2::getKeyFrameCount()
+{
+    uint32_t result = _map->KeyFramesInMap();
+
+    return result;
+}
+
+std::string WAI::ModeOrbSlam2::getLoopCloseStatus()
+{
+    std::string result = mpLoopCloser->getStatusString();
+
+    return result;
+}
+
+uint32_t WAI::ModeOrbSlam2::getLoopCloseCount()
+{
+    uint32_t result = _map->getNumLoopClosings();
+
+    return result;
+}
+
+uint32_t WAI::ModeOrbSlam2::getKeyFramesInLoopCloseQueueCount()
+{
+    uint32_t result = mpLoopCloser->numOfKfsInQueue();
+
+    return result;
+}
+
+std::string WAI::ModeOrbSlam2::getPrintableState()
+{
+    std::string printableState = "";
+
+    switch (_state)
     {
-        case DebugInfoType_Mappoints:
+        case TrackingState_Initializing:
         {
-            std::lock_guard<std::mutex> guard(_mapLock);
-
-            std::vector<WAIMapPoint*>* mapPointsPtr = (std::vector<WAIMapPoint*>*)memory;
-            std::vector<WAIMapPoint*>  mapPoints    = _map->GetAllMapPoints();
-
-            for (WAIMapPoint* mapPoint : mapPoints)
-            {
-                mapPointsPtr->push_back(mapPoint);
-            }
+            printableState = "INITIALIZING";
         }
         break;
 
-        case DebugInfoType_MappointsLocal:
+        case TrackingState_Idle:
         {
-            std::lock_guard<std::mutex> guard(_mapLock);
-
-            std::vector<WAIMapPoint*>* mapPointsPtr = (std::vector<WAIMapPoint*>*)memory;
-            std::vector<WAIMapPoint*>  mapPoints    = mvpLocalMapPoints;
-
-            for (WAIMapPoint* mapPoint : mapPoints)
-            {
-                mapPointsPtr->push_back(mapPoint);
-            }
+            printableState = "IDLE";
         }
         break;
 
-        case DebugInfoType_MappointsMatched:
+        case TrackingState_TrackingLost:
         {
-            std::lock_guard<std::mutex> guard(_mapLock);
-
-            std::vector<WAIMapPoint*> mapPoints;
-
-            if (_optFlowOK)
-            {
-                mapPoints = _optFlowMapPtsLastFrame;
-            }
-            else
-            {
-                for (int i = 0; i < mCurrentFrame.N; i++)
-                {
-                    if (mCurrentFrame.mvpMapPoints[i])
-                    {
-                        if (!mCurrentFrame.mvbOutlier[i])
-                        {
-                            if (mCurrentFrame.mvpMapPoints[i]->Observations() > 0)
-                                mapPoints.push_back(mCurrentFrame.mvpMapPoints[i]);
-                        }
-                    }
-                }
-            }
-
-            std::vector<WAIMapPoint*>* mapPointsPtr = (std::vector<WAIMapPoint*>*)memory;
-
-            for (WAIMapPoint* mapPoint : mapPoints)
-            {
-                mapPointsPtr->push_back(mapPoint);
-            }
+            printableState = "TRACKING_LOST"; //motion model tracking
         }
         break;
 
-        case DebugInfoType_Keyframes:
+        case TrackingState_TrackingOK:
         {
-            std::lock_guard<std::mutex> guard(_mapLock);
-
-            std::vector<WAIKeyFrame*>* keyframesPtr = (std::vector<WAIKeyFrame*>*)memory;
-            std::vector<WAIKeyFrame*>  keyFrames    = mvpLocalKeyFrames;
-
-            for (WAIKeyFrame* kf : keyFrames)
-            {
-                keyframesPtr->push_back(kf);
-            }
+            printableState = "TRACKING_OK";
         }
         break;
 
-        case DebugInfoType_None:
         default:
         {
+            printableState = "";
         }
         break;
     }
 
+    return printableState;
+}
+
+std::vector<WAIMapPoint*> WAI::ModeOrbSlam2::getMapPoints()
+{
+    std::lock_guard<std::mutex> guard(_mapLock);
+
+    std::vector<WAIMapPoint*> result = _map->GetAllMapPoints();
+
     return result;
+}
+
+std::vector<WAIMapPoint*> WAI::ModeOrbSlam2::getMatchedMapPoints()
+{
+    std::lock_guard<std::mutex> guard(_mapLock);
+
+    std::vector<WAIMapPoint*> result;
+
+    if (_optFlowOK)
+    {
+        result = _optFlowMapPtsLastFrame;
+    }
+    else
+    {
+        for (int i = 0; i < mCurrentFrame.N; i++)
+        {
+            if (mCurrentFrame.mvpMapPoints[i])
+            {
+                if (!mCurrentFrame.mvbOutlier[i])
+                {
+                    if (mCurrentFrame.mvpMapPoints[i]->Observations() > 0)
+                        result.push_back(mCurrentFrame.mvpMapPoints[i]);
+                }
+            }
+        }
+    }
+
+    return result;
+}
+
+std::vector<WAIMapPoint*> WAI::ModeOrbSlam2::getLocalMapPoints()
+{
+    std::lock_guard<std::mutex> guard(_mapLock);
+
+    std::vector<WAIMapPoint*> result = mvpLocalMapPoints;
+
+    return result;
+}
+
+std::vector<WAIKeyFrame*> WAI::ModeOrbSlam2::getKeyFrames()
+{
+    std::lock_guard<std::mutex> guard(_mapLock);
+
+    std::vector<WAIKeyFrame*> result = mvpLocalKeyFrames;
+
+    return result;
+}
+
+bool WAI::ModeOrbSlam2::getTrackOptFlow()
+{
+    std::lock_guard<std::mutex> guard(_optFlowLock);
+    return _trackOptFlow;
+}
+
+void WAI::ModeOrbSlam2::setTrackOptFlow(bool flag)
+{
+    std::lock_guard<std::mutex> guard(_optFlowLock);
+    _trackOptFlow = flag;
+    _optFlowOK    = false;
 }
 
 void WAI::ModeOrbSlam2::stateTransition()
@@ -390,7 +454,7 @@ void WAI::ModeOrbSlam2::initialize()
         {
             if (mvIniMatches[i] >= 0)
             {
-                cv::line(_camera->getImageGray(),
+                cv::line(_camera->getImageRGB(),
                          mInitialFrame.mvKeys[i].pt,
                          mCurrentFrame.mvKeys[mvIniMatches[i]].pt,
                          cv::Scalar(0, 255, 0));
@@ -994,22 +1058,9 @@ void WAI::ModeOrbSlam2::createNewKeyFrame()
 
 void WAI::ModeOrbSlam2::reset()
 {
-
     cout << "System Reseting" << endl;
-    //    if (mpViewer)
-    //    {
-    //        mpViewer->RequestStop();
-    //        while (!mpViewer->isStopped()) {
-    //#ifdef WINDOWS
-    //            Sleep(3);
-    //#else
-    //            usleep(3000);
-    //#endif
-    //        }
-    //    }
 
     // Reset Local Mapping
-    cout << "Reseting Local Mapper...";
     if (!_serial)
     {
         mpLocalMapper->RequestReset();
@@ -1018,10 +1069,8 @@ void WAI::ModeOrbSlam2::reset()
     {
         mpLocalMapper->reset();
     }
-    cout << " done" << endl;
 
     //// Reset Loop Closing
-    //cout << "Reseting Loop Closing...";
     if (!_serial)
     {
         mpLoopCloser->RequestReset();
@@ -1030,30 +1079,22 @@ void WAI::ModeOrbSlam2::reset()
     {
         mpLoopCloser->reset();
     }
-    //cout << " done" << endl;
 
     // Clear BoW Database
-    cout << "Reseting Database...";
-    //mpKeyFrameDB->clear();
     mpKeyFrameDatabase->clear();
-    cout << " done" << endl;
 
     // Clear Map (this erase MapPoints and KeyFrames)
-    //mpMap->clear();
     _map->clear();
 
     WAIKeyFrame::nNextId = 0;
     WAIFrame::nNextId    = 0;
-    //mState = NO_IMAGES_YET;
-    _bOK         = false;
-    _initialized = false;
+    _bOK                 = false;
+    _initialized         = false;
 
     if (mpInitializer)
     {
-        cout << "Resetting Initializer...";
         delete mpInitializer;
         mpInitializer = static_cast<Initializer*>(NULL);
-        cout << " done" << endl;
     }
 
     mlRelativeFramePoses.clear();
@@ -1069,12 +1110,16 @@ void WAI::ModeOrbSlam2::reset()
     mnLastKeyFrameId   = 0;
     mnLastRelocFrameId = 0;
 
-    //we also have to clear the mapNode because it may access
-    //mappoints and keyframes while we are loading
-    //_mapNode->clearAll();
+    _state = TrackingState_Initializing;
 }
 
-#if 0
+bool WAI::ModeOrbSlam2::isInitialized()
+{
+    bool result = _initialized;
+
+    return result;
+}
+
 void WAI::ModeOrbSlam2::pause()
 {
     if (!_serial)
@@ -1082,14 +1127,14 @@ void WAI::ModeOrbSlam2::pause()
         mpLocalMapper->RequestStop();
         while (!mpLocalMapper->isStopped())
         {
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+            std::this_thread::sleep_for(std::chrono::microseconds(10));
         }
     }
 
-    sm.requestStateIdle();
-    while (!sm.hasStateIdle())
+    requestStateIdle();
+    while (!hasStateIdle())
     {
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::this_thread::sleep_for(std::chrono::microseconds(10));
     }
 }
 
@@ -1102,9 +1147,49 @@ void WAI::ModeOrbSlam2::resume()
         //mptLoopClosing = new thread(&LoopClosing::Run, mpLoopCloser);
     }
 
-    sm.requestResume();
+    requestResume();
 }
-#endif
+
+void WAI::ModeOrbSlam2::requestStateIdle()
+{
+    std::unique_lock<std::mutex> guard(_mutexStates);
+    resetRequests();
+    _idleRequested = true;
+
+    if (_serial)
+    {
+        guard.unlock();
+        stateTransition();
+    }
+}
+
+void WAI::ModeOrbSlam2::requestResume()
+{
+    std::unique_lock<std::mutex> guard(_mutexStates);
+    resetRequests();
+    _resumeRequested = true;
+
+    if (_serial)
+    {
+        guard.unlock();
+        stateTransition();
+    }
+}
+
+bool WAI::ModeOrbSlam2::hasStateIdle()
+{
+    std::unique_lock<std::mutex> guard(_mutexStates);
+
+    bool result = _state == TrackingState_Idle;
+
+    return result;
+}
+
+void WAI::ModeOrbSlam2::resetRequests()
+{
+    _idleRequested   = false;
+    _resumeRequested = false;
+}
 
 bool WAI::ModeOrbSlam2::relocalization()
 {

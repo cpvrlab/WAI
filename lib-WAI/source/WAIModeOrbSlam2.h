@@ -31,7 +31,40 @@ class ModeOrbSlam2 : public Mode
     ~ModeOrbSlam2();
     bool getPose(cv::Mat* pose);
     void notifyUpdate();
-    bool getDebugInfo(DebugInfoType type, void* memory);
+
+    void reset();
+    bool isInitialized();
+
+    WAIMap*        getMap() { return _map; }
+    WAIKeyFrameDB* getKfDB() { return mpKeyFrameDatabase; }
+
+    // New KeyFrame rules (according to fps)
+    // Max/Min Frames to insert keyframes and to check relocalisation
+    int mMinFrames = 0;
+    int mMaxFrames = 30; //= fps
+
+    // Debug functions
+    std::string getPrintableState();
+    uint32_t    getMapPointCount();
+    uint32_t    getMapPointMatchesCount();
+    uint32_t    getKeyFrameCount();
+
+    std::string getLoopCloseStatus();
+    uint32_t    getLoopCloseCount();
+    uint32_t    getKeyFramesInLoopCloseQueueCount();
+
+    std::vector<WAIMapPoint*> getMapPoints();
+    std::vector<WAIMapPoint*> getMatchedMapPoints();
+    std::vector<WAIMapPoint*> getLocalMapPoints();
+    std::vector<WAIKeyFrame*> getKeyFrames();
+
+    bool getTrackOptFlow();
+    void setTrackOptFlow(bool flag);
+
+    // state machine
+    void pause();
+    void resume();
+    void setInitialized(bool initialized) { _initialized = initialized; }
 
     private:
     enum TrackingState
@@ -46,9 +79,6 @@ class ModeOrbSlam2 : public Mode
     void initialize();
     bool createInitialMapMonocular();
     void track3DPts();
-    void reset();
-    //void pause();
-    //void resume();
 
     bool relocalization();
     bool trackReferenceKeyFrame();
@@ -109,11 +139,6 @@ class ModeOrbSlam2 : public Mode
     bool                     _bOK;
     bool                     _mapHasChanged = false;
 
-    // New KeyFrame rules (according to fps)
-    // Max/Min Frames to insert keyframes and to check relocalisation
-    int mMinFrames = 0;
-    int mMaxFrames = 30; //= fps
-
     // In case of performing only localization, this flag is true when there are no matches to
     // points in the map. Still tracking will continue if there are enough matches with temporal points.
     // In that case we are doing visual odometry. The system will try to do relocalization to recover
@@ -154,6 +179,10 @@ class ModeOrbSlam2 : public Mode
 
     // state machine
     void stateTransition();
+    void resetRequests();
+    void requestStateIdle();
+    void requestResume();
+    bool hasStateIdle();
 
     bool       _idleRequested   = false;
     bool       _resumeRequested = false;

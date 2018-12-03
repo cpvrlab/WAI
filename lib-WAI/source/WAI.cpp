@@ -1,8 +1,12 @@
 #include <WAI.h>
 
-void WAI::WAI::setMode(ModeType modeType)
+WAI::Mode* WAI::WAI::setMode(ModeType modeType)
 {
-    if (_mode) delete _mode;
+    if (_mode)
+    {
+        delete _mode;
+        _mode = nullptr;
+    }
 
     switch (modeType)
     {
@@ -11,14 +15,15 @@ void WAI::WAI::setMode(ModeType modeType)
             if (_sensors.find(SensorType_Camera) == _sensors.end())
             {
                 printf("Cannot switch to mode ORB_SLAM2 since camera sensor is not activated. Please call activate sensor with AstrolabeSensorType_Camera first.\n");
-                return;
             }
-
-            _mode = new ModeOrbSlam2((SensorCamera*)_sensors[SensorType_Camera],
-                                     false,
-                                     false,
-                                     false,
-                                     false);
+            else
+            {
+                _mode = new ModeOrbSlam2((SensorCamera*)_sensors[SensorType_Camera],
+                                         false,
+                                         false,
+                                         false,
+                                         false);
+            }
         }
         break;
 
@@ -27,10 +32,11 @@ void WAI::WAI::setMode(ModeType modeType)
             if (_sensors.find(SensorType_Camera) == _sensors.end())
             {
                 printf("Cannot switch to mode Aruco since camera sensor is not activated. Please call activate sensor with AstrolabeSensorType_Camera first.\n");
-                return;
             }
-
-            _mode = new ModeAruco((SensorCamera*)_sensors[SensorType_Camera]);
+            else
+            {
+                _mode = new ModeAruco((SensorCamera*)_sensors[SensorType_Camera]);
+            }
         }
         break;
 
@@ -41,6 +47,8 @@ void WAI::WAI::setMode(ModeType modeType)
         }
         break;
     }
+
+    return _mode;
 }
 
 void WAI::WAI::activateSensor(SensorType sensorType, void* sensorInfo)
@@ -86,13 +94,6 @@ bool WAI::WAI::whereAmI(cv::Mat* pose)
     wai_assert(_mode && "No mode set. Call setMode before calling whereAmI.");
 
     bool result = _mode->getPose(pose);
-
-    return result;
-}
-
-bool WAI::WAI::getDebugInfo(DebugInfoType type, void* memory)
-{
-    bool result = _mode->getDebugInfo(type, memory);
 
     return result;
 }

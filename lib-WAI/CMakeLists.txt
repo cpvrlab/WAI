@@ -12,6 +12,8 @@ file(GLOB headers
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIKeyFrameDB.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIMap.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIMapPoint.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIMapIO.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIMapStorage.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIOrbVocabulary.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIMath.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIMode.h
@@ -38,6 +40,8 @@ file(GLOB sources
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIKeyFrameDB.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIMap.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIMapPoint.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIMapIO.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIMapStorage.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIOrbVocabulary.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIMode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIModeAruco.cpp

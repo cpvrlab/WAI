@@ -43,11 +43,14 @@ class WAISceneView : public SLSceneView
     void setMapNode(SLNode* mapNode) { _mapNode = mapNode; }
     void setKeyFrameNode(SLNode* keyFrameNode) { _keyFrameNode = keyFrameNode; }
 
+    WAI::ModeOrbSlam2* getMode() { return _mode; }
+
     private:
-    WAI::WAI  _wai;
-    SLCamera* _cameraNode   = 0;
-    SLNode*   _mapNode      = 0;
-    SLNode*   _keyFrameNode = 0;
+    WAI::WAI           _wai;
+    WAI::ModeOrbSlam2* _mode;
+    SLCamera*          _cameraNode   = 0;
+    SLNode*            _mapNode      = 0;
+    SLNode*            _keyFrameNode = 0;
 
     SLMaterial* _redMat   = new SLMaterial(SLCol4f::RED, "Red");
     SLMaterial* _greenMat = new SLMaterial(SLCol4f::GREEN, "Green");
