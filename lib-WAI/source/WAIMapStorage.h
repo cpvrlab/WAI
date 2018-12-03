@@ -13,6 +13,8 @@
 
 #include <OrbSlam/ORBVocabulary.h>
 #include <WAIModeOrbSlam2.h>
+#include <WAIFileSystem.h>
+#include <WAIMapIO.h>
 
 //-----------------------------------------------------------------------------
 /* This class keeps track of the existing slam maps (WAIMap) in the storage.
@@ -26,8 +28,8 @@ class WAIMapStorage
 
     //check if directory for map storage exists and read existing map names
     static void init(std::string externalDir);
-    static void saveMap(int id, WAI::ModeOrbSlam2* orbSlamMode, bool saveImgs, cv::Mat nodeOm, std::string externalDir);
-    static bool loadMap(const std::string& name, WAI::ModeOrbSlam2* orbSlamMode, ORBVocabulary* orbVoc, bool loadKfImgs, cv::Mat* nodeOm);
+    static void saveMap(int id, WAI::ModeOrbSlam2* orbSlamMode, bool saveImgs, cv::Matx44f nodeOm, std::string externalDir);
+    static bool loadMap(const std::string& name, WAI::ModeOrbSlam2* orbSlamMode, ORBVocabulary* orbVoc, bool loadKfImgs, cv::Matx44f* nodeOm);
     //increase current id and maximum id in MapStorage
     static void newMap();
 

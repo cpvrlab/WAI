@@ -9,7 +9,6 @@
 //#############################################################################
 
 #include <WAIMapIO.h>
-#include <WAIKeyFrameDB.h>
 
 using namespace std;
 
@@ -34,8 +33,9 @@ WAIMapIO::~WAIMapIO()
 }
 //-----------------------------------------------------------------------------
 //! add map point
-void WAIMapIO::load(cv::Mat& nodeOm, WAIMap& map, WAIKeyFrameDB& kfDB)
+void WAIMapIO::load(cv::Matx44f& om, WAIMap& map, WAIKeyFrameDB& kfDB)
 {
+    cv::Mat nodeOm = cv::Mat(om);
     //load map node object matrix
     if (!_fs["mapNodeOm"].empty())
     {
@@ -125,8 +125,9 @@ void WAIMapIO::load(cv::Mat& nodeOm, WAIMap& map, WAIKeyFrameDB& kfDB)
     printf("Slam map loading successful.");
 }
 //-----------------------------------------------------------------------------
-void WAIMapIO::save(const string& filename, WAIMap& map, bool kfImgsIO, const string& pathImgs, cv::Mat nodeOm)
+void WAIMapIO::save(const string& filename, WAIMap& map, bool kfImgsIO, const string& pathImgs, cv::Matx44f om)
 {
+    cv::Mat         nodeOm = cv::Mat(om);
     cv::FileStorage fs(filename, cv::FileStorage::WRITE);
 
     //save keyframes (without graph/neigbourhood information)
@@ -372,11 +373,10 @@ void WAIMapIO::loadKeyFrames(WAIMap& map, WAIKeyFrameDB& kfDB)
             stringstream ss;
             ss << _currImgPath << "kf" << id << ".jpg";
             //newKf->imgGray = kfImg;
-            if (std::filesystem::exists(ss.str()))
+            if (WAIFileSystem::fileExists(ss.str()))
             {
                 newKf->setTexturePath(ss.str());
                 cv::Mat imgColor = cv::imread(ss.str());
-                ;
                 cv::cvtColor(imgColor, newKf->imgGray, cv::COLOR_BGR2GRAY);
             }
         }

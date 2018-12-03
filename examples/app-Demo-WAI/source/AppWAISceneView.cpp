@@ -6,12 +6,17 @@
 
 #include <SLCVCamera.h>
 
+#include <WAIMapStorage.h>
+
 #include <AppDemoGui.h>
 #include <AppDemoGuiTrackedMapping.h>
+#include <AppDemoGuiMapStorage.h>
 #include <AppWAISceneView.h>
 
-WAISceneView::WAISceneView(SLCVCalibration* calib)
+WAISceneView::WAISceneView(SLCVCalibration* calib, std::string externalDir)
+  : _externalDir(externalDir)
 {
+    WAIMapStorage::init(externalDir);
     WAI::CameraCalibration calibration = {calib->fx(),
                                           calib->fy(),
                                           calib->cx(),
@@ -89,6 +94,11 @@ void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
 
     auto trackingInfos = std::make_shared<AppDemoGuiTrackedMapping>("Tracked mapping", waiSceneView->getMode());
     AppDemoGui::addInfoDialog(trackingInfos);
+    auto mapStorage = std::make_shared<AppDemoGuiMapStorage>("Map Storage",
+                                                             waiSceneView->getMode(),
+                                                             mapNode,
+                                                             waiSceneView->getExternalDir());
+    AppDemoGui::addInfoDialog(mapStorage);
 }
 //-----------------------------------------------------------------------------
 void WAISceneView::update()

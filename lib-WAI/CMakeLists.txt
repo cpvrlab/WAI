@@ -7,6 +7,7 @@ set(target lib-WAI)
 
 file(GLOB headers
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAI.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIFileSystem.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIFrame.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIKeyFrame.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIKeyFrameDB.h
@@ -35,6 +36,7 @@ file(GLOB headers
 
 file(GLOB sources
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAI.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIFileSystem.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIFrame.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIKeyFrame.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIKeyFrameDB.cpp

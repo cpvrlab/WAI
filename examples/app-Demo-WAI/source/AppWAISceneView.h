@@ -35,7 +35,7 @@ demonstrates all transform possibilities in SLNode
 class WAISceneView : public SLSceneView
 {
     public:
-    WAISceneView(SLCVCalibration* calib);
+    WAISceneView(SLCVCalibration* calib, std::string externalDir);
     void update();
     void updateCamera(WAI::CameraData* cameraData);
 
@@ -44,20 +44,23 @@ class WAISceneView : public SLSceneView
     void setKeyFrameNode(SLNode* keyFrameNode) { _keyFrameNode = keyFrameNode; }
 
     WAI::ModeOrbSlam2* getMode() { return _mode; }
+    std::string        getExternalDir() { return _externalDir; }
 
     private:
     WAI::WAI           _wai;
     WAI::ModeOrbSlam2* _mode;
-    SLCamera*          _cameraNode   = 0;
-    SLNode*            _mapNode      = 0;
-    SLNode*            _keyFrameNode = 0;
+    SLCamera*          _cameraNode   = nullptr;
+    SLNode*            _mapNode      = nullptr;
+    SLNode*            _keyFrameNode = nullptr;
 
     SLMaterial* _redMat   = new SLMaterial(SLCol4f::RED, "Red");
     SLMaterial* _greenMat = new SLMaterial(SLCol4f::GREEN, "Green");
     SLMaterial* _blueMat  = new SLMaterial(SLCol4f::BLUE, "Blue");
 
-    SLPoints* _mappointsMesh        = 0;
-    SLPoints* _mappointsMatchedMesh = 0;
-    SLPoints* _mappointsLocalMesh   = 0;
+    SLPoints* _mappointsMesh        = nullptr;
+    SLPoints* _mappointsMatchedMesh = nullptr;
+    SLPoints* _mappointsLocalMesh   = nullptr;
+
+    std::string _externalDir;
 };
 //-----------------------------------------------------------------------------

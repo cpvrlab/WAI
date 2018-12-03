@@ -12,12 +12,12 @@
 #define WAI_MAPIO_H
 
 #include <vector>
-#include <filesystem>
 #include <opencv2/core/core.hpp>
 
 #include <WAIMap.h>
 #include <WAIKeyFrameDB.h>
 #include <WAIKeyFrame.h>
+#include <WAIFileSystem.h>
 #include <OrbSlam/ORBVocabulary.h>
 
 using namespace ORB_SLAM2;
@@ -32,8 +32,8 @@ class WAIMapIO
     WAIMapIO(const string& filename, ORBVocabulary* orbVoc, bool kfImgsIO = true, std::string currImgPath = "");
     ~WAIMapIO();
     //! execute loading procedure
-    void        load(cv::Mat& nodeOm, WAIMap& map, WAIKeyFrameDB& kfDB);
-    static void save(const string& filename, WAIMap& map, bool kfImgsIO, const string& pathImgs, cv::Mat nodeOm);
+    void        load(cv::Matx44f& om, WAIMap& map, WAIKeyFrameDB& kfDB);
+    static void save(const string& filename, WAIMap& map, bool kfImgsIO, const string& pathImgs, cv::Matx44f om);
 
     protected:
     private:
