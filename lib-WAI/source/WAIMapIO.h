@@ -32,8 +32,8 @@ class WAIMapIO
     WAIMapIO(const string& filename, ORBVocabulary* orbVoc, bool kfImgsIO = true, std::string currImgPath = "");
     ~WAIMapIO();
     //! execute loading procedure
-    void        load(cv::Matx44f& om, WAIMap& map, WAIKeyFrameDB& kfDB);
-    static void save(const string& filename, WAIMap& map, bool kfImgsIO, const string& pathImgs, cv::Matx44f om);
+    void        load(cv::Mat& om, WAIMap& map, WAIKeyFrameDB& kfDB);
+    static void save(const string& filename, WAIMap& map, bool kfImgsIO, const string& pathImgs, cv::Mat om);
 
     protected:
     private:

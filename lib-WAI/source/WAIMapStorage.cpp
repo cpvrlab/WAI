@@ -35,7 +35,7 @@ void WAIMapStorage::init(std::string externalDir)
     //setup file system and check for existing files
     if (WAIFileSystem::externalDirExists())
     {
-        _mapsDir = externalDir + _mapsDirName;
+        _mapsDir = WAIFileSystem::unifySlashes(externalDir + _mapsDirName);
 
         //check if visual odometry maps directory exists
         if (!WAIFileSystem::dirExists(_mapsDir))
@@ -86,7 +86,7 @@ void WAIMapStorage::init(std::string externalDir)
     }
 }
 //-----------------------------------------------------------------------------
-void WAIMapStorage::saveMap(int id, WAI::ModeOrbSlam2* orbSlamMode, bool saveImgs, cv::Matx44f nodeOm, std::string externalDir)
+void WAIMapStorage::saveMap(int id, WAI::ModeOrbSlam2* orbSlamMode, bool saveImgs, cv::Mat nodeOm, std::string externalDir)
 {
     if (!_isInitialized)
     {
@@ -103,7 +103,7 @@ void WAIMapStorage::saveMap(int id, WAI::ModeOrbSlam2* orbSlamMode, bool saveImg
     bool errorOccured = false;
     //check if map exists
     string mapName  = _mapPrefix + to_string(id);
-    string path     = _mapsDir + mapName; //SLUtils::unifySlashes(_mapsDir + mapName);
+    string path     = WAIFileSystem::unifySlashes(_mapsDir + mapName);
     string pathImgs = path + "imgs/";
     string filename = path + mapName + ".json";
 
@@ -202,7 +202,7 @@ void WAIMapStorage::saveMap(int id, WAI::ModeOrbSlam2* orbSlamMode, bool saveImg
     orbSlamMode->resume();
 }
 //-----------------------------------------------------------------------------
-bool WAIMapStorage::loadMap(const string& path, WAI::ModeOrbSlam2* orbSlamMode, ORBVocabulary* orbVoc, bool loadKfImgs, cv::Matx44f* nodeOm)
+bool WAIMapStorage::loadMap(const string& path, WAI::ModeOrbSlam2* orbSlamMode, ORBVocabulary* orbVoc, bool loadKfImgs, cv::Mat& nodeOm)
 {
     bool loadingSuccessful = false;
     if (!_isInitialized)
@@ -215,9 +215,13 @@ bool WAIMapStorage::loadMap(const string& path, WAI::ModeOrbSlam2* orbSlamMode, 
         printf("Map tracking not initialized!\n");
         return loadingSuccessful;
     }
+
     //reset tracking (and all dependent threads/objects like Map, KeyFrameDatabase, LocalMapping, loopClosing)
-    //mapTracking->Pause();
-    orbSlamMode->pause();
+    orbSlamMode->requestStateIdle();
+    while (!orbSlamMode->hasStateIdle())
+    {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
     orbSlamMode->reset();
 
     //clear map and keyframe database
@@ -229,7 +233,7 @@ bool WAIMapStorage::loadMap(const string& path, WAI::ModeOrbSlam2* orbSlamMode, 
     if (prefixIndex != string::npos)
     {
         std::string name     = path.substr(prefixIndex);
-        std::string idString = name.substr(sizeof(_mapPrefix));
+        std::string idString = name.substr(_mapPrefix.length());
         _currentId           = atoi(idString.c_str());
     }
     else
@@ -240,14 +244,14 @@ bool WAIMapStorage::loadMap(const string& path, WAI::ModeOrbSlam2* orbSlamMode, 
 
     //check if map exists
     string mapName      = _mapPrefix + to_string(_currentId);
-    string mapPath      = _mapsDir + mapName;
+    string mapPath      = WAIFileSystem::unifySlashes(_mapsDir + mapName);
     string currPathImgs = mapPath + "imgs/";
     string filename     = mapPath + mapName + ".json";
 
     //check if dir and file exist
-    if (!WAIFileSystem::dirExists(path))
+    if (!WAIFileSystem::dirExists(mapPath))
     {
-        string msg = "Failed to load map. Path does not exist: " + path + "\n";
+        string msg = "Failed to load map. Path does not exist: " + mapPath + "\n";
         printf("%s\n", msg.c_str());
         return loadingSuccessful;
     }
@@ -261,7 +265,7 @@ bool WAIMapStorage::loadMap(const string& path, WAI::ModeOrbSlam2* orbSlamMode, 
     try
     {
         WAIMapIO mapIO(filename, orbVoc, loadKfImgs, currPathImgs);
-        mapIO.load(*nodeOm, *map, *kfDB);
+        mapIO.load(nodeOm, *map, *kfDB);
 
         //if map loading was successful, switch to initialized
         orbSlamMode->setInitialized(true);

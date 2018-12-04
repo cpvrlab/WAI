@@ -854,8 +854,9 @@ void LocalMapping::loopContinue()
         std::lock_guard<std::mutex> guard(_mutexLoop);
         _loopWait = false;
     }
-    _condVarLoop.notify_one();
+    _condVarLoop.notify_all();
 }
+
 void LocalMapping::loopWait()
 {
     std::lock_guard<std::mutex> guard(_mutexLoop);

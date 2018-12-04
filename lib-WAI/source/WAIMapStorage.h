@@ -28,8 +28,8 @@ class WAIMapStorage
 
     //check if directory for map storage exists and read existing map names
     static void init(std::string externalDir);
-    static void saveMap(int id, WAI::ModeOrbSlam2* orbSlamMode, bool saveImgs, cv::Matx44f nodeOm, std::string externalDir);
-    static bool loadMap(const std::string& name, WAI::ModeOrbSlam2* orbSlamMode, ORBVocabulary* orbVoc, bool loadKfImgs, cv::Matx44f* nodeOm);
+    static void saveMap(int id, WAI::ModeOrbSlam2* orbSlamMode, bool saveImgs, cv::Mat nodeOm, std::string externalDir);
+    static bool loadMap(const std::string& name, WAI::ModeOrbSlam2* orbSlamMode, ORBVocabulary* orbVoc, bool loadKfImgs, cv::Mat& nodeOm);
     //increase current id and maximum id in MapStorage
     static void newMap();
 

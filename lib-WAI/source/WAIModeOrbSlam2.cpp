@@ -6,11 +6,11 @@ WAI::ModeOrbSlam2::ModeOrbSlam2(SensorCamera* camera,
                                 bool          retainImg,
                                 bool          onlyTracking,
                                 bool          trackOptFlow)
-  : _camera(camera),
-    _serial(serial),
+  : _serial(serial),
     _retainImg(retainImg),
     _onlyTracking(onlyTracking),
-    _trackOptFlow(trackOptFlow)
+    _trackOptFlow(trackOptFlow),
+    _camera(camera)
 {
     //__android_log_print(ANDROID_LOG_INFO, "lib-WAI", "mode ORB_SLAM2 constructor");
 
@@ -1094,7 +1094,7 @@ void WAI::ModeOrbSlam2::reset()
     if (mpInitializer)
     {
         delete mpInitializer;
-        mpInitializer = static_cast<Initializer*>(NULL);
+        mpInitializer = static_cast<Initializer*>(nullptr);
     }
 
     mlRelativeFramePoses.clear();
@@ -1102,8 +1102,8 @@ void WAI::ModeOrbSlam2::reset()
     mlFrameTimes.clear();
     mlbLost.clear();
 
-    mpLastKeyFrame = NULL;
-    mpReferenceKF  = NULL;
+    mpLastKeyFrame = nullptr;
+    mpReferenceKF  = nullptr;
     mvpLocalMapPoints.clear();
     mvpLocalKeyFrames.clear();
     mnMatchesInliers   = 0;
@@ -1152,35 +1152,31 @@ void WAI::ModeOrbSlam2::resume()
 
 void WAI::ModeOrbSlam2::requestStateIdle()
 {
-    std::unique_lock<std::mutex> guard(_mutexStates);
-    resetRequests();
-    _idleRequested = true;
-
-    if (_serial)
     {
-        guard.unlock();
-        stateTransition();
+        std::unique_lock<std::mutex> guard(_mutexStates);
+        resetRequests();
+        _idleRequested = true;
     }
+
+    stateTransition();
 }
 
 void WAI::ModeOrbSlam2::requestResume()
 {
-    std::unique_lock<std::mutex> guard(_mutexStates);
-    resetRequests();
-    _resumeRequested = true;
-
-    if (_serial)
     {
-        guard.unlock();
-        stateTransition();
+        std::unique_lock<std::mutex> guard(_mutexStates);
+        resetRequests();
+        _resumeRequested = true;
     }
+
+    stateTransition();
 }
 
 bool WAI::ModeOrbSlam2::hasStateIdle()
 {
     std::unique_lock<std::mutex> guard(_mutexStates);
 
-    bool result = _state == TrackingState_Idle;
+    bool result = (_state == TrackingState_Idle);
 
     return result;
 }

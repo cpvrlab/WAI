@@ -33,13 +33,12 @@ WAIMapIO::~WAIMapIO()
 }
 //-----------------------------------------------------------------------------
 //! add map point
-void WAIMapIO::load(cv::Matx44f& om, WAIMap& map, WAIKeyFrameDB& kfDB)
+void WAIMapIO::load(cv::Mat& om, WAIMap& map, WAIKeyFrameDB& kfDB)
 {
-    cv::Mat nodeOm = cv::Mat(om);
     //load map node object matrix
     if (!_fs["mapNodeOm"].empty())
     {
-        _fs["mapNodeOm"] >> nodeOm;
+        _fs["mapNodeOm"] >> om;
     }
 
     //load keyframes
@@ -125,9 +124,8 @@ void WAIMapIO::load(cv::Matx44f& om, WAIMap& map, WAIKeyFrameDB& kfDB)
     printf("Slam map loading successful.");
 }
 //-----------------------------------------------------------------------------
-void WAIMapIO::save(const string& filename, WAIMap& map, bool kfImgsIO, const string& pathImgs, cv::Matx44f om)
+void WAIMapIO::save(const string& filename, WAIMap& map, bool kfImgsIO, const string& pathImgs, cv::Mat om)
 {
-    cv::Mat         nodeOm = cv::Mat(om);
     cv::FileStorage fs(filename, cv::FileStorage::WRITE);
 
     //save keyframes (without graph/neigbourhood information)
@@ -135,7 +133,7 @@ void WAIMapIO::save(const string& filename, WAIMap& map, bool kfImgsIO, const st
     if (!kfs.size())
         return;
 
-    fs << "mapNodeOm" << nodeOm;
+    fs << "mapNodeOm" << om;
 
     //start sequence keyframes
     fs << "KeyFrames"

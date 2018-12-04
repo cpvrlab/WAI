@@ -35,19 +35,21 @@ void AppDemoGuiMapStorage::buildInfos()
 
     if (ImGui::Button("Save map", ImVec2(ImGui::GetContentRegionAvailWidth(), 0.0f)))
     {
-        SLMat4f     om = _node->om();
-        cv::Matx44f cvOm(om.m(0),
-                         -om.m(1),
-                         -om.m(2),
-                         om.m(12),
-                         om.m(4),
-                         -om.m(5),
-                         -om.m(6),
-                         -om.m(13),
-                         om.m(8),
-                         -om.m(9),
-                         -om.m(10),
-                         -om.m(14));
+        SLMat4f om           = _node->om();
+        cv::Mat cvOm         = cv::Mat(4, 4, CV_32F);
+        cvOm.at<float>(0, 0) = om.m(0);
+        cvOm.at<float>(0, 1) = -om.m(1);
+        cvOm.at<float>(0, 2) = -om.m(2);
+        cvOm.at<float>(0, 3) = om.m(12);
+        cvOm.at<float>(1, 0) = om.m(4);
+        cvOm.at<float>(1, 1) = -om.m(5);
+        cvOm.at<float>(1, 2) = -om.m(6);
+        cvOm.at<float>(1, 3) = -om.m(13);
+        cvOm.at<float>(2, 0) = om.m(8);
+        cvOm.at<float>(2, 1) = -om.m(9);
+        cvOm.at<float>(2, 2) = -om.m(10);
+        cvOm.at<float>(2, 3) = -om.m(14);
+        cvOm.at<float>(3, 3) = 1.0f;
         WAIMapStorage::saveMap(WAIMapStorage::getCurrentId(), _tracking, true, cvOm, _externalDir);
         //update key frames, because there may be new textures in file system
         //_mapNode->updateKeyFrames(_map->GetAllKeyFrames());
@@ -87,11 +89,10 @@ void AppDemoGuiMapStorage::buildInfos()
         if (WAIMapStorage::currItem)
         {
             //load selected map
-            cv::Matx44f cvOm44;
-            string      selectedMapName = WAIMapStorage::existingMapNames[WAIMapStorage::currN];
-            if (WAIMapStorage::loadMap(selectedMapName, _tracking, WAIOrbVocabulary::get(), true, &cvOm44))
+            cv::Mat cvOm            = cv::Mat(4, 4, CV_32F);
+            string  selectedMapName = WAIMapStorage::existingMapNames[WAIMapStorage::currN];
+            if (WAIMapStorage::loadMap(selectedMapName, _tracking, WAIOrbVocabulary::get(), true, cvOm))
             {
-                cv::Mat cvOm(cvOm44);
                 SLMat4f om;
                 om.setMatrix(cvOm.at<float>(0, 0),
                              -cvOm.at<float>(0, 1),

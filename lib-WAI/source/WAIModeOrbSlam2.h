@@ -64,6 +64,8 @@ class ModeOrbSlam2 : public Mode
     // state machine
     void pause();
     void resume();
+    void requestStateIdle();
+    bool hasStateIdle();
     void setInitialized(bool initialized) { _initialized = initialized; }
 
     private:
@@ -180,9 +182,7 @@ class ModeOrbSlam2 : public Mode
     // state machine
     void stateTransition();
     void resetRequests();
-    void requestStateIdle();
     void requestResume();
-    bool hasStateIdle();
 
     bool       _idleRequested   = false;
     bool       _resumeRequested = false;
