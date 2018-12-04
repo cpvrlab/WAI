@@ -19,6 +19,8 @@
 #elif defined(WAI_OS_ANDROID)
 #    include <unistd.h> //getcwd
 #    include <sys/stat.h>
+#    include <sys/types.h>
+#    include <dirent.h>
 #elif defined(WAI_OS_LINUX)
 #    include <unistd.h> //getcwd
 #    include <sys/stat.h>

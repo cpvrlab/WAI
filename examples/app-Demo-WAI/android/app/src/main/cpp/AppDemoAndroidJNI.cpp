@@ -25,6 +25,8 @@
 JNIEnv *environment;    //! Pointer to JAVA environment used in ray tracing callback
 int svIndex;            //!< SceneView index
 WAISceneView* sceneView = 0;
+std::string externalDir;
+std::string dataRoot;
 //-----------------------------------------------------------------------------
 /*! Java Native Interface (JNI) function declarations. These functions are
 called by the Java interface class GLES3Lib. The function name follows the pattern
@@ -66,10 +68,9 @@ JNIEXPORT void      JNICALL Java_ch_fhnw_comgr_GLES3Lib_copyVideoYUVPlanes  (JNI
 //! Alternative SceneView creation function passed by slCreateSceneView
 SLuint createNewWAISceneView()
 {
-    sceneView = new WAISceneView(SLApplication::activeCalib);
+    sceneView = new WAISceneView(SLApplication::activeCalib, externalDir, dataRoot);
     return sceneView->index();
 }
-
 //-----------------------------------------------------------------------------
 JNIEXPORT void JNICALL Java_ch_fhnw_comgr_GLES3Lib_onSetupExternalDirectories(JNIEnv *env, jobject obj, jstring  externalDirPath)
 {
@@ -79,6 +80,8 @@ JNIEXPORT void JNICALL Java_ch_fhnw_comgr_GLES3Lib_onSetupExternalDirectories(JN
     env->ReleaseStringUTFChars(externalDirPath, nativeString);
 
     slSetupExternalDirectories(externalDirPathNative);
+
+    externalDir = externalDirPathNative;
 }
 //-----------------------------------------------------------------------------
 //! Native ray tracing callback function that calls the Java class method GLES3Lib.RaytracingCallback
@@ -117,6 +120,8 @@ JNIEXPORT void JNICALL Java_ch_fhnw_comgr_GLES3Lib_onInit(JNIEnv *env, jobject o
 
     string device_path_msg = "Device path:" + devicePath;
     SL_LOG(device_path_msg.c_str(),0);
+
+    dataRoot = devicePath;
 
     ////////////////////////////////////////////////////
     slCreateAppAndScene(  *cmdLineArgs,

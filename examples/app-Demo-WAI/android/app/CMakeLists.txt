@@ -8,11 +8,17 @@ set(target native-lib)
 
 file(GLOB headers
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGui.h
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiInfosDialog.h
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiTrackedMapping.h
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiMapStorage.h
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAISceneView.h
     )
 
 file(GLOB sources
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGui.cpp
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiInfosDialog.cpp
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiTrackedMapping.cpp
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiMapStorage.cpp
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAISceneView.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/main/cpp/AppDemoAndroidJNI.cpp
     )

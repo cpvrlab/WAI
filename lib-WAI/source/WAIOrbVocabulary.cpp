@@ -10,26 +10,28 @@
 
 #include <WAIOrbVocabulary.h>
 
-//-----------------------------------------------------------------------------
 WAIOrbVocabulary::~WAIOrbVocabulary()
 {
     if (_vocabulary)
         delete _vocabulary;
 }
 //-----------------------------------------------------------------------------
-void WAIOrbVocabulary::loadFromFile()
+void WAIOrbVocabulary::initialize(std::string filename)
 {
-    _vocabulary = new ORB_SLAM2::ORBVocabulary();
-    // TODO(jan): actual path to file
-    string strVocFile = std::string(WAI_ROOT) + "/data/calibrations/ORBvoc.bin";
-    bool   bVocLoad   = _vocabulary->loadFromBinaryFile(strVocFile);
+    instance().doInitialize(filename);
+}
+//-----------------------------------------------------------------------------
+void WAIOrbVocabulary::loadFromFile(std::string strVocFile)
+{
+    _vocabulary   = new ORB_SLAM2::ORBVocabulary();
+    bool bVocLoad = _vocabulary->loadFromBinaryFile(strVocFile);
     if (!bVocLoad)
     {
-        printf("Wrong path to vocabulary. Failed to open at: %s", strVocFile.c_str());
-        printf("WAIOrbVocabulary::loadFromFile: failed to load vocabulary");
+        WAI_LOG("Wrong path to vocabulary. Failed to open at: %s", strVocFile.c_str());
+        WAI_LOG("WAIOrbVocabulary::loadFromFile: failed to load vocabulary");
         return;
     }
-    printf("Vocabulary loaded!\n");
+    WAI_LOG("Vocabulary loaded!\n");
 }
 //-----------------------------------------------------------------------------
 ORB_SLAM2::ORBVocabulary* WAIOrbVocabulary::get()
@@ -50,7 +52,13 @@ void WAIOrbVocabulary::doFree()
 //-----------------------------------------------------------------------------
 ORB_SLAM2::ORBVocabulary* WAIOrbVocabulary::doGet()
 {
-    if (!_vocabulary)
-        loadFromFile();
     return _vocabulary;
+}
+//-----------------------------------------------------------------------------
+void WAIOrbVocabulary::doInitialize(std::string filename)
+{
+    if (!_vocabulary)
+    {
+        loadFromFile(filename);
+    }
 }

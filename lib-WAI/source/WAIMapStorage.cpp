@@ -40,7 +40,7 @@ void WAIMapStorage::init(std::string externalDir)
         //check if visual odometry maps directory exists
         if (!WAIFileSystem::dirExists(_mapsDir))
         {
-            printf("Making dir: %s\n", _mapsDir.c_str());
+            WAI_LOG("Making dir: %s\n", _mapsDir.c_str());
             WAIFileSystem::makeDir(_mapsDir);
         }
         else
@@ -53,7 +53,7 @@ void WAIMapStorage::init(std::string externalDir)
                 //find json files that contain mapPrefix and estimate highest used id
                 if (WAIFileSystem::contains(name, _mapPrefix))
                 {
-                    printf("VO-Map found: %s\n", name.c_str());
+                    WAI_LOG("VO-Map found: %s\n", name.c_str());
                     //estimate highest used id
                     std::vector<std::string> splitted;
                     WAIFileSystem::split(name, '-', splitted);
@@ -64,7 +64,7 @@ void WAIMapStorage::init(std::string externalDir)
                         if (id >= _nextId)
                         {
                             _nextId = id + 1;
-                            printf("New next id: %i\n", _nextId);
+                            WAI_LOG("New next id: %i\n", _nextId);
                         }
                     }
                 }
@@ -80,8 +80,8 @@ void WAIMapStorage::init(std::string externalDir)
     }
     else
     {
-        printf("Failed to setup external map storage!\n");
-        printf("Exit in WAIMapStorage::init()");
+        WAI_LOG("Failed to setup external map storage!\n");
+        WAI_LOG("Exit in WAIMapStorage::init()");
         std::exit(0);
     }
 }
@@ -90,13 +90,13 @@ void WAIMapStorage::saveMap(int id, WAI::ModeOrbSlam2* orbSlamMode, bool saveImg
 {
     if (!_isInitialized)
     {
-        printf("External map storage is not initialized, you have to call init() first!\n");
+        WAI_LOG("External map storage is not initialized, you have to call init() first!\n");
         return;
     }
 
     if (!orbSlamMode->isInitialized())
     {
-        printf("Map storage: System is not initialized. Map saving is not possible!\n");
+        WAI_LOG("Map storage: System is not initialized. Map saving is not possible!\n");
         return;
     }
 
@@ -165,13 +165,13 @@ void WAIMapStorage::saveMap(int id, WAI::ModeOrbSlam2* orbSlamMode, bool saveImg
     {
         string msg = "Exception during slam map storage: " + filename + "\n" +
                      e.what() + "\n";
-        printf("%s\n", msg.c_str());
+        WAI_LOG("%s\n", msg.c_str());
         errorOccured = true;
     }
     catch (...)
     {
         string msg = "Exception during slam map storage: " + filename + "\n";
-        printf("%s\n", msg.c_str());
+        WAI_LOG("%s\n", msg.c_str());
         errorOccured = true;
     }
 
@@ -207,12 +207,12 @@ bool WAIMapStorage::loadMap(const string& path, WAI::ModeOrbSlam2* orbSlamMode, 
     bool loadingSuccessful = false;
     if (!_isInitialized)
     {
-        printf("External map storage is not initialized, you have to call init() first!\n");
+        WAI_LOG("External map storage is not initialized, you have to call init() first!\n");
         return loadingSuccessful;
     }
     if (!orbSlamMode)
     {
-        printf("Map tracking not initialized!\n");
+        WAI_LOG("Map tracking not initialized!\n");
         return loadingSuccessful;
     }
 
@@ -238,7 +238,7 @@ bool WAIMapStorage::loadMap(const string& path, WAI::ModeOrbSlam2* orbSlamMode, 
     }
     else
     {
-        printf("Could not load map. Map id not found in name: %s\n", path.c_str());
+        WAI_LOG("Could not load map. Map id not found in name: %s\n", path.c_str());
         return loadingSuccessful;
     }
 
@@ -252,13 +252,13 @@ bool WAIMapStorage::loadMap(const string& path, WAI::ModeOrbSlam2* orbSlamMode, 
     if (!WAIFileSystem::dirExists(mapPath))
     {
         string msg = "Failed to load map. Path does not exist: " + mapPath + "\n";
-        printf("%s\n", msg.c_str());
+        WAI_LOG("%s\n", msg.c_str());
         return loadingSuccessful;
     }
     if (!WAIFileSystem::fileExists(filename))
     {
         string msg = "Failed to load map: " + filename + "\n";
-        printf("%s\n", msg.c_str());
+        WAI_LOG("%s\n", msg.c_str());
         return loadingSuccessful;
     }
 
@@ -275,12 +275,12 @@ bool WAIMapStorage::loadMap(const string& path, WAI::ModeOrbSlam2* orbSlamMode, 
     {
         string msg = "Exception during slam map loading: " + filename +
                      e.what() + "\n";
-        printf("%s\n", msg.c_str());
+        WAI_LOG("%s\n", msg.c_str());
     }
     catch (...)
     {
         string msg = "Exception during slam map loading: " + filename + "\n";
-        printf("%s\n", msg.c_str());
+        WAI_LOG("%s\n", msg.c_str());
     }
 
     orbSlamMode->resume();
@@ -291,7 +291,7 @@ void WAIMapStorage::newMap()
 {
     if (!_isInitialized)
     {
-        printf("External map storage is not initialized, you have to call init() first!\n");
+        WAI_LOG("External map storage is not initialized, you have to call init() first!\n");
         return;
     }
 

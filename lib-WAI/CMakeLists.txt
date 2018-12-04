@@ -56,6 +56,7 @@ file(GLOB sources
     ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/LoopClosing.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/Optimizer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/ORBmatcher.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/ORBextractor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/PnPsolver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/Sim3Solver.cpp
     )

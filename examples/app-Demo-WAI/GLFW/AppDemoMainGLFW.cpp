@@ -67,7 +67,9 @@ WAISceneView* sceneView         = 0;
 //! Alternative SceneView creation function passed by slCreateSceneView
 SLuint createNewWAISceneView()
 {
-    sceneView = new WAISceneView(SLApplication::activeCalib, std::string(WAI_ROOT) + "/data/");
+    sceneView = new WAISceneView(SLApplication::activeCalib,
+                                 std::string(WAI_ROOT) + "/data/",
+                                 std::string(WAI_ROOT) + "/data/");
     return sceneView->index();
 }
 //-----------------------------------------------------------------------------

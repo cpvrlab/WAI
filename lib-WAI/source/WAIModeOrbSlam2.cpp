@@ -1,20 +1,19 @@
 #include <WAIModeOrbSlam2.h>
-//#include <android/log.h>
 
 WAI::ModeOrbSlam2::ModeOrbSlam2(SensorCamera* camera,
                                 bool          serial,
                                 bool          retainImg,
                                 bool          onlyTracking,
-                                bool          trackOptFlow)
+                                bool          trackOptFlow,
+                                std::string   orbVocFile)
   : _serial(serial),
     _retainImg(retainImg),
     _onlyTracking(onlyTracking),
     _trackOptFlow(trackOptFlow),
     _camera(camera)
 {
-    //__android_log_print(ANDROID_LOG_INFO, "lib-WAI", "mode ORB_SLAM2 constructor");
-
     //load visual vocabulary for relocalization
+    WAIOrbVocabulary::initialize(orbVocFile);
     mpVocabulary = WAIOrbVocabulary::get();
 
     //instantiate and load slam map
@@ -112,7 +111,7 @@ void WAI::ModeOrbSlam2::notifyUpdate()
     {
         case TrackingState_Initializing:
         {
-            //__android_log_print(ANDROID_LOG_INFO, "lib-WAI", "initializing");
+            WAI_LOG("initializing");
             initialize();
         }
         break;
@@ -121,7 +120,7 @@ void WAI::ModeOrbSlam2::notifyUpdate()
         case TrackingState_TrackingLost:
         {
             //relocalize or track 3d points
-            //__android_log_print(ANDROID_LOG_INFO, "lib-WAI", "track 3D pts");
+            WAI_LOG("track 3D pts");
             track3DPts();
         }
         break;
@@ -319,12 +318,12 @@ void WAI::ModeOrbSlam2::stateTransition()
         {
             if (_bOK)
             {
-                fprintf(stderr, "state ok\n");
+                WAI_LOG("state ok\n");
                 _state = TrackingState_TrackingOK;
             }
             else
             {
-                fprintf(stderr, "state lost\n");
+                WAI_LOG("state lost\n");
                 _state = TrackingState_TrackingLost;
             }
         }
@@ -403,9 +402,11 @@ void WAI::ModeOrbSlam2::initialize()
 
     if (!mpInitializer)
     {
+        WAI_LOG("No initializer");
         // Set Reference Frame
         if (mCurrentFrame.mvKeys.size() > 100)
         {
+            WAI_LOG("Not enough keypoints in current frame");
             mInitialFrame = WAIFrame(mCurrentFrame);
             mLastFrame    = WAIFrame(mCurrentFrame);
             mvbPrevMatched.resize(mCurrentFrame.mvKeysUn.size());
@@ -427,10 +428,11 @@ void WAI::ModeOrbSlam2::initialize()
     }
     else
     {
+        WAI_LOG("Have initializer");
         // Try to initialize
         if ((int)mCurrentFrame.mvKeys.size() <= 100)
         {
-
+            WAI_LOG("WITH INITIALIZER - Not enough keypoints in current frame");
             delete mpInitializer;
             mpInitializer = static_cast<Initializer*>(NULL);
             fill(mvIniMatches.begin(), mvIniMatches.end(), -1);
@@ -444,6 +446,7 @@ void WAI::ModeOrbSlam2::initialize()
         // Check if there are enough correspondences
         if (nmatches < 100)
         {
+            WAI_LOG("WITH INITIALIZER - Not enough matches");
             delete mpInitializer;
             mpInitializer = static_cast<Initializer*>(NULL);
             return;
@@ -467,6 +470,7 @@ void WAI::ModeOrbSlam2::initialize()
 
         if (mpInitializer->Initialize(mCurrentFrame, mvIniMatches, Rcw, tcw, mvIniP3D, vbTriangulated))
         {
+            WAI_LOG("WITH INITIALIZER - initializing");
             for (size_t i = 0, iend = mvIniMatches.size(); i < iend; i++)
             {
                 if (mvIniMatches[i] >= 0 && !vbTriangulated[i])

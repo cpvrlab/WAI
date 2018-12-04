@@ -1,5 +1,10 @@
 #include <WAI.h>
 
+WAI::WAI::WAI(std::string dataRoot)
+{
+    _dataRoot = WAIFileSystem::unifySlashes(dataRoot);
+}
+
 WAI::Mode* WAI::WAI::setMode(ModeType modeType)
 {
     if (_mode)
@@ -14,7 +19,7 @@ WAI::Mode* WAI::WAI::setMode(ModeType modeType)
         {
             if (_sensors.find(SensorType_Camera) == _sensors.end())
             {
-                printf("Cannot switch to mode ORB_SLAM2 since camera sensor is not activated. Please call activate sensor with AstrolabeSensorType_Camera first.\n");
+                WAI_LOG("Cannot switch to mode ORB_SLAM2 since camera sensor is not activated. Please call activate sensor with AstrolabeSensorType_Camera first.\n");
             }
             else
             {
@@ -22,7 +27,8 @@ WAI::Mode* WAI::WAI::setMode(ModeType modeType)
                                          false,
                                          false,
                                          false,
-                                         false);
+                                         false,
+                                         _dataRoot + "calibrations/ORBvoc.bin");
             }
         }
         break;
@@ -31,7 +37,7 @@ WAI::Mode* WAI::WAI::setMode(ModeType modeType)
         {
             if (_sensors.find(SensorType_Camera) == _sensors.end())
             {
-                printf("Cannot switch to mode Aruco since camera sensor is not activated. Please call activate sensor with AstrolabeSensorType_Camera first.\n");
+                WAI_LOG("Cannot switch to mode Aruco since camera sensor is not activated. Please call activate sensor with AstrolabeSensorType_Camera first.\n");
             }
             else
             {
@@ -55,8 +61,8 @@ void WAI::WAI::activateSensor(SensorType sensorType, void* sensorInfo)
 {
     if (_sensors.find(sensorType) != _sensors.end())
     {
-        printf("sensor with type %i already activated.\n",
-               sensorType);
+        WAI_LOG("sensor with type %i already activated.\n",
+                sensorType);
         return;
     }
 
@@ -81,8 +87,8 @@ void WAI::WAI::updateSensor(SensorType sensorType, void* value)
 {
     if (_sensors.find(sensorType) == _sensors.end())
     {
-        printf("Trying to update a non-existent sensor %i. Call activate sensor with the appropriate sensortype.\n",
-               sensorType);
+        WAI_LOG("Trying to update a non-existent sensor %i. Call activate sensor with the appropriate sensortype.\n",
+                sensorType);
         return;
     }
 

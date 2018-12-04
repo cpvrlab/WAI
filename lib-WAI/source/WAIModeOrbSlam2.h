@@ -27,7 +27,12 @@ namespace WAI
 class ModeOrbSlam2 : public Mode
 {
     public:
-    ModeOrbSlam2(SensorCamera* camera, bool serial, bool retainImg, bool onlyTracking, bool trackOptFlow);
+    ModeOrbSlam2(SensorCamera* camera,
+                 bool          serial,
+                 bool          retainImg,
+                 bool          onlyTracking,
+                 bool          trackOptFlow,
+                 std::string   orbVocFile);
     ~ModeOrbSlam2();
     bool getPose(cv::Mat* pose);
     void notifyUpdate();

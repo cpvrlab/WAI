@@ -1,4 +1,5 @@
 #include <WAISensorCamera.h>
+#include <WAI.h>
 
 WAI::SensorCamera::SensorCamera(CameraCalibration* cameraCalibration)
 {
@@ -16,6 +17,12 @@ WAI::SensorCamera::SensorCamera(CameraCalibration* cameraCalibration)
     _distortionMatrix.at<float>(1, 0) = cameraCalibration->k2;
     _distortionMatrix.at<float>(2, 0) = cameraCalibration->p1;
     _distortionMatrix.at<float>(3, 0) = cameraCalibration->p2;
+
+    WAI_LOG("fx: %f, fy: %f, cx: %f, cy: %f\n",
+            cameraCalibration->fx,
+            cameraCalibration->fy,
+            cameraCalibration->cx,
+            cameraCalibration->cy);
 }
 
 void WAI::SensorCamera::update(void* cameraData)

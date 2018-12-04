@@ -22,7 +22,7 @@ WAIMapIO::WAIMapIO(const string& filename, ORBVocabulary* orbVoc, bool kfImgsIO,
     if (!_fs.isOpened())
     {
         string msg = "Failed to open filestorage: " + filename + "\n";
-        printf(msg.c_str());
+        WAI_LOG(msg.c_str());
         throw(std::runtime_error(msg));
     }
 }
@@ -121,7 +121,7 @@ void WAIMapIO::load(cv::Mat& om, WAIMap& map, WAIKeyFrameDB& kfDB)
         mp->ComputeDistinctiveDescriptors();
     }
 
-    printf("Slam map loading successful.");
+    WAI_LOG("Slam map loading successful.");
 }
 //-----------------------------------------------------------------------------
 void WAIMapIO::save(const string& filename, WAIMap& map, bool kfImgsIO, const string& pathImgs, cv::Mat om)
@@ -260,7 +260,7 @@ void WAIMapIO::save(const string& filename, WAIMap& map, bool kfImgsIO, const st
 
     // explicit close
     fs.release();
-    printf("Slam map storage successful.");
+    WAI_LOG("Slam map storage successful.");
 }
 //-----------------------------------------------------------------------------
 //calculation of scaleFactors , levelsigma2, invScaleFactors and invLevelSigma2

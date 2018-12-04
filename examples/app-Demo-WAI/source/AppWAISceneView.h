@@ -35,7 +35,7 @@ demonstrates all transform possibilities in SLNode
 class WAISceneView : public SLSceneView
 {
     public:
-    WAISceneView(SLCVCalibration* calib, std::string externalDir);
+    WAISceneView(SLCVCalibration* calib, std::string externalDir, std::string dataRoot);
     void update();
     void updateCamera(WAI::CameraData* cameraData);
 

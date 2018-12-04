@@ -1,8 +1,9 @@
 #ifndef WAI_SENSOR_CAMERA_H
+#define WAI_SENSOR_CAMERA_H
 
-#    include <opencv2/opencv.hpp>
-#    include <opencv2/aruco.hpp>
-#    include <WAISensor.h>
+#include <opencv2/opencv.hpp>
+#include <opencv2/aruco.hpp>
+#include <WAISensor.h>
 
 namespace WAI
 {
@@ -48,5 +49,4 @@ class SensorCamera : public Sensor
 };
 }
 
-#    define WAI_SENSOR_CAMERA_H
 #endif

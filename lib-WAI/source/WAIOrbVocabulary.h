@@ -11,6 +11,7 @@
 #ifndef WAI_ORBVOCABULARY_H
 #define WAI_ORBVOCABULARY_H
 
+#include <WAI.h>
 #include <OrbSlam/ORBVocabulary.h>
 
 /*!Singleton class used to load, store and delete ORB_SLAM2::ORBVocabulary instance.
@@ -19,6 +20,8 @@ class WAIOrbVocabulary
 {
     public:
     ~WAIOrbVocabulary();
+
+    static void initialize(std::string filename);
 
     //!get vocabulary
     static ORB_SLAM2::ORBVocabulary* get();
@@ -32,11 +35,12 @@ class WAIOrbVocabulary
         return s_instance;
     }
 
-    void                      loadFromFile();
+    void                      loadFromFile(std::string strVocFile);
     void                      doFree();
     ORB_SLAM2::ORBVocabulary* doGet();
+    void                      doInitialize(std::string filename);
 
-    ORB_SLAM2::ORBVocabulary* _vocabulary = NULL;
+    ORB_SLAM2::ORBVocabulary* _vocabulary = nullptr;
 };
 
 #endif // !WAI_ORBVOCABULARY_H

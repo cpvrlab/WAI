@@ -13,8 +13,9 @@
 #include <AppDemoGuiMapStorage.h>
 #include <AppWAISceneView.h>
 
-WAISceneView::WAISceneView(SLCVCalibration* calib, std::string externalDir)
-  : _externalDir(externalDir)
+WAISceneView::WAISceneView(SLCVCalibration* calib, std::string externalDir, std::string dataRoot)
+  : _externalDir(externalDir),
+    _wai(dataRoot)
 {
     WAIMapStorage::init(externalDir);
     WAI::CameraCalibration calibration = {calib->fx(),
