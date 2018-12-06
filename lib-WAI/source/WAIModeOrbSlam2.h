@@ -50,9 +50,14 @@ class ModeOrbSlam2 : public Mode
 
     // Debug functions
     std::string getPrintableState();
+    std::string getPrintableType();
     uint32_t    getMapPointCount();
     uint32_t    getMapPointMatchesCount();
     uint32_t    getKeyFrameCount();
+    int         getNMapMatches();
+    int         getNumKeyFrames();
+    float       poseDifference();
+    float       getMeanReprojectionError();
 
     std::string getLoopCloseStatus();
     uint32_t    getLoopCloseCount();
@@ -81,6 +86,14 @@ class ModeOrbSlam2 : public Mode
         TrackingState_Initializing,
         TrackingState_TrackingOK,
         TrackingState_TrackingLost
+    };
+
+    enum TrackingType
+    {
+        TrackingType_None,
+        TrackingType_ORBSLAM,
+        TrackingType_MotionModel,
+        TrackingType_OptFlow
     };
 
     void initialize();
@@ -118,6 +131,7 @@ class ModeOrbSlam2 : public Mode
 
     SensorCamera*  _camera            = nullptr;
     TrackingState  _state             = TrackingState_None;
+    TrackingType   _trackingType      = TrackingType_None;
     WAIKeyFrameDB* mpKeyFrameDatabase = nullptr;
     WAIMap*        _map               = nullptr;
 
@@ -163,13 +177,13 @@ class ModeOrbSlam2 : public Mode
     int mnMatchesInliers = 0;
 
     //Last Frame, KeyFrame and Relocalisation Info
-    WAIKeyFrame* mpLastKeyFrame     = NULL;
+    WAIKeyFrame* mpLastKeyFrame     = nullptr;
     unsigned int mnLastRelocFrameId = 0;
     unsigned int mnLastKeyFrameId;
 
     // Local Map
     // (maybe always the last inserted keyframe?)
-    WAIKeyFrame*              mpReferenceKF = NULL;
+    WAIKeyFrame*              mpReferenceKF = nullptr;
     std::vector<WAIMapPoint*> mvpLocalMapPoints;
     std::vector<WAIKeyFrame*> mvpLocalKeyFrames;
 

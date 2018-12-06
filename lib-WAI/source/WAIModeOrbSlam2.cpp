@@ -111,7 +111,6 @@ void WAI::ModeOrbSlam2::notifyUpdate()
     {
         case TrackingState_Initializing:
         {
-            WAI_LOG("initializing");
             initialize();
         }
         break;
@@ -120,7 +119,6 @@ void WAI::ModeOrbSlam2::notifyUpdate()
         case TrackingState_TrackingLost:
         {
             //relocalize or track 3d points
-            WAI_LOG("track 3D pts");
             track3DPts();
         }
         break;
@@ -176,6 +174,29 @@ uint32_t WAI::ModeOrbSlam2::getKeyFramesInLoopCloseQueueCount()
     return result;
 }
 
+int WAI::ModeOrbSlam2::getNMapMatches()
+{
+    std::lock_guard<std::mutex> guard(_nMapMatchesLock);
+    return mnMatchesInliers;
+}
+//-----------------------------------------------------------------------------
+int WAI::ModeOrbSlam2::getNumKeyFrames()
+{
+    std::lock_guard<std::mutex> guard(_mapLock);
+    return _map->KeyFramesInMap();
+}
+//-----------------------------------------------------------------------------
+float WAI::ModeOrbSlam2::poseDifference()
+{
+    std::lock_guard<std::mutex> guard(_poseDiffLock);
+    return _poseDifference;
+}
+
+float WAI::ModeOrbSlam2::getMeanReprojectionError()
+{
+    return _meanReprojectionError;
+}
+
 std::string WAI::ModeOrbSlam2::getPrintableState()
 {
     std::string printableState = "";
@@ -214,6 +235,22 @@ std::string WAI::ModeOrbSlam2::getPrintableState()
     }
 
     return printableState;
+}
+
+std::string WAI::ModeOrbSlam2::getPrintableType()
+{
+    switch (_trackingType)
+    {
+        case TrackingType_MotionModel:
+            return "Motion Model";
+        case TrackingType_OptFlow:
+            return "Optical Flow";
+        case TrackingType_ORBSLAM:
+            return "ORB-SLAM";
+        case TrackingType_None:
+        default:
+            return "None";
+    }
 }
 
 std::vector<WAIMapPoint*> WAI::ModeOrbSlam2::getMapPoints()
@@ -318,12 +355,10 @@ void WAI::ModeOrbSlam2::stateTransition()
         {
             if (_bOK)
             {
-                WAI_LOG("state ok\n");
                 _state = TrackingState_TrackingOK;
             }
             else
             {
-                WAI_LOG("state lost\n");
                 _state = TrackingState_TrackingLost;
             }
         }
@@ -402,11 +437,9 @@ void WAI::ModeOrbSlam2::initialize()
 
     if (!mpInitializer)
     {
-        WAI_LOG("No initializer");
         // Set Reference Frame
         if (mCurrentFrame.mvKeys.size() > 100)
         {
-            WAI_LOG("Not enough keypoints in current frame");
             mInitialFrame = WAIFrame(mCurrentFrame);
             mLastFrame    = WAIFrame(mCurrentFrame);
             mvbPrevMatched.resize(mCurrentFrame.mvKeysUn.size());
@@ -428,11 +461,9 @@ void WAI::ModeOrbSlam2::initialize()
     }
     else
     {
-        WAI_LOG("Have initializer");
         // Try to initialize
         if ((int)mCurrentFrame.mvKeys.size() <= 100)
         {
-            WAI_LOG("WITH INITIALIZER - Not enough keypoints in current frame");
             delete mpInitializer;
             mpInitializer = static_cast<Initializer*>(NULL);
             fill(mvIniMatches.begin(), mvIniMatches.end(), -1);
@@ -446,7 +477,6 @@ void WAI::ModeOrbSlam2::initialize()
         // Check if there are enough correspondences
         if (nmatches < 100)
         {
-            WAI_LOG("WITH INITIALIZER - Not enough matches");
             delete mpInitializer;
             mpInitializer = static_cast<Initializer*>(NULL);
             return;
@@ -470,7 +500,6 @@ void WAI::ModeOrbSlam2::initialize()
 
         if (mpInitializer->Initialize(mCurrentFrame, mvIniMatches, Rcw, tcw, mvIniP3D, vbTriangulated))
         {
-            WAI_LOG("WITH INITIALIZER - initializing");
             for (size_t i = 0, iend = mvIniMatches.size(); i < iend; i++)
             {
                 if (mvIniMatches[i] >= 0 && !vbTriangulated[i])

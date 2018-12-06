@@ -12,6 +12,8 @@ file(GLOB headers
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiInfosDialog.h
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiTrackedMapping.h
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiMapStorage.h
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiInfosMapNodeTransform.h
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiInfosTracking.h
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAISceneView.h
     )
 
@@ -20,7 +22,9 @@ file(GLOB sources
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiInfosDialog.cpp
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiTrackedMapping.cpp
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiMapStorage.cpp
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiInfosMapNodeTransform.cpp
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAISceneView.cpp
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiInfosTracking.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/AppDemoMainGLFW.cpp
     )
 

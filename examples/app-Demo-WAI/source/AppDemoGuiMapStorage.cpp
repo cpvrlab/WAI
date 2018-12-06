@@ -16,11 +16,11 @@
 //-----------------------------------------------------------------------------
 AppDemoGuiMapStorage::AppDemoGuiMapStorage(const string&      name,
                                            WAI::ModeOrbSlam2* tracking,
-                                           SLNode*            node,
+                                           SLNode*            mapNode,
                                            std::string        externalDir)
   : AppDemoGuiInfosDialog(name),
     _tracking(tracking),
-    _node(node),
+    _mapNode(mapNode),
     _externalDir(externalDir)
 {
     wai_assert(tracking);
@@ -35,7 +35,7 @@ void AppDemoGuiMapStorage::buildInfos()
 
     if (ImGui::Button("Save map", ImVec2(ImGui::GetContentRegionAvailWidth(), 0.0f)))
     {
-        SLMat4f om           = _node->om();
+        SLMat4f om           = _mapNode->om();
         cv::Mat cvOm         = cv::Mat(4, 4, CV_32F);
         cvOm.at<float>(0, 0) = om.m(0);
         cvOm.at<float>(0, 1) = -om.m(1);
@@ -110,7 +110,7 @@ void AppDemoGuiMapStorage::buildInfos()
                              -cvOm.at<float>(3, 1),
                              -cvOm.at<float>(3, 2),
                              cvOm.at<float>(3, 3));
-                _node->om(om);
+                _mapNode->om(om);
                 ImGui::Text("Info: map loading successful!");
             }
             else
