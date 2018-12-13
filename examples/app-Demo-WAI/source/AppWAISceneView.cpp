@@ -17,17 +17,20 @@
 
 WAISceneView::WAISceneView(SLCVCalibration* calib, std::string externalDir, std::string dataRoot)
   : _wai(dataRoot),
-    _externalDir(externalDir),
+    _mapPC(new SLNode("MapPC")),
+    _mapMatchedPC(new SLNode("MapMatchedPC")),
+    _mapLocalPC(new SLNode("MapLocalPC")),
+    _keyFrameNode(new SLNode("KeyFrames")),
     _covisibilityGraph(new SLNode("CovisibilityGraph")),
     _spanningTree(new SLNode("SpanningTree")),
-    _keyFrameNode(new SLNode("KeyFrames")),
     _loopEdges(new SLNode("LoopEdges")),
     _redMat(new SLMaterial(SLCol4f::RED, "Red")),
     _greenMat(new SLMaterial(SLCol4f::GREEN, "Green")),
     _blueMat(new SLMaterial(SLCol4f::BLUE, "Blue")),
     _covisibilityGraphMat(new SLMaterial("YellowLines", SLCol4f::YELLOW)),
     _spanningTreeMat(new SLMaterial("GreenLines", SLCol4f::GREEN)),
-    _loopEdgesMat(new SLMaterial("RedLines", SLCol4f::RED))
+    _loopEdgesMat(new SLMaterial("RedLines", SLCol4f::RED)),
+    _externalDir(externalDir)
 {
     WAIMapStorage::init(externalDir);
     WAI::CameraCalibration calibration = {calib->fx(),
@@ -45,6 +48,9 @@ WAISceneView::WAISceneView(SLCVCalibration* calib, std::string externalDir, std:
 void WAISceneView::setMapNode(SLNode* mapNode)
 {
     _mapNode = mapNode;
+    _mapNode->addChild(_mapPC);
+    _mapNode->addChild(_mapMatchedPC);
+    _mapNode->addChild(_mapLocalPC);
     _mapNode->addChild(_keyFrameNode);
     _mapNode->addChild(_covisibilityGraph);
     _mapNode->addChild(_spanningTree);
@@ -82,6 +88,7 @@ void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
     // Save no energy
     sv->doWaitOnIdle(false); //for constant video feed
     sv->camera(cameraNode);
+    waiSceneView->setCameraNode(cameraNode);
 
     //add yellow box and axis for augmentation
     SLMaterial* yellow = new SLMaterial("mY", SLCol4f(1, 1, 0, 0.5f));
@@ -90,9 +97,11 @@ void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
     SLNode*     boxNode  = new SLNode(box1, "boxNode");
     SLNode*     axisNode = new SLNode(new SLCoordAxis(), "axis node");
     boxNode->addChild(axisNode);
-    boxNode->translation(0.0f, 0.0f, -2.0f);
+    //boxNode->translation(0.0f, 0.0f, -2.0f);
 
     SLNode* mapNode = new SLNode("map");
+    waiSceneView->setMapNode(mapNode);
+
     mapNode->rotate(180, 1, 0, 0);
     mapNode->addChild(cameraNode);
 
@@ -103,9 +112,6 @@ void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
     scene->addChild(mapNode);
 
     s->root3D(scene);
-
-    waiSceneView->setCameraNode(cameraNode);
-    waiSceneView->setMapNode(mapNode);
 
     sv->onInitialize();
     s->onAfterLoad();
@@ -138,29 +144,41 @@ void WAISceneView::update()
         // update map node
         if (_mappointsMesh)
         {
-            _mapNode->deleteMesh(_mappointsMesh);
+            _mapPC->deleteMesh(_mappointsMesh);
         }
         if (_showKeyPoints)
         {
-            renderMapPoints();
+            renderMapPoints("MapPoints",
+                            _mode->getMapPoints(),
+                            _mapPC,
+                            _mappointsMesh,
+                            _redMat);
         }
 
         if (_mappointsMatchedMesh)
         {
-            _mapNode->deleteMesh(_mappointsMatchedMesh);
+            _mapMatchedPC->deleteMesh(_mappointsMatchedMesh);
         }
         if (_showKeyPointsMatched)
         {
-            renderMatchedMapPoints();
+            renderMapPoints("MatchedMapPoints",
+                            _mode->getMatchedMapPoints(),
+                            _mapMatchedPC,
+                            _mappointsMatchedMesh,
+                            _greenMat);
         }
 
         if (_mappointsLocalMesh)
         {
-            _mapNode->deleteMesh(_mappointsLocalMesh);
+            _mapLocalPC->deleteMesh(_mappointsLocalMesh);
         }
         if (_showLocalMapPC)
         {
-            renderLocalMapPoints();
+            renderMapPoints("LocalMapPoints",
+                            _mode->getLocalMapPoints(),
+                            _mapLocalPC,
+                            _mappointsLocalMesh,
+                            _blueMat);
         }
 
         _keyFrameNode->deleteChildren();
@@ -210,70 +228,33 @@ void WAISceneView::updateMinNumOfCovisibles(int n)
     _minNumOfCovisibles = n;
 }
 //-----------------------------------------------------------------------------
-void WAISceneView::renderMapPoints()
+void WAISceneView::renderMapPoints(std::string                      name,
+                                   const std::vector<WAIMapPoint*>& pts,
+                                   SLNode*&                         node,
+                                   SLPoints*&                       mesh,
+                                   SLMaterial*&                     material)
 {
-    std::vector<WAIMapPoint*> mapPoints = _mode->getMapPoints();
+    //remove old mesh, if it exists
+    if (mesh)
+        node->deleteMesh(mesh);
 
-    SLVVec3f points, normals;
-    for (WAIMapPoint* mapPoint : mapPoints)
+    //instantiate and add new mesh
+    if (pts.size())
     {
-        SLVec3f worldPos = SLVec3f(mapPoint->worldPosVec().x,
-                                   mapPoint->worldPosVec().y,
-                                   mapPoint->worldPosVec().z);
-        SLVec3f normal   = SLVec3f(mapPoint->normalVec().x,
-                                 mapPoint->normalVec().y,
-                                 mapPoint->normalVec().z);
-        points.push_back(worldPos);
-        normals.push_back(normal);
+        //get points as Vec3f
+        std::vector<SLVec3f> points, normals;
+        for (auto mapPt : pts)
+        {
+            WAI::V3 wP = mapPt->worldPosVec();
+            WAI::V3 wN = mapPt->normalVec();
+            points.push_back(SLVec3f(wP.x, wP.y, wP.z));
+            normals.push_back(SLVec3f(wN.x, wN.y, wN.z));
+        }
+
+        mesh = new SLPoints(points, normals, name, material);
+        node->addMesh(mesh);
+        node->updateAABBRec();
     }
-
-    _mappointsMesh = new SLPoints(points, normals, "Map Points", _redMat);
-    _mapNode->addMesh(_mappointsMesh);
-    _mapNode->updateAABBRec();
-}
-//-----------------------------------------------------------------------------
-void WAISceneView::renderMatchedMapPoints()
-{
-    std::vector<WAIMapPoint*> mapPointsMatched = _mode->getMatchedMapPoints();
-
-    SLVVec3f points, normals;
-    for (WAIMapPoint* mapPoint : mapPointsMatched)
-    {
-        SLVec3f worldPos = SLVec3f(mapPoint->worldPosVec().x,
-                                   mapPoint->worldPosVec().y,
-                                   mapPoint->worldPosVec().z);
-        SLVec3f normal   = SLVec3f(mapPoint->normalVec().x,
-                                 mapPoint->normalVec().y,
-                                 mapPoint->normalVec().z);
-        points.push_back(worldPos);
-        normals.push_back(normal);
-    }
-
-    _mappointsMatchedMesh = new SLPoints(points, normals, "Map Points Matched", _greenMat);
-    _mapNode->addMesh(_mappointsMatchedMesh);
-    _mapNode->updateAABBRec();
-}
-//-----------------------------------------------------------------------------
-void WAISceneView::renderLocalMapPoints()
-{
-    std::vector<WAIMapPoint*> mapPointsLocal = _mode->getLocalMapPoints();
-
-    SLVVec3f points, normals;
-    for (WAIMapPoint* mapPoint : mapPointsLocal)
-    {
-        SLVec3f worldPos = SLVec3f(mapPoint->worldPosVec().x,
-                                   mapPoint->worldPosVec().y,
-                                   mapPoint->worldPosVec().z);
-        SLVec3f normal   = SLVec3f(mapPoint->normalVec().x,
-                                 mapPoint->normalVec().y,
-                                 mapPoint->normalVec().z);
-        points.push_back(worldPos);
-        normals.push_back(normal);
-    }
-
-    _mappointsLocalMesh = new SLPoints(points, normals, "Map Points Local", _blueMat);
-    _mapNode->addMesh(_mappointsLocalMesh);
-    _mapNode->updateAABBRec();
 }
 //-----------------------------------------------------------------------------
 void WAISceneView::renderKeyFrames()
@@ -283,7 +264,6 @@ void WAISceneView::renderKeyFrames()
     // TODO(jan): delete keyframe textures
     for (WAIKeyFrame* kf : keyframes)
     {
-        // TODO(jan): maybe adjust the name per camera
         SLCVCamera* cam = new SLCVCamera("KeyFrame " + std::to_string(kf->mnId));
         //set background
         if (kf->getTexturePath().size())
@@ -299,7 +279,6 @@ void WAISceneView::renderKeyFrames()
 
         cv::Mat Twc = kf->getObjectMatrix();
         SLMat4f om;
-
         om.setMatrix(Twc.at<float>(0, 0),
                      -Twc.at<float>(0, 1),
                      -Twc.at<float>(0, 2),

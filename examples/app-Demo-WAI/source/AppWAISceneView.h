@@ -80,6 +80,9 @@ class WAISceneView : public SLSceneView
     WAI::ModeOrbSlam2* _mode;
     SLCamera*          _cameraNode        = nullptr;
     SLNode*            _mapNode           = nullptr;
+    SLNode*            _mapPC             = nullptr;
+    SLNode*            _mapMatchedPC      = nullptr;
+    SLNode*            _mapLocalPC        = nullptr;
     SLNode*            _keyFrameNode      = nullptr;
     SLNode*            _covisibilityGraph = nullptr;
     SLNode*            _spanningTree      = nullptr;
@@ -101,9 +104,11 @@ class WAISceneView : public SLSceneView
 
     std::string _externalDir;
 
-    void renderMapPoints();
-    void renderMatchedMapPoints();
-    void renderLocalMapPoints();
+    void renderMapPoints(std::string                      name,
+                         const std::vector<WAIMapPoint*>& pts,
+                         SLNode*&                         node,
+                         SLPoints*&                       mesh,
+                         SLMaterial*&                     material);
     void renderKeyFrames();
     void renderGraphs();
 

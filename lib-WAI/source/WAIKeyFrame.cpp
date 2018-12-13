@@ -730,37 +730,12 @@ float WAIKeyFrame::ComputeSceneMedianDepth(const int q)
     return vDepths[(vDepths.size() - 1) / q];
 }
 //-----------------------------------------------------------------------------
-#if 0
-WAI::M4x4 WAIKeyFrame::getObjectMatrix()
-{
-    //build camera position and orientation for SL
-    WAI::M4x4 om;
-    //The camera frame in ORB-SLAM is oriented differently: x right, y down and z forward.
-    //Because of that we have to apply a rotation of 180 deg about X axis, what is
-    //equal to inverting the signs in colum 1 and 2.
-
-    float sign = 1.0f;
-    for (int y = 0; y < 4; y++)
-    {
-        for (int x = 0; x < 4; x++)
-        {
-            // Transpose rotation matrix and flip y- and z-axis
-            om.e[y][x] = sign * _Twc.at<float>(y, x);
-        }
-
-        sign = -1.0f;
-    }
-
-    return om;
-}
-#else
 cv::Mat WAIKeyFrame::getObjectMatrix()
 {
-    cv::Mat result = _Tcw.clone();
+    cv::Mat result = _Twc.clone();
 
     return result;
 }
-#endif
 //-----------------------------------------------------------------------------
 //! this is a function from Frame, but we need it here for map loading
 void WAIKeyFrame::AssignFeaturesToGrid()
