@@ -7,6 +7,7 @@ set(target lib-WAI)
 
 file(GLOB headers
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAI.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIHelper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIFileSystem.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIFrame.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIKeyFrame.h
@@ -36,6 +37,7 @@ file(GLOB headers
 
 file(GLOB sources
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAI.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIInterface.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIFileSystem.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIFrame.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIKeyFrame.cpp
@@ -61,7 +63,7 @@ file(GLOB sources
     ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/Sim3Solver.cpp
     )
 
-add_library(${target}
+add_library(${target} SHARED
     ${headers}
     ${sources}
     )
@@ -96,6 +98,8 @@ target_compile_definitions(${target}
 
     PUBLIC
     ${DEFAULT_COMPILE_DEFINITIONS}
+    WAI_DLL
+    WAI_DLL_EXPORTS
 
     INTERFACE
     )

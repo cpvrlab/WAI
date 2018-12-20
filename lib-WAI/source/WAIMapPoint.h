@@ -11,7 +11,7 @@
 #ifndef WAIMAPPOINT_H
 #define WAIMAPPOINT_H
 
-#include <WAI.h>
+#include <WAIHelper.h>
 #include <WAIMap.h>
 #include <map>
 #include <mutex>
@@ -28,7 +28,7 @@ class WAIMap;
 //!
 /*! 
 */
-class WAIMapPoint
+class WAI_API WAIMapPoint
 {
     public:
     //!constructor used during map loading

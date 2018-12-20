@@ -227,6 +227,12 @@ std::string WAI::ModeOrbSlam2::getPrintableState()
         }
         break;
 
+        case TrackingState_None:
+        {
+            printableState = "TRACKING_NONE";
+        }
+        break;
+
         default:
         {
             printableState = "";

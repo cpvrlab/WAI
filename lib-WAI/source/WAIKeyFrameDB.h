@@ -31,6 +31,7 @@
 #ifndef WAIKEYFRAMEDB_H
 #define WAIKEYFRAMEDB_H
 
+#include <WAIHelper.h>
 #include <WAIKeyFrame.h>
 #include <OrbSlam/ORBVocabulary.h>
 
@@ -40,10 +41,10 @@
 //! AR Keyframe database class
 /*! 
 */
-class WAIKeyFrameDB
+class WAI_API WAIKeyFrameDB
 {
     public:
-    WAIKeyFrameDB(const ORBVocabulary& voc);
+    WAIKeyFrameDB(const ORB_SLAM2::ORBVocabulary& voc);
 
     void add(WAIKeyFrame* pKF);
     void erase(WAIKeyFrame* pKF);

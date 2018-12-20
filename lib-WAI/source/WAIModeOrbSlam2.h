@@ -5,6 +5,7 @@
 
 #include <opencv2/core.hpp>
 
+#include <WAIHelper.h>
 #include <WAIMode.h>
 #include <WAISensorCamera.h>
 #include <WAIKeyFrameDB.h>
@@ -24,7 +25,7 @@
 namespace WAI
 {
 
-class ModeOrbSlam2 : public Mode
+class WAI_API ModeOrbSlam2 : public Mode
 {
     public:
     ModeOrbSlam2(SensorCamera* camera,

@@ -11,7 +11,11 @@
 #ifndef WAIFileSystem_H
 #define WAIFileSystem_H
 
-#include <WAI.h>
+#include <string>
+#include <vector>
+#include <algorithm>
+
+#include <WAIHelper.h>
 
 //-----------------------------------------------------------------------------
 //! WAIFileSystem provides basic filesystem functions
@@ -22,10 +26,10 @@ class WAIFileSystem
     static bool dirExists(const std::string& path);
 
     //! Make a directory with given path
-    static void makeDir(const string& path);
+    static void makeDir(const std::string& path);
 
     //! Remove a directory with given path
-    static void removeDir(const string& path);
+    static void removeDir(const std::string& path);
 
     //! Returns true if a file exists.
     static bool fileExists(const std::string& pathfilename);
@@ -46,7 +50,7 @@ class WAIFileSystem
     static bool        externalDirExists() { return _externalDirExists; }
 
     static std::vector<std::string> getFileNamesInDir(const std::string dirName);
-    static void                     split(const string& s, char delimiter, vector<string>& splits);
+    static void                     split(const std::string& s, char delimiter, std::vector<std::string>& splits);
     static bool                     contains(const std::string container, const std::string search);
     static std::string              getFileName(const std::string& pathFilename);
     static std::string              unifySlashes(const std::string& inputDir);

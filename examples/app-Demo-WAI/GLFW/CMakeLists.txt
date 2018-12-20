@@ -50,10 +50,10 @@ target_include_directories(${target}
 
 target_link_libraries(${target}
     PRIVATE
-    lib-WAI
-    lib-SLProject
 
     PUBLIC
+    ${META_PROJECT_NAME}::lib-WAI
+    lib-SLProject
 
     INTERFACE
     )
@@ -64,6 +64,8 @@ target_compile_definitions(${target}
 
     PUBLIC
     ${DEFAULT_COMPILE_DEFINITIONS}
+    WAI_DLL
+    WAI_DLL_IMPORTS
 
     INTERFACE
     )

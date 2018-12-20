@@ -16,6 +16,22 @@ inline float rad(float grad)
     return result;
 }
 
+struct V2
+{
+    union
+    {
+        float e[2];
+        struct
+        {
+            float x, y;
+        };
+        struct
+        {
+            float u, v;
+        };
+    };
+};
+
 struct V3
 {
     union

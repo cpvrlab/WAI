@@ -1,6 +1,7 @@
 #ifndef WAI_SENSOR_CAMERA_H
 #define WAI_SENSOR_CAMERA_H
 
+#include <WAIHelper.h>
 #include <opencv2/opencv.hpp>
 #include <opencv2/aruco.hpp>
 #include <WAISensor.h>

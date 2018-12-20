@@ -1,7 +1,8 @@
 #ifndef WAI_MODE_ARUCO_H
+#define WAI_MODE_ARUCO_H
 
-#    include <WAIMode.h>
-#    include <WAISensorCamera.h>
+#include <WAIMode.h>
+#include <WAISensorCamera.h>
 
 namespace WAI
 {
@@ -22,5 +23,4 @@ class ModeAruco : public Mode
 };
 }
 
-#    define WAI_MODE_ARUCO_H
 #endif

@@ -48,7 +48,7 @@ bool WAIFileSystem::dirExists(const std::string& path)
 //-----------------------------------------------------------------------------
 /*! Make a directory with given path
 */
-void WAIFileSystem::makeDir(const string& path)
+void WAIFileSystem::makeDir(const std::string& path)
 {
 #ifdef WAI_OS_WINDOWS
     _mkdir(path.c_str());
@@ -172,24 +172,24 @@ std::vector<std::string> WAIFileSystem::getFileNamesInDir(const std::string dirN
     return fileNames;
 }
 //-----------------------------------------------------------------------------
-void WAIFileSystem::split(const string& s, char delimiter, vector<string>& splits)
+void WAIFileSystem::split(const std::string& s, char delimiter, std::vector<std::string>& splits)
 {
-    string::size_type i = 0;
-    string::size_type j = s.find(delimiter);
+    std::string::size_type i = 0;
+    std::string::size_type j = s.find(delimiter);
 
-    while (j != string::npos)
+    while (j != std::string::npos)
     {
         splits.push_back(s.substr(i, j - i));
         i = ++j;
         j = s.find(delimiter, j);
-        if (j == string::npos)
+        if (j == std::string::npos)
             splits.push_back(s.substr(i, s.length()));
     }
 }
 //-----------------------------------------------------------------------------
 bool WAIFileSystem::contains(const std::string container, const std::string search)
 {
-    return (container.find(search) != string::npos);
+    return (container.find(search) != std::string::npos);
 }
 //-----------------------------------------------------------------------------
 std::string WAIFileSystem::getFileName(const std::string& pathFilename)
@@ -198,11 +198,11 @@ std::string WAIFileSystem::getFileName(const std::string& pathFilename)
     i1       = pathFilename.rfind('\\', pathFilename.length());
     i2       = pathFilename.rfind('/', pathFilename.length());
 
-    if (i1 != string::npos && i2 != string::npos)
-        i = max(i1, i2);
-    else if (i1 != string::npos)
+    if (i1 != std::string::npos && i2 != std::string::npos)
+        i = std::max(i1, i2);
+    else if (i1 != std::string::npos)
         i = i1;
-    else if (i2 != string::npos)
+    else if (i2 != std::string::npos)
         i = i2;
 
     return pathFilename.substr(i + 1, pathFilename.length() - i);

@@ -11,6 +11,7 @@
 #ifndef WAI_MAPSTORAGE
 #define WAI_MAPSTORAGE
 
+#include <WAIHelper.h>
 #include <OrbSlam/ORBVocabulary.h>
 #include <WAIModeOrbSlam2.h>
 #include <WAIFileSystem.h>
@@ -21,7 +22,7 @@
 It can read slam maps from this storage and fill the WAIMap with it. It also
 can write WAIMaps into this storage. You have to call init()
 */
-class WAIMapStorage
+class WAI_API WAIMapStorage
 {
     public:
     WAIMapStorage();

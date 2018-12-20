@@ -11,12 +11,12 @@
 #ifndef WAI_ORBVOCABULARY_H
 #define WAI_ORBVOCABULARY_H
 
-#include <WAI.h>
+#include <WAIHelper.h>
 #include <OrbSlam/ORBVocabulary.h>
 
 /*!Singleton class used to load, store and delete ORB_SLAM2::ORBVocabulary instance.
 */
-class WAIOrbVocabulary
+class WAI_API WAIOrbVocabulary
 {
     public:
     ~WAIOrbVocabulary();

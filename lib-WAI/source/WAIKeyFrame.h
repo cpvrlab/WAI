@@ -38,6 +38,7 @@
 #include <DBoW2/FeatureVector.h>
 #include <opencv2/core/core.hpp>
 
+#include <WAIHelper.h>
 #include <OrbSlam/ORBVocabulary.h>
 #include <WAIFrame.h>
 #include <WAIMath.h>
@@ -54,7 +55,7 @@ class WAIMap;
 points that were found in this frame. It also contains descriptors for the found
 keypoints.
 */
-class WAIKeyFrame
+class WAI_API WAIKeyFrame
 {
     public:
     //!keyframe generation during map loading

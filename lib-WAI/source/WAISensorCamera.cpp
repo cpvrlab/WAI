@@ -1,5 +1,4 @@
 #include <WAISensorCamera.h>
-#include <WAI.h>
 
 WAI::SensorCamera::SensorCamera(CameraCalibration* cameraCalibration)
 {

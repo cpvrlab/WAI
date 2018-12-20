@@ -11,6 +11,8 @@
 #ifndef APP_DEMO_GUI_INFOSMAPNODETRANSFORM_H
 #define APP_DEMO_GUI_INFOSMAPNODETRANSFORM_H
 
+#include <WAIMapStorage.h>
+#include <WAI.h>
 #include <AppDemoGuiInfosDialog.h>
 #include <string>
 
@@ -19,7 +21,7 @@
 #include <WAIModeOrbSlam2.h>
 
 //-----------------------------------------------------------------------------
-class AppDemoGuiInfosMapNodeTransform : public AppDemoGuiInfosDialog
+class WAI_API AppDemoGuiInfosMapNodeTransform : public AppDemoGuiInfosDialog
 {
     public:
     AppDemoGuiInfosMapNodeTransform(
