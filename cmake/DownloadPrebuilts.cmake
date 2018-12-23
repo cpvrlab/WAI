@@ -184,7 +184,6 @@ elseif("${SYSTEM_NAME_UPPER}" STREQUAL "DARWIN") #-----------------------------
             optimized ${lib}
             debug ${lib})
     endforeach(lib)
-    message(STATUS "OpenCV_LIBS: ${OpenCV_LIBS}")
 
     file(GLOB usedCVLibs_Debug
         ${OpenCV_DIR}/Debug/libopencv_aruco*.dylib
@@ -223,10 +222,14 @@ elseif("${SYSTEM_NAME_UPPER}" STREQUAL "DARWIN") #-----------------------------
     endif()
 
     set(g2o_DIR ${PREBUILT_PATH}/mac64_g2o)
+    set(g2o_PREBUILT_ZIP "mac64_g2o.zip")
+    set(g2o_URL ${PREBUILT_URL}/${g2o_PREBUILT_ZIP})
     set(g2o_INCLUDE_DIR ${g2o_DIR}/include)
     set(g2o_LINK_DIR ${g2o_DIR}/${CMAKE_BUILD_TYPE})
-    message(STATUS "g2o_LINK_DIR: ${g2o_LINK_DIR}")
-    #set(g2o_LIBS ${g2o_LINK_LIBS})
+
+    #message(STATUS "g2o_DIR: ${g2o_DIR}")
+    #message(STATUS "g2o_LINK_DIR: ${g2o_LINK_DIR}")
+    #message(STATUS "g2o_URL: ${g2o_URL}")
 
     if (NOT EXISTS "${g2o_DIR}")
         file(DOWNLOAD "${PREBUILT_URL}/${g2o_PREBUILT_ZIP}" "${PREBUILT_PATH}/${g2o_PREBUILT_ZIP}")
@@ -248,7 +251,7 @@ elseif("${SYSTEM_NAME_UPPER}" STREQUAL "DARWIN") #-----------------------------
             )
     endforeach(lib)
 
-    message(STATUS "g2o_LIBS: ${g2o_LIBS}")
+    #message(STATUS "g2o_LIBS: ${g2o_LIBS}")
 
 elseif("${SYSTEM_NAME_UPPER}" STREQUAL "ANDROID") #---------------------------
     set(OpenCV_VERSION "3.4.1")
