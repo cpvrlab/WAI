@@ -221,6 +221,7 @@ elseif("${SYSTEM_NAME_UPPER}" STREQUAL "DARWIN") #-----------------------------
         file(COPY ${usedCVLibs_Release} DESTINATION ${CMAKE_BINARY_DIR}/Release)
     endif()
 
+    #G2O
     set(g2o_DIR ${PREBUILT_PATH}/mac64_g2o)
     set(g2o_PREBUILT_ZIP "mac64_g2o.zip")
     set(g2o_URL ${PREBUILT_URL}/${g2o_PREBUILT_ZIP})

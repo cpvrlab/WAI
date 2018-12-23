@@ -51,8 +51,10 @@ endif(MSVC90)
 # avoid the problem of loading both the built and installed versions
 # of the shared targets
 IF(APPLE)
-  SET(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE) 
-  SET(CMAKE_INSTALL_RPATH "")
+   SET(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE) 
+   SET(CMAKE_INSTALL_RPATH "")
+   SET(CMAKE_MACOSX_RPATH TRUE)
+   MESSAGE(STATUS "********** CMAKE_MACOSX_RPATH TRUE *********")
 ENDIF(APPLE)
 
 # Set the output directory for the build executables and libraries
