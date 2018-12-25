@@ -48,10 +48,11 @@ target_include_directories(${target}
 
 target_link_libraries(${target}
     PRIVATE
-    lib-WAI
-    lib-SLProject
+        lib-WAI
+        lib-SLProject
 
     PUBLIC
+        libc++_shared.so
 
     INTERFACE
     )

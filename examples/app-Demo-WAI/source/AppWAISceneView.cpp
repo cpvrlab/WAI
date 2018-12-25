@@ -76,7 +76,7 @@ void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
     //always equal for tracking
     //setup tracking camera
     SLCamera* cameraNode = new SLCamera("Camera 1");
-    cameraNode->translation(0, 0, 0.1);
+    cameraNode->translation(0, 0, 0.1f);
     cameraNode->lookAt(0, 0, 0);
     //for tracking we have to use the field of view from calibration
     cameraNode->fov(SLApplication::activeCalib->cameraFovDeg());

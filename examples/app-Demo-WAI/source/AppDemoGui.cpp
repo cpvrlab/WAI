@@ -111,37 +111,14 @@ SLbool       AppDemoGui::showChristoffel      = false;
 SLbool       AppDemoGui::showUIPrefs          = false;
 SLbool       AppDemoGui::showTransform        = false;
 
-// Scene node for Christoffel objects
-static SLNode* bern          = nullptr;
-static SLNode* umgeb_dach    = nullptr;
-static SLNode* umgeb_fass    = nullptr;
-static SLNode* boden         = nullptr;
-static SLNode* balda_stahl   = nullptr;
-static SLNode* balda_glas    = nullptr;
-static SLNode* mauer_wand    = nullptr;
-static SLNode* mauer_dach    = nullptr;
-static SLNode* mauer_turm    = nullptr;
-static SLNode* mauer_weg     = nullptr;
-static SLNode* grab_mauern   = nullptr;
-static SLNode* grab_brueck   = nullptr;
-static SLNode* grab_grass    = nullptr;
-static SLNode* grab_t_dach   = nullptr;
-static SLNode* grab_t_fahn   = nullptr;
-static SLNode* grab_t_stein  = nullptr;
-static SLNode* christ_aussen = nullptr;
-static SLNode* christ_innen  = nullptr;
-
 map<string, std::shared_ptr<AppDemoGuiInfosDialog>> AppDemoGui::_infoDialogs;
 
 SLstring AppDemoGui::infoAbout =
-  "Welcome to the SLProject demo app. It is developed at the \
-Computer Science Department of the Bern University of Applied Sciences. \
-The app shows what you can learn in two semesters about 3D computer graphics \
-in real time rendering and ray tracing. The framework is developed \
-in C++ with OpenGL ES so that it can run also on mobile devices. \
-Ray tracing provides in addition high quality transparencies, reflections and soft shadows. \
-Click to close and use the menu to choose different scenes and view settings. \
-For more information please visit: https://github.com/cpvrlab/SLProject\n\
+  "Welcome to the WAI demo app. WAI stands for Where Am I. \
+In its core all is about detecting the pose (position and orientation) \
+of the live video camera. This task is the major problem to solve in \
+Augmented Reality application. WAI is developed at the Computer Science \
+Department of the Bern University of Applied Sciences.\n\
 ";
 
 SLstring AppDemoGui::infoCredits =
@@ -186,7 +163,7 @@ Please close first this info dialog on the top-left.\n\
 
 //-----------------------------------------------------------------------------
 //! This is the main building function for the GUI of the Demo apps
-/*! Is is passed to the AppDemoGui::build function in main of the app-Demo-SLProject
+/*! Is is passed to the AppDemoGui::build function in main of the app-Demo-WAI
  app. This function will be called once per frame roughly at the end of
  SLSceneView::onPaint in SLSceneView::draw2DGL by calling ImGui::Render.\n
  See also the comments on SLGLImGui.
@@ -212,7 +189,7 @@ void AppDemoGui::build(SLScene* s, SLSceneView* sv)
         SLfloat iconSize = sv->scrW() * 0.15f;
 
         centerNextWindow(sv);
-        ImGui::Begin("About SLProject", &showAbout, ImGuiWindowFlags_NoResize);
+        ImGui::Begin("About WAI-Demo", &showAbout, ImGuiWindowFlags_NoResize);
         ImGui::Image((ImTextureID)(intptr_t)cpvrLogo->texName(), ImVec2(iconSize, iconSize), ImVec2(0, 1), ImVec2(1, 0));
         ImGui::SameLine();
         ImGui::Text("Version: %s", SLApplication::version.c_str());
@@ -1328,7 +1305,7 @@ void AppDemoGui::buildMenuBar(SLScene* s, SLSceneView* sv)
             ImGui::Separator();
             ImGui::MenuItem("UI Pfreferences", nullptr, &showUIPrefs);
             ImGui::MenuItem("Credits", nullptr, &showCredits);
-            ImGui::MenuItem("About SLProject", nullptr, &showAbout);
+            ImGui::MenuItem("About WAI-Demo", nullptr, &showAbout);
 
             ImGui::EndMenu();
         }
