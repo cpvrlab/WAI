@@ -5,6 +5,11 @@ WAI::WAI::WAI(std::string dataRoot)
     _dataRoot = WAIFileSystem::unifySlashes(dataRoot);
 }
 
+void WAI::WAI::setDataRoot(std::string dataRoot)
+{
+    _dataRoot = WAIFileSystem::unifySlashes(dataRoot);
+}
+
 WAI::Mode* WAI::WAI::setMode(ModeType modeType)
 {
     if (_mode)
@@ -24,7 +29,7 @@ WAI::Mode* WAI::WAI::setMode(ModeType modeType)
             else
             {
                 _mode = new ModeOrbSlam2((SensorCamera*)_sensors[SensorType_Camera],
-                                         false,
+                                         true,
                                          false,
                                          false,
                                          false,

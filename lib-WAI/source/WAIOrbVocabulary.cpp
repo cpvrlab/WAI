@@ -16,22 +16,31 @@ WAIOrbVocabulary::~WAIOrbVocabulary()
         delete _vocabulary;
 }
 //-----------------------------------------------------------------------------
-void WAIOrbVocabulary::initialize(std::string filename)
+bool WAIOrbVocabulary::initialize(std::string filename)
 {
-    instance().doInitialize(filename);
+    bool result = instance().doInitialize(filename);
+
+    return result;
 }
 //-----------------------------------------------------------------------------
-void WAIOrbVocabulary::loadFromFile(std::string strVocFile)
+bool WAIOrbVocabulary::loadFromFile(std::string strVocFile)
 {
+    bool result = false;
+
     _vocabulary   = new ORB_SLAM2::ORBVocabulary();
     bool bVocLoad = _vocabulary->loadFromBinaryFile(strVocFile);
     if (!bVocLoad)
     {
         WAI_LOG("Wrong path to vocabulary. Failed to open at: %s", strVocFile.c_str());
         WAI_LOG("WAIOrbVocabulary::loadFromFile: failed to load vocabulary");
-        return;
     }
-    WAI_LOG("Vocabulary loaded!\n");
+    else
+    {
+        WAI_LOG("Vocabulary loaded!\n");
+        result = true;
+    }
+
+    return result;
 }
 //-----------------------------------------------------------------------------
 ORB_SLAM2::ORBVocabulary* WAIOrbVocabulary::get()
@@ -55,10 +64,18 @@ ORB_SLAM2::ORBVocabulary* WAIOrbVocabulary::doGet()
     return _vocabulary;
 }
 //-----------------------------------------------------------------------------
-void WAIOrbVocabulary::doInitialize(std::string filename)
+bool WAIOrbVocabulary::doInitialize(std::string filename)
 {
+    bool result = false;
+
     if (!_vocabulary)
     {
-        loadFromFile(filename);
+        result = loadFromFile(filename);
     }
+    else
+    {
+        result = true;
+    }
+
+    return result;
 }

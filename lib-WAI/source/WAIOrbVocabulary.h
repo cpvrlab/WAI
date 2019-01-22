@@ -11,6 +11,8 @@
 #ifndef WAI_ORBVOCABULARY_H
 #define WAI_ORBVOCABULARY_H
 
+#include <string>
+
 #include <WAIHelper.h>
 #include <OrbSlam/ORBVocabulary.h>
 
@@ -21,7 +23,7 @@ class WAI_API WAIOrbVocabulary
     public:
     ~WAIOrbVocabulary();
 
-    static void initialize(std::string filename);
+    static bool initialize(std::string filename);
 
     //!get vocabulary
     static ORB_SLAM2::ORBVocabulary* get();
@@ -35,10 +37,10 @@ class WAI_API WAIOrbVocabulary
         return s_instance;
     }
 
-    void                      loadFromFile(std::string strVocFile);
+    bool                      loadFromFile(std::string strVocFile);
     void                      doFree();
     ORB_SLAM2::ORBVocabulary* doGet();
-    void                      doInitialize(std::string filename);
+    bool                      doInitialize(std::string filename);
 
     ORB_SLAM2::ORBVocabulary* _vocabulary = nullptr;
 };

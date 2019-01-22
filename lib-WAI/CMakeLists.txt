@@ -37,6 +37,7 @@ file(GLOB headers
 
 file(GLOB sources
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAI.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIHelper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIInterface.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIFileSystem.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIFrame.cpp

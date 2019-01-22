@@ -4,35 +4,28 @@
 static WAI::WAI           wai("");
 static WAI::ModeOrbSlam2* mode = nullptr;
 
-typedef void (*DebugCallback)(const char* str);
-DebugCallback gDebugCallback;
-
-void debugInUnity(std::string message)
+extern "C" {
+WAI_API void wai_setDataRoot(const char* dataRoot)
 {
-    if (gDebugCallback)
-    {
-        gDebugCallback(message.c_str());
-    }
+    WAI_LOG("dataroot set to %s", dataRoot);
+    wai.setDataRoot(dataRoot);
 }
 
-extern "C" {
 WAI_API void wai_setMode(WAI::ModeType modeType)
 {
-    debugInUnity("setMode called");
+    WAI_LOG("setMode called");
     mode = (WAI::ModeOrbSlam2*)wai.setMode(modeType);
 }
 
 WAI_API void wai_activateSensor(WAI::SensorType sensorType, void* sensorInfo)
 {
-    fprintf(stdout, "activateSensor called\n");
-    fflush(stdout);
+    WAI_LOG("activateSensor called");
     wai.activateSensor(sensorType, sensorInfo);
 }
 
 WAI_API void wai_updateCamera(WAI::CameraFrame* frameRGB, WAI::CameraFrame* frameGray)
 {
-    fprintf(stdout, "updateCamera called\n");
-    fflush(stdout);
+    WAI_LOG("updateCamera called");
     cv::Mat cvFrameRGB  = cv::Mat(frameRGB->height,
                                  frameRGB->width,
                                  CV_8UC3,
@@ -51,8 +44,7 @@ WAI_API void wai_updateCamera(WAI::CameraFrame* frameRGB, WAI::CameraFrame* fram
 
 WAI_API bool wai_whereAmI(WAI::M4x4* pose)
 {
-    fprintf(stdout, "whereAmI called\n");
-    fflush(stdout);
+    WAI_LOG("whereAmI called");
     bool result = 0;
 
     cv::Mat cvPose = cv::Mat(4, 4, CV_32F);
@@ -60,6 +52,7 @@ WAI_API bool wai_whereAmI(WAI::M4x4* pose)
 
     if (result)
     {
+        WAI_LOG("WAI knows where I am");
         for (int y = 0; y < 4; y++)
         {
             for (int x = 0; x < 4; x++)
@@ -74,8 +67,7 @@ WAI_API bool wai_whereAmI(WAI::M4x4* pose)
 
 WAI_API int wai_getState(char* buffer, int size)
 {
-    fprintf(stdout, "getState called\n");
-    fflush(stdout);
+    WAI_LOG("getState called");
     int result = 0;
 
     if (mode)
@@ -97,11 +89,8 @@ WAI_API int wai_getState(char* buffer, int size)
     return result;
 }
 
-WAI_API void wai_registerDebugCallback(DebugCallback callback)
+WAI_API void wai_registerDebugCallback(DebugLogCallback callback)
 {
-    if (callback)
-    {
-        gDebugCallback = callback;
-    }
+    registerDebugCallback(callback);
 }
 }

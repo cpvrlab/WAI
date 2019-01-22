@@ -1,6 +1,9 @@
 #ifndef WAI_HELPER_H
 #define WAI_HELPER_H
 
+#include <cstdarg>
+#include <cstdio>
+
 // Generic helper definitions for shared library support
 #if defined _WIN32 || defined __CYGWIN__
 #    define WAI_HELPER_DLL_IMPORT __declspec(dllimport)
@@ -41,21 +44,21 @@
 #    else
 #        define WAI_OS_MACOS
 #    endif
-#    define WAI_LOG(...) printf(__VA_ARGS__)
 #elif defined(ANDROID) || defined(ANDROID_NDK)
 #    include <android/log.h>
 #    define WAI_OS_ANDROID
-#    define WAI_LOG(...) __android_log_print(ANDROID_LOG_INFO, "lib-WAI", __VA_ARGS__)
 #elif defined(_WIN32)
 #    define WAI_OS_WINDOWS
 #    define STDCALL __stdcall
-#    define WAI_LOG(...) printf(__VA_ARGS__)
 #elif defined(linux) || defined(__linux) || defined(__linux__)
 #    define WAI_OS_LINUX
-#    define WAI_LOG(...) printf(__VA_ARGS__)
 #else
 #    error "WAI has not been ported to this OS"
 #endif
+
+typedef void (*DebugLogCallback)(const char* str);
+void registerDebugCallback(DebugLogCallback callback);
+void WAI_LOG(const char* format, ...);
 
 #ifdef WAI_BUILD_DEBUG
 #    define wai_assert(expression) \

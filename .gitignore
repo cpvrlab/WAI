@@ -2,3 +2,5 @@ _build*
 CMakeLists.txt.user
 thirdparty/prebuilt/*
 data
+build
+.vscode
