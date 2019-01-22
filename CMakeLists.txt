@@ -24,6 +24,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR})
 
 include(cmake/SetGitBranchNameAndCommitID.cmake)
 include(cmake/CompileOptions.cmake)
+include(cmake/PlatformLinkLibs.cmake)
 include(cmake/DownloadPrebuilts.cmake)
 
 add_subdirectory(examples)

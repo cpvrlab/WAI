@@ -53,6 +53,8 @@ target_link_libraries(${target}
 
     PUBLIC
         libc++_shared.so
+        ${log-lib}
+        z
 
     INTERFACE
     )

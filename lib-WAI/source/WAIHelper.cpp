@@ -1,5 +1,9 @@
 #include "WAIHelper.h"
 
+#ifdef WAI_OS_ANDROID
+#    include <android/log.h>
+#endif
+
 DebugLogCallback debugLogCallback;
 
 void registerDebugCallback(DebugLogCallback callback)
@@ -25,7 +29,7 @@ void WAI_LOG(const char* format, ...)
 #ifdef __APPLE__
         printf("%s\n", buffer);
 #elif defined(WAI_OS_ANDROID)
-        __android_log_print(ANDROID_LOG_INFO, "lib-WAI", __VA_ARGS__);
+        __android_log_print(ANDROID_LOG_INFO, "lib-WAI", "%s\n", buffer);
 #elif defined(WAI_OS_WINDOWS)
         printf("%s\n", buffer);
 #elif defined(WAI_OS_LINUX)

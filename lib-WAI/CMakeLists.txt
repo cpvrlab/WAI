@@ -114,11 +114,13 @@ target_compile_options(${target}
     INTERFACE
     )
 
+message(STATUS "PlatformLinkLibs ${PlatformLinkLibs}")
 target_link_libraries(${target}
     PRIVATE
     ${META_PROJECT_NAME}::lib-DBoW2
 
     PUBLIC
+    ${PlatformLinkLibs}
     ${DEFAULT_LINKER_OPTIONS}
     ${OpenCV_LIBS}
     ${g2o_LIBS}

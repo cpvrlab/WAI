@@ -151,7 +151,7 @@ JNIEXPORT void JNICALL Java_ch_fhnw_comgr_GLES3Lib_onInit(JNIEnv *env, jobject o
     ////////////////////////////////////////////////////////////////////
 
     //install memory callback to retrieve stats about memory usage from c++
-    slInstallMemoryStatsCallback((void*)Java_updateMemoryStatsCallback);
+    //slInstallMemoryStatsCallback((void*)Java_updateMemoryStatsCallback);
 
     delete cmdLineArgs;
 }
@@ -310,6 +310,6 @@ JNIEXPORT void JNICALL Java_ch_fhnw_comgr_GLES3Lib_setMemoryStatsValues(JNIEnv *
     long freeMemoryRT, long totalMemoryRT, long maxMemoryRT,
     long availMemoryAM, long totalMemoryAM, long thresholdAM, bool lowMemoryAM)
 {
-    slSetMemoryStatsValues(freeMemoryRT, totalMemoryRT, maxMemoryRT,
-                           availMemoryAM, totalMemoryAM, thresholdAM, lowMemoryAM);
+    //slSetMemoryStatsValues(freeMemoryRT, totalMemoryRT, maxMemoryRT,
+    //                       availMemoryAM, totalMemoryAM, thresholdAM, lowMemoryAM);
 }

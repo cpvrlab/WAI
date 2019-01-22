@@ -3,6 +3,7 @@
 #
 
 set(PlatformLinkLibs)
+message(STATUS "SYSTEM_NAME_UPPER ${SYSTEM_NAME_UPPER}")
 
 #==============================================================================
 if("${SYSTEM_NAME_UPPER}" STREQUAL "LINUX")
@@ -44,7 +45,8 @@ elseif("${SYSTEM_NAME_UPPER}" STREQUAL "ANDROID") #----------------------------
 
     set(PlatformLinkLibs
         GLESv3
-        ${log-lib})
+        ${log-lib}
+        z)
 
 endif()
 #==============================================================================
