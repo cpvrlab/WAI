@@ -1,4 +1,5 @@
 #include <WAI.h>
+#include <WAIHelper.h>
 
 WAI::WAI::WAI(std::string dataRoot)
 {

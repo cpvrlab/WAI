@@ -1,9 +1,6 @@
 //#############################################################################
 //  File:      AppDemoMainGLFW.cpp
-//  Purpose:   The demo application demonstrates most features of the SLProject
-//             framework. Implementation of the GUI with the GLFW3 framework
-//             that can create a window and receive system event on desktop OS
-//             such as Windows, MacOS and Linux.
+//  Purpose:   The demo application demonstrates most features of libWAI
 //  Author:    Marcus Hudritsch
 //  Date:      July 2014
 //  Copyright: Marcus Hudritsch
@@ -543,7 +540,7 @@ int main(int argc, char* argv[])
         exit(EXIT_FAILURE);
     }
 
-    glfwSetWindowTitle(window, "SLProject Test Application");
+    glfwSetWindowTitle(window, "libWAI Test Application");
     glfwSetWindowPos(window, 10, 30);
 
     // Set number of monitor refreshes between 2 buffer swaps

@@ -124,8 +124,7 @@ elseif("${SYSTEM_NAME_UPPER}" STREQUAL "WINDOWS") #----------------------------
         file(COPY ${usedCVLibs_Debug} DESTINATION ${CMAKE_BINARY_DIR}/Debug)
         file(COPY ${usedCVLibs_Release} DESTINATION ${CMAKE_BINARY_DIR}/Release)
     endif()
-    
-    #--------------------------------------------------------------------------
+
     #G2O
     set(g2o_DIR ${PREBUILT_PATH}/win64_g2o)
     set(g2o_INCLUDE_DIR ${g2o_DIR}/include)
@@ -222,6 +221,39 @@ elseif("${SYSTEM_NAME_UPPER}" STREQUAL "DARWIN") #-----------------------------
         file(COPY ${usedCVLibs_Release} DESTINATION ${CMAKE_BINARY_DIR}/Release)
     endif()
 
+    #G2O
+    set(g2o_DIR ${PREBUILT_PATH}/mac64_g2o)
+    set(g2o_PREBUILT_ZIP "mac64_g2o.zip")
+    set(g2o_URL ${PREBUILT_URL}/${g2o_PREBUILT_ZIP})
+    set(g2o_INCLUDE_DIR ${g2o_DIR}/include)
+    set(g2o_LINK_DIR ${g2o_DIR}/${CMAKE_BUILD_TYPE})
+
+    #message(STATUS "g2o_DIR: ${g2o_DIR}")
+    #message(STATUS "g2o_LINK_DIR: ${g2o_LINK_DIR}")
+    #message(STATUS "g2o_URL: ${g2o_URL}")
+
+    if (NOT EXISTS "${g2o_DIR}")
+        file(DOWNLOAD "${PREBUILT_URL}/${g2o_PREBUILT_ZIP}" "${PREBUILT_PATH}/${g2o_PREBUILT_ZIP}")
+        execute_process(COMMAND ${CMAKE_COMMAND} -E tar xzf
+            "${PREBUILT_PATH}/${g2o_PREBUILT_ZIP}"
+            WORKING_DIRECTORY "${PREBUILT_PATH}")
+        file(REMOVE "${PREBUILT_PATH}/${g2o_PREBUILT_ZIP}")
+    endif ()
+
+    foreach(lib ${g2o_LINK_LIBS})
+        add_library(lib${lib} SHARED IMPORTED)
+        set_target_properties(lib${lib} PROPERTIES IMPORTED_LOCATION "${g2o_LINK_DIR}/lib${lib}.dylib")
+        #message(STATUS "IMPORTED_LOCATION: ${g2o_LINK_DIR}/lib${lib}.dylib")
+        set(g2o_LIBS
+            ${g2o_LIBS}
+            lib${lib}
+            #optimized ${lib}
+            #debug ${lib}
+            )
+    endforeach(lib)
+
+    #message(STATUS "g2o_LIBS: ${g2o_LIBS}")
+
 elseif("${SYSTEM_NAME_UPPER}" STREQUAL "ANDROID") #---------------------------
     set(OpenCV_VERSION "3.4.1")
     set(OpenCV_PREBUILT_DIR "andV8_opencv_${OpenCV_VERSION}")
@@ -260,7 +292,6 @@ elseif("${SYSTEM_NAME_UPPER}" STREQUAL "ANDROID") #---------------------------
 
     set(OpenCV_LIBS_DEBUG ${OpenCV_LIBS})
 
-    #--------------------------------------------------------------------------
     #G2O
     set(g2o_PREBUILT_DIR "andV8_g2o")
     set(g2o_DIR ${PREBUILT_PATH}/andV8_g2o)

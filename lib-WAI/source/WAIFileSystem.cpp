@@ -14,6 +14,8 @@
 #    include <direct.h> //_getcwd
 #elif defined(WAI_OS_MACOS)
 #    include <unistd.h>
+#    include <sys/stat.h>
+#    include <dirent.h>
 #elif defined(WAI_OS_MACIOS)
 #    include <unistd.h> //getcwd
 #elif defined(WAI_OS_ANDROID)
