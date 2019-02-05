@@ -69,8 +69,25 @@ if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU" OR "${CMAKE_CXX_COMPILER_ID}" MATCH
 		-Werror
         -Wall
         -Wno-sign-compare
-        -Wno-int-in-bool-context
         -Wno-reorder
+        -Wno-reserved-id-macro
+        -Wno-old-style-cast
+        -Wno-zero-as-null-pointer-constant
+        -Wno-documentation-unknown-command
+        -Wno-c++98-compat
+        -Wno-c++98-compat-pedantic
+        -Wno-cast-align
+        -Wno-documentation
+        -Wno-float-equal
+        -Wno-shift-sign-overflow
+        -Wno-cast-qual
+        -Wno-sign-conversion
+        -Wno-weak-vtables
+        -Wno-padded
+        -Wno-deprecated
+        -Wno-deprecated-dynamic-exception-spec
+        -Wno-double-promotion
+        -Wno-unused-parameter
 
         $<$<CXX_COMPILER_ID:Clang>:
             -Weverything
