@@ -121,7 +121,7 @@ void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
     auto mapStorage = std::make_shared<AppDemoGuiMapStorage>("Map Storage",
                                                              waiSceneView->getMode(),
                                                              mapNode,
-                                                             waiSceneView->getExternalDir());
+                                                             waiSceneView->getExternalDir() + "slam-maps");
     AppDemoGui::addInfoDialog(mapStorage);
     auto mapTransform = std::make_shared<AppDemoGuiInfosMapNodeTransform>("Map transform",
                                                                           mapNode,

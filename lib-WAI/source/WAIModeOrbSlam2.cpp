@@ -2207,3 +2207,26 @@ void WAI::ModeOrbSlam2::decorateVideoWithKeyPointMatches(cv::Mat& image)
         }
     }
 }
+
+void WAI::ModeOrbSlam2::loadMapData(std::vector<WAIKeyFrame*> keyFrames,
+                                    std::vector<WAIMapPoint*> mapPoints,
+                                    int                       numLoopClosings)
+{
+    for (WAIKeyFrame* kf : keyFrames)
+    {
+        _map->AddKeyFrame(kf);
+
+        //Update keyframe database:
+        //add to keyframe database
+        mpKeyFrameDatabase->add(kf);
+    }
+
+    for (WAIMapPoint* point : mapPoints)
+    {
+        _map->AddMapPoint(point);
+    }
+
+    _map->setNumLoopClosings(numLoopClosings);
+
+    setInitialized(true);
+}

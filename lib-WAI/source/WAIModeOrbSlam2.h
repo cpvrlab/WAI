@@ -79,6 +79,8 @@ class WAI_API ModeOrbSlam2 : public Mode
     bool hasStateIdle();
     void setInitialized(bool initialized) { _initialized = initialized; }
 
+    void loadMapData(std::vector<WAIKeyFrame*> keyFrames, std::vector<WAIMapPoint*> mapPoints, int numLoopClosings);
+
     private:
     enum TrackingState
     {

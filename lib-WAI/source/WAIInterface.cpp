@@ -4,6 +4,11 @@
 static WAI::WAI           wai("");
 static WAI::ModeOrbSlam2* mode = nullptr;
 
+struct WAIMapPointCoordinate
+{
+    float x, y, z;
+};
+
 extern "C" {
 WAI_API void wai_setDataRoot(const char* dataRoot)
 {
@@ -15,6 +20,44 @@ WAI_API void wai_setMode(WAI::ModeType modeType)
 {
     WAI_LOG("setMode called");
     mode = (WAI::ModeOrbSlam2*)wai.setMode(modeType);
+}
+
+WAI_API void wai_getMapPoints(WAIMapPointCoordinate** mapPointCoordinatePtr,
+                              int*                    mapPointCount)
+{
+    if (!mode)
+    {
+        WAI_LOG("mode not set. Call wai_setMode first.");
+        return;
+    }
+
+    std::vector<WAIMapPoint*> mapPoints       = mode->getMapPoints();
+    *mapPointCoordinatePtr                    = (WAIMapPointCoordinate*)malloc(mapPoints.size() * sizeof(WAIMapPointCoordinate));
+    WAIMapPointCoordinate* mapPointCoordinate = *mapPointCoordinatePtr;
+
+    int count = 0;
+
+    for (WAIMapPoint* mapPoint : mapPoints)
+    {
+        if (!mapPoint->isBad())
+        {
+            *mapPointCoordinate = {
+              mapPoint->worldPosVec().x,
+              mapPoint->worldPosVec().y,
+              mapPoint->worldPosVec().z,
+            };
+
+            mapPointCoordinate++;
+            count++;
+        }
+    }
+
+    *mapPointCount = count;
+}
+
+WAI_API void wai_releaseMapPoints(WAIMapPointCoordinate** mapPointCoordinatePtr)
+{
+    delete *mapPointCoordinatePtr;
 }
 
 WAI_API void wai_activateSensor(WAI::SensorType sensorType, void* sensorInfo)
