@@ -88,6 +88,9 @@ if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU" OR "${CMAKE_CXX_COMPILER_ID}" MATCH
         -Wno-deprecated-dynamic-exception-spec
         -Wno-double-promotion
         -Wno-unused-parameter
+        -Wno-missing-prototypes
+        -Wno-null-dereference
+        -Wno-unused-function
 
         $<$<CXX_COMPILER_ID:Clang>:
             -Weverything

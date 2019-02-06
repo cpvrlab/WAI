@@ -1182,7 +1182,16 @@ static int bit_pattern_31_[256 * 4] =
     -11 /*mean (0.127148), correlation (0.547401)*/
 };
 
-ORBextractor::ORBextractor(int _nfeatures, float _scaleFactor, int _nlevels, int _iniThFAST, int _minThFAST) : nfeatures(_nfeatures), scaleFactor(_scaleFactor), nlevels(_nlevels), iniThFAST(_iniThFAST), minThFAST(_minThFAST)
+ORBextractor::ORBextractor(int   _nfeatures,
+                           float _scaleFactor,
+                           int   _nlevels,
+                           int   _iniThFAST,
+                           int   _minThFAST)
+  : nfeatures(_nfeatures),
+    scaleFactor(_scaleFactor),
+    nlevels(_nlevels),
+    iniThFAST(_iniThFAST),
+    minThFAST(_minThFAST)
 {
     mvScaleFactor.resize(nlevels);
     mvLevelSigma2.resize(nlevels);
