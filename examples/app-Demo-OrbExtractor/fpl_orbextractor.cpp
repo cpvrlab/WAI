@@ -5,9 +5,10 @@
 
 #include "wai_orb.cpp"
 
-void cv_extractAndDrawKeyPoints(cv::Mat                    image,
-                                std::vector<cv::KeyPoint>& keyPoints,
-                                u8**                       descriptors)
+void cv_extractAndDrawKeyPoints(OrbExtractionState*    state,
+                                cv::Mat                image,
+                                std::vector<KeyPoint>& keyPoints,
+                                u8**                   descriptors)
 {
     cv::Mat grayscaleImg = cv::Mat(image.rows,
                                    image.cols,
@@ -23,56 +24,10 @@ void cv_extractAndDrawKeyPoints(cv::Mat                    image,
     grayscaleBuffer.bytesPerPixel = 1;
     grayscaleBuffer.pitch         = (i32)grayscaleImg.step;
 
-    // add border to image where we do not want corners to be detected
-    const int minBorderX = EDGE_THRESHOLD - 3;
-    const int minBorderY = minBorderX;
-    const int maxBorderX = grayscaleBuffer.width - EDGE_THRESHOLD + 3;
-    const int maxBorderY = grayscaleBuffer.height - EDGE_THRESHOLD + 3;
-
-    FrameBuffer fastBuffer;
-    fastBuffer.width         = (maxBorderX - minBorderX);
-    fastBuffer.height        = (maxBorderY - minBorderY);
-    fastBuffer.bytesPerPixel = 1;
-    fastBuffer.pitch         = grayscaleBuffer.pitch;
-    fastBuffer.memory        = ((u8*)grayscaleBuffer.memory) +
-                        minBorderY * fastBuffer.pitch +
-                        minBorderX * fastBuffer.bytesPerPixel;
-
-    keyPoints = detectFastCorners(&fastBuffer,
-                                  20);
-
-    // This is for orientation
-    // pre-compute the end of a row in a circular patch
-    std::vector<int> umax;
-    umax.resize(HALF_PATCH_SIZE + 1);
-
-    int          v, v0, vmax = cvFloor(HALF_PATCH_SIZE * sqrt(2.f) / 2 + 1);
-    int          vmin = cvCeil(HALF_PATCH_SIZE * sqrt(2.f) / 2);
-    const double hp2  = HALF_PATCH_SIZE * HALF_PATCH_SIZE;
-    for (v = 0; v <= vmax; ++v)
-        umax[v] = cvRound(sqrt(hp2 - v * v));
-
-    // Make sure we are symmetric
-    for (v = HALF_PATCH_SIZE, v0 = 0; v >= vmin; --v)
-    {
-        while (umax[v0] == umax[v0 + 1])
-            ++v0;
-        umax[v] = v0;
-        ++v0;
-    }
-
-    for (cv::KeyPoint& keyPoint : keyPoints)
-    {
-        // Bring point coordinates from fastBuffer space to
-        // grayscaleBuffer space
-        keyPoint.pt.x += minBorderX;
-        keyPoint.pt.y += minBorderY;
-
-        keyPoint.angle = computeKeypointAngle(&grayscaleBuffer,
-                                              keyPoint.pt.x,
-                                              keyPoint.pt.y,
-                                              umax);
-    }
+    keyPoints = detectFastCorners(state,
+                                  &grayscaleBuffer,
+                                  20,
+                                  ORB_EDGE_THRESHOLD);
 
     const cv::Point*       pattern0 = (cv::Point*)bit_pattern_31_;
     std::vector<cv::Point> pattern;
@@ -82,20 +37,20 @@ void cv_extractAndDrawKeyPoints(cv::Mat                    image,
     *descriptors = (u8*)malloc(ORB_DESCRIPTOR_COUNT * keyPoints.size() * sizeof(u8));
 
     u8* keyPointDescriptor = *descriptors;
-    for (cv::KeyPoint keyPoint : keyPoints)
+    for (KeyPoint keyPoint : keyPoints)
     {
         computeOrbDescriptor(&grayscaleBuffer,
                              &keyPoint,
-                             &pattern[0],
+                             bit_pattern_31_,
                              keyPointDescriptor);
 
         keyPointDescriptor += ORB_DESCRIPTOR_COUNT;
     }
 
-    for (cv::KeyPoint keyPoint : keyPoints)
+    for (KeyPoint keyPoint : keyPoints)
     {
         cv::rectangle(image,
-                      cv::Rect((int)keyPoint.pt.x - 3, (int)keyPoint.pt.y - 3, 7, 7),
+                      cv::Rect((int)keyPoint.x - 3, (int)keyPoint.y - 3, 7, 7),
                       cv::Scalar(0, 0, 255));
     }
 }
@@ -112,12 +67,35 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    std::vector<cv::KeyPoint> keyPointsImage1   = std::vector<cv::KeyPoint>();
-    std::vector<cv::KeyPoint> keyPointsImage2   = std::vector<cv::KeyPoint>();
-    u8*                       descriptorsImage1 = nullptr;
-    u8*                       descriptorsImage2 = nullptr;
-    cv_extractAndDrawKeyPoints(image1, keyPointsImage1, &descriptorsImage1);
-    cv_extractAndDrawKeyPoints(image2, keyPointsImage2, &descriptorsImage2);
+    OrbExtractionState state = {};
+
+    // This is for orientation
+    // pre-compute the end of a row in a circular patch
+    int          v, v0;
+    int          vmax = cvFloor(ORB_HALF_PATCH_SIZE * sqrt(2.f) / 2 + 1);
+    int          vmin = cvCeil(ORB_HALF_PATCH_SIZE * sqrt(2.f) / 2);
+    const double hp2  = ORB_HALF_PATCH_SIZE * ORB_HALF_PATCH_SIZE;
+    for (v = 0; v <= vmax; v++)
+        state.umax[v] = cvRound(sqrt(hp2 - v * v));
+
+    // Make sure we are symmetric
+    for (v = ORB_HALF_PATCH_SIZE, v0 = 0; v >= vmin; --v)
+    {
+        while (state.umax[v0] == state.umax[v0 + 1])
+        {
+            v0++;
+        }
+
+        state.umax[v] = v0;
+        v0++;
+    }
+
+    std::vector<KeyPoint> keyPointsImage1;
+    std::vector<KeyPoint> keyPointsImage2;
+    u8*                   descriptorsImage1 = nullptr;
+    u8*                   descriptorsImage2 = nullptr;
+    cv_extractAndDrawKeyPoints(&state, image1, keyPointsImage1, &descriptorsImage1);
+    cv_extractAndDrawKeyPoints(&state, image2, keyPointsImage2, &descriptorsImage2);
 
     cv::Mat concatenatedImage;
     cv::hconcat(image1, image2, concatenatedImage);
@@ -138,8 +116,8 @@ int main(int argc, char** argv)
         }
 
         cv::line(concatenatedImage,
-                 keyPointsImage1[a].pt,
-                 cv::Point((int)keyPointsImage2[minDistIndex].pt.x + image2.cols, (int)keyPointsImage2[minDistIndex].pt.y),
+                 cv::Point((int)keyPointsImage1[a].x, (int)keyPointsImage1[a].y),
+                 cv::Point((int)keyPointsImage2[minDistIndex].x + image2.cols, (int)keyPointsImage2[minDistIndex].y),
                  cv::Scalar(255, 0, 0));
     }
 

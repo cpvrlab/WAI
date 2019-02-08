@@ -42,7 +42,11 @@ WAISceneView::WAISceneView(SLCVCalibration* calib, std::string externalDir, std:
                                           calib->p1(),
                                           calib->p2()};
     _wai.activateSensor(WAI::SensorType_Camera, &calibration);
+#if DATA_ORIENTED
+    _mode = (WAI::ModeOrbSlam2DataOriented*)_wai.setMode(WAI::ModeType_ORB_SLAM2_DATA_ORIENTED);
+#else
     _mode = (WAI::ModeOrbSlam2*)_wai.setMode(WAI::ModeType_ORB_SLAM2);
+#endif
 }
 //-----------------------------------------------------------------------------
 void WAISceneView::setMapNode(SLNode* mapNode)
@@ -116,6 +120,7 @@ void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
     sv->onInitialize();
     s->onAfterLoad();
 
+#ifndef DATA_ORIENTED
     auto trackedMapping = std::make_shared<AppDemoGuiTrackedMapping>("Tracked mapping", waiSceneView->getMode());
     AppDemoGui::addInfoDialog(trackedMapping);
     auto mapStorage = std::make_shared<AppDemoGuiMapStorage>("Map Storage",
@@ -132,6 +137,7 @@ void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
                                                                    waiSceneView,
                                                                    waiSceneView->getMode());
     AppDemoGui::addInfoDialog(trackingInfos);
+#endif
 }
 //-----------------------------------------------------------------------------
 void WAISceneView::update()
@@ -148,11 +154,13 @@ void WAISceneView::update()
         }
         if (_showKeyPoints)
         {
+#ifndef DATA_ORIENTED
             renderMapPoints("MapPoints",
                             _mode->getMapPoints(),
                             _mapPC,
                             _mappointsMesh,
                             _redMat);
+#endif
         }
 
         if (_mappointsMatchedMesh)
@@ -161,11 +169,13 @@ void WAISceneView::update()
         }
         if (_showKeyPointsMatched)
         {
+#ifndef DATA_ORIENTED
             renderMapPoints("MatchedMapPoints",
                             _mode->getMatchedMapPoints(),
                             _mapMatchedPC,
                             _mappointsMatchedMesh,
                             _greenMat);
+#endif
         }
 
         if (_mappointsLocalMesh)
@@ -174,11 +184,13 @@ void WAISceneView::update()
         }
         if (_showLocalMapPC)
         {
+#ifndef DATA_ORIENTED
             renderMapPoints("LocalMapPoints",
                             _mode->getLocalMapPoints(),
                             _mapLocalPC,
                             _mappointsLocalMesh,
                             _blueMat);
+#endif
         }
 
         _keyFrameNode->deleteChildren();
@@ -259,6 +271,7 @@ void WAISceneView::renderMapPoints(std::string                      name,
 //-----------------------------------------------------------------------------
 void WAISceneView::renderKeyFrames()
 {
+#ifndef DATA_ORIENTED
     std::vector<WAIKeyFrame*> keyframes = _mode->getKeyFrames();
 
     // TODO(jan): delete keyframe textures
@@ -270,11 +283,11 @@ void WAISceneView::renderKeyFrames()
         {
             // TODO(jan): textures are saved in a global textures vector (scene->textures)
             // and should be deleted from there. Otherwise we have a yuuuuge memory leak.
-#if 0
+#    if 0
         SLGLTexture* texture = new SLGLTexture(kf->getTexturePath());
         _kfTextures.push_back(texture);
         cam->background().texture(texture);
-#endif
+#    endif
         }
 
         cv::Mat Twc = kf->getObjectMatrix();
@@ -308,10 +321,12 @@ void WAISceneView::renderKeyFrames()
         cam->clipFar(1000.0);
         _keyFrameNode->addChild(cam);
     }
+#endif
 }
 //-----------------------------------------------------------------------------
 void WAISceneView::renderGraphs()
 {
+#ifndef DATA_ORIENTED
     std::vector<WAIKeyFrame*> kfs = _mode->getKeyFrames();
 
     SLVVec3f covisGraphPts;
@@ -386,4 +401,5 @@ void WAISceneView::renderGraphs()
         _loopEdges->addMesh(_loopEdgesMesh);
         _loopEdges->updateAABBRec();
     }
+#endif
 }

@@ -21,6 +21,8 @@
 
 #include <WAI.h>
 
+//#define DATA_ORIENTED 1
+
 void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid);
 
 //-----------------------------------------------------------------------------
@@ -47,8 +49,21 @@ class WAISceneView : public SLSceneView
     void setCameraNode(SLCamera* cameraNode) { _cameraNode = cameraNode; }
     void setMapNode(SLNode* mapNode);
 
-    WAI::ModeOrbSlam2* getMode() { return _mode; }
-    std::string        getExternalDir() { return _externalDir; }
+#if DATA_ORIENTED
+    WAI::ModeOrbSlam2DataOriented* getMode()
+    {
+        return _mode;
+    }
+#else
+    WAI::ModeOrbSlam2* getMode()
+    {
+        return _mode;
+    }
+#endif
+    std::string getExternalDir()
+    {
+        return _externalDir;
+    }
 
     int getMinNumOfCovisibles() { return _minNumOfCovisibles; }
 
@@ -76,17 +91,21 @@ class WAISceneView : public SLSceneView
     void showLoopEdges(bool showLoopEdges) { _showLoopEdges = showLoopEdges; }
 
     private:
-    WAI::WAI           _wai;
+    WAI::WAI _wai;
+#if DATA_ORIENTED
+    WAI::ModeOrbSlam2DataOriented* _mode;
+#else
     WAI::ModeOrbSlam2* _mode;
-    SLCamera*          _cameraNode        = nullptr;
-    SLNode*            _mapNode           = nullptr;
-    SLNode*            _mapPC             = nullptr;
-    SLNode*            _mapMatchedPC      = nullptr;
-    SLNode*            _mapLocalPC        = nullptr;
-    SLNode*            _keyFrameNode      = nullptr;
-    SLNode*            _covisibilityGraph = nullptr;
-    SLNode*            _spanningTree      = nullptr;
-    SLNode*            _loopEdges         = nullptr;
+#endif
+    SLCamera* _cameraNode        = nullptr;
+    SLNode*   _mapNode           = nullptr;
+    SLNode*   _mapPC             = nullptr;
+    SLNode*   _mapMatchedPC      = nullptr;
+    SLNode*   _mapLocalPC        = nullptr;
+    SLNode*   _keyFrameNode      = nullptr;
+    SLNode*   _covisibilityGraph = nullptr;
+    SLNode*   _spanningTree      = nullptr;
+    SLNode*   _loopEdges         = nullptr;
 
     SLMaterial* _redMat               = nullptr;
     SLMaterial* _greenMat             = nullptr;

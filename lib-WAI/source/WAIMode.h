@@ -12,7 +12,8 @@ enum ModeType
 {
     ModeType_None,
     ModeType_Aruco,
-    ModeType_ORB_SLAM2
+    ModeType_ORB_SLAM2,
+    ModeType_ORB_SLAM2_DATA_ORIENTED
 };
 
 class Mode

@@ -39,6 +39,19 @@ WAI::Mode* WAI::WAI::setMode(ModeType modeType)
         }
         break;
 
+        case ModeType_ORB_SLAM2_DATA_ORIENTED:
+        {
+            if (_sensors.find(SensorType_Camera) == _sensors.end())
+            {
+                WAI_LOG("Cannot switch to mode ORB_SLAM2 since camera sensor is not activated. Please call activate sensor with AstrolabeSensorType_Camera first.\n");
+            }
+            else
+            {
+                _mode = new ModeOrbSlam2DataOriented((SensorCamera*)_sensors[SensorType_Camera]);
+            }
+        }
+        break;
+
         case ModeType_Aruco:
         {
             if (_sensors.find(SensorType_Camera) == _sensors.end())
