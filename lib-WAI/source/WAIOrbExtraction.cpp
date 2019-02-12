@@ -166,11 +166,11 @@ std::vector<cv::KeyPoint> distributeOctTree(const std::vector<cv::KeyPoint>& vTo
 
     for (i32 i = 0; i < nIni; i++)
     {
-        OrbExtractorNode ni;
-        ni.topLeft     = cv::Point2i(hX * static_cast<r32>(i), 0);
-        ni.topRight    = cv::Point2i(hX * static_cast<r32>(i + 1), 0);
-        ni.bottomLeft  = cv::Point2i(ni.topLeft.x, maxY - minY);
-        ni.bottomRight = cv::Point2i(ni.topRight.x, maxY - minY);
+        OrbExtractorNode ni = {};
+        ni.topLeft          = cv::Point2i(hX * static_cast<r32>(i), 0);
+        ni.topRight         = cv::Point2i(hX * static_cast<r32>(i + 1), 0);
+        ni.bottomLeft       = cv::Point2i(ni.topLeft.x, maxY - minY);
+        ni.bottomRight      = cv::Point2i(ni.topRight.x, maxY - minY);
         ni.keys.reserve(vToDistributeKeys.size());
 
         lNodes.push_back(ni);
@@ -398,7 +398,7 @@ void computeKeyPointsInOctTree(const i32                               numberOfL
 {
     allKeypoints.resize(numberOfLevels);
 
-    const r32 W = 30;
+    const r32 W = 30; // TODO(jan): number of cells?
 
     for (i32 level = 0; level < numberOfLevels; ++level)
     {
