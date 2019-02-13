@@ -1621,7 +1621,13 @@ void ORBextractor::ComputeKeyPointsOctTree(vector<vector<KeyPoint>>& allKeypoint
         vector<KeyPoint>& keypoints = allKeypoints[level];
         keypoints.reserve(nfeatures);
 
-        keypoints = DistributeOctTree(vToDistributeKeys, minBorderX, maxBorderX, minBorderY, maxBorderY, mnFeaturesPerLevel[level], level);
+        keypoints = DistributeOctTree(vToDistributeKeys,
+                                      minBorderX,
+                                      maxBorderX,
+                                      minBorderY,
+                                      maxBorderY,
+                                      mnFeaturesPerLevel[level],
+                                      level);
 
         const int scaledPatchSize = PATCH_SIZE * mvScaleFactor[level];
 

@@ -229,7 +229,7 @@ std::vector<cv::KeyPoint> distributeOctTree(const std::vector<cv::KeyPoint>& vTo
             else
             {
                 // If more than one point, subdivide
-                OrbExtractorNode n1, n2, n3, n4;
+                OrbExtractorNode n1 = {}, n2 = {}, n3 = {}, n4 = {};
                 divideOrbExtractorNode(*lit, n1, n2, n3, n4);
 
                 // Add childs if they contain points
@@ -299,7 +299,7 @@ std::vector<cv::KeyPoint> distributeOctTree(const std::vector<cv::KeyPoint>& vTo
                 sort(vPrevSizeAndPointerToNode.begin(), vPrevSizeAndPointerToNode.end());
                 for (i32 j = vPrevSizeAndPointerToNode.size() - 1; j >= 0; j--)
                 {
-                    OrbExtractorNode n1, n2, n3, n4;
+                    OrbExtractorNode n1 = {}, n2 = {}, n3 = {}, n4 = {};
                     divideOrbExtractorNode(*vPrevSizeAndPointerToNode[j].second, n1, n2, n3, n4);
 
                     // Add childs if they contain points

@@ -84,7 +84,7 @@ bool32 calculateKeyPointGridCell(const cv::KeyPoint& keyPoint,
     i32 x = (i32)round((keyPoint.pt.x - minX) * invGridElementWidth);
     i32 y = (i32)round((keyPoint.pt.y - minY) * invGridElementHeight);
 
-    //Keypoint's coordinates are undistorted, which could cause to go out of the image
+    // Keypoint's coordinates are undistorted, which could cause to go out of the image
     if (x < 0 || x >= FRAME_GRID_COLS || y < 0 || y >= FRAME_GRID_ROWS)
     {
         result = false;
@@ -330,7 +330,7 @@ static void initializeKeyFrame(const OrbSlamState*        state,
 
         for (size_t i = 0; i < keyPointsForLevel.size(); i++)
         {
-            computeOrbDescriptor(keyPointsForLevel[i], cameraFrame, &state->pattern[0], descriptors.ptr((i32)i));
+            computeOrbDescriptor(keyPointsForLevel[i], cameraFrame, &state->pattern[0], desc.ptr((i32)i));
         }
         offset += nkeypointsLevel;
 
@@ -678,23 +678,13 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                     }
 
                     // update prev matched
-                    for (size_t i1 = 0, iend1 = _state.initializationMatches.size(); i1 < iend1; i1++)
+                    for (size_t i1 = 0, iend1 = _state.initializationMatches.size();
+                         i1 < iend1;
+                         i1++)
                     {
                         if (_state.initializationMatches[i1] >= 0)
                         {
                             _state.previouslyMatchedKeyPoints[i1] = currentKeyFrame.undistortedKeyPoints[_state.initializationMatches[i1]].pt;
-                        }
-                    }
-
-                    //ghm1: decorate image with tracked matches
-                    for (u32 i = 0; i < _state.initializationMatches.size(); i++)
-                    {
-                        if (_state.initializationMatches[i] >= 0)
-                        {
-                            cv::line(_camera->getImageRGB(),
-                                     _state.referenceKeyFrame->keyPoints[i].pt,
-                                     currentKeyFrame.keyPoints[_state.initializationMatches[i]].pt,
-                                     cv::Scalar(0, 255, 0));
                         }
                     }
 
@@ -707,6 +697,26 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                     {
                         delete _state.referenceKeyFrame;
                         _state.referenceKeyFrame = nullptr;
+                    }
+
+                    for (u32 i = 0; i < _state.referenceKeyFrame->keyPoints.size(); i++)
+                    {
+                        cv::rectangle(_camera->getImageRGB(),
+                                      _state.referenceKeyFrame->keyPoints[i].pt,
+                                      cv::Point(_state.referenceKeyFrame->keyPoints[i].pt.x + 3, _state.referenceKeyFrame->keyPoints[i].pt.y + 3),
+                                      cv::Scalar(0, 0, 255));
+                    }
+
+                    //ghm1: decorate image with tracked matches
+                    for (u32 i = 0; i < _state.initializationMatches.size(); i++)
+                    {
+                        if (_state.initializationMatches[i] >= 0)
+                        {
+                            cv::line(_camera->getImageRGB(),
+                                     _state.referenceKeyFrame->keyPoints[i].pt,
+                                     currentKeyFrame.keyPoints[_state.initializationMatches[i]].pt,
+                                     cv::Scalar(0, 255, 0));
+                        }
                     }
                 }
                 else

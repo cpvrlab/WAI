@@ -488,6 +488,14 @@ void WAI::ModeOrbSlam2::initialize()
             return;
         }
 
+        for (unsigned int i = 0; i < mInitialFrame.mvKeys.size(); i++)
+        {
+            cv::rectangle(_camera->getImageRGB(),
+                          mInitialFrame.mvKeys[i].pt,
+                          cv::Point(mInitialFrame.mvKeys[i].pt.x + 3, mInitialFrame.mvKeys[i].pt.y + 3),
+                          cv::Scalar(0, 0, 255));
+        }
+
         //ghm1: decorate image with tracked matches
         for (unsigned int i = 0; i < mvIniMatches.size(); i++)
         {
