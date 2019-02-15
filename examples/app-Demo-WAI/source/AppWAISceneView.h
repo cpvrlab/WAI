@@ -21,7 +21,8 @@
 
 #include <WAI.h>
 
-//#define DATA_ORIENTED 1
+#define DATA_ORIENTED 0
+#define LIVE_VIDEO 0
 
 void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid);
 
@@ -54,16 +55,28 @@ class WAISceneView : public SLSceneView
     {
         return _mode;
     }
+
+    void setMode(WAI::ModeOrbSlam2DataOriented* mode)
+    {
+        _mode = mode;
+    }
 #else
     WAI::ModeOrbSlam2* getMode()
     {
         return _mode;
+    }
+
+    void setMode(WAI::ModeOrbSlam2* mode)
+    {
+        _mode = mode;
     }
 #endif
     std::string getExternalDir()
     {
         return _externalDir;
     }
+
+    WAI::WAI wai;
 
     int getMinNumOfCovisibles() { return _minNumOfCovisibles; }
 
@@ -91,7 +104,6 @@ class WAISceneView : public SLSceneView
     void showLoopEdges(bool showLoopEdges) { _showLoopEdges = showLoopEdges; }
 
     private:
-    WAI::WAI _wai;
 #if DATA_ORIENTED
     WAI::ModeOrbSlam2DataOriented* _mode;
 #else

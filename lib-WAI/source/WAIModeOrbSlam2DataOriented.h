@@ -23,18 +23,30 @@ struct KeyFrame
     cv::Mat                   descriptors;
 };
 
+struct ImagePyramidStats
+{
+    i32              numberOfScaleLevels;
+    std::vector<r32> scaleFactors;
+    std::vector<r32> inverseScaleFactors;
+    std::vector<i32> numberOfFeaturesPerScaleLevel;
+};
+
+struct GridConstraints
+{
+    r32 minX;
+    r32 minY;
+    r32 invGridElementWidth;
+    r32 invGridElementHeight;
+};
+
 struct OrbSlamState
 {
     OrbSlamStatus status;
     KeyFrame*     referenceKeyFrame = nullptr; // keyframe no. 0
 
     // pyramid + orb stuff
-    i32                    pyramidScaleLevels;
-    std::vector<r32>       pyramidScaleFactors;
-    std::vector<r32>       inversePyramidScaleFactors;
     i32                    edgeThreshold;
     i32                    numberOfFeatures;
-    std::vector<i32>       numberOfFeaturesPerScaleLevel;
     i32                    initialFastThreshold;
     i32                    minimalFastThreshold;
     i32                    orbOctTreePatchSize;
@@ -50,11 +62,8 @@ struct OrbSlamState
     r32 fx, fy, cx, cy;
     r32 invfx, invfy;
 
-    // image bounds
-    r32 minX, maxX, minY, maxY;
-
-    // grid distribution stuff
-    r32 invGridElementWidth, invGridElementHeight;
+    ImagePyramidStats imagePyramidStats;
+    GridConstraints   gridConstraints;
 };
 
 namespace WAI

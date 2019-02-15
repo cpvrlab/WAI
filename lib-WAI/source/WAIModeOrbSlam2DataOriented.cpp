@@ -975,18 +975,15 @@ i32 descriptorDistance(const cv::Mat& a,
     return dist;
 }
 
-bool32 calculateKeyPointGridCell(const cv::KeyPoint& keyPoint,
-                                 const r32           minX,
-                                 const r32           minY,
-                                 const r32           invGridElementWidth,
-                                 const r32           invGridElementHeight,
-                                 i32*                posX,
-                                 i32*                posY)
+bool32 calculateKeyPointGridCell(const cv::KeyPoint&   keyPoint,
+                                 const GridConstraints gridConstraints,
+                                 i32*                  posX,
+                                 i32*                  posY)
 {
     bool32 result = false;
 
-    i32 x = (i32)round((keyPoint.pt.x - minX) * invGridElementWidth);
-    i32 y = (i32)round((keyPoint.pt.y - minY) * invGridElementHeight);
+    i32 x = (i32)round((keyPoint.pt.x - gridConstraints.minX) * gridConstraints.invGridElementWidth);
+    i32 y = (i32)round((keyPoint.pt.y - gridConstraints.minY) * gridConstraints.invGridElementHeight);
 
     // Keypoint's coordinates are undistorted, which could cause to go out of the image
     if (x < 0 || x >= FRAME_GRID_COLS || y < 0 || y >= FRAME_GRID_ROWS)
@@ -1039,15 +1036,14 @@ void undistortKeyPoints(const cv::Mat                   cameraMat,
     }
 }
 
-void computeScalePyramid(const cv::Mat          image,
-                         const i32              numberOfLevels,
-                         const std::vector<r32> inverseScaleFactors,
-                         const i32              edgeThreshold,
-                         std::vector<cv::Mat>&  imagePyramid)
+void computeScalePyramid(const cv::Mat            image,
+                         const ImagePyramidStats& imagePyramidStats,
+                         const i32                edgeThreshold,
+                         std::vector<cv::Mat>&    imagePyramid)
 {
-    for (i32 level = 0; level < numberOfLevels; level++)
+    for (i32 level = 0; level < imagePyramidStats.numberOfScaleLevels; level++)
     {
-        r32      scale = inverseScaleFactors[level];
+        r32      scale = imagePyramidStats.inverseScaleFactors[level];
         cv::Size sz(cvRound((r32)image.cols * scale), cvRound((r32)image.rows * scale));
         cv::Size wholeSize(sz.width + edgeThreshold * 2, sz.height + edgeThreshold * 2);
         cv::Mat  temp(wholeSize, image.type()), masktemp;
@@ -1092,30 +1088,30 @@ WAI::ModeOrbSlam2DataOriented::ModeOrbSlam2DataOriented(SensorCamera* camera)
     i32 orbPatchSize       = 31;
     i32 orbHalfPatchSize   = 15;
 
-    _state.status                  = OrbSlamStatus_Initializing;
-    _state.pyramidScaleLevels      = pyramidScaleLevels;
-    _state.numberOfFeatures        = numberOfFeatures;
-    _state.orbOctTreePatchSize     = orbPatchSize;
-    _state.orbOctTreeHalfPatchSize = orbHalfPatchSize;
-    _state.initialFastThreshold    = 20;
-    _state.minimalFastThreshold    = 7;
-    _state.edgeThreshold           = 19;
+    _state.status                                = OrbSlamStatus_Initializing;
+    _state.imagePyramidStats.numberOfScaleLevels = pyramidScaleLevels;
+    _state.numberOfFeatures                      = numberOfFeatures;
+    _state.orbOctTreePatchSize                   = orbPatchSize;
+    _state.orbOctTreeHalfPatchSize               = orbHalfPatchSize;
+    _state.initialFastThreshold                  = 20;
+    _state.minimalFastThreshold                  = 7;
+    _state.edgeThreshold                         = 19;
 
     const i32        npoints  = 512;
     const cv::Point* pattern0 = (const cv::Point*)bit_pattern_31_;
     std::copy(pattern0, pattern0 + npoints, std::back_inserter(_state.pattern));
 
-    _state.pyramidScaleFactors.resize(pyramidScaleLevels);
-    _state.inversePyramidScaleFactors.resize(pyramidScaleLevels);
-    _state.numberOfFeaturesPerScaleLevel.resize(pyramidScaleLevels);
+    _state.imagePyramidStats.scaleFactors.resize(pyramidScaleLevels);
+    _state.imagePyramidStats.inverseScaleFactors.resize(pyramidScaleLevels);
+    _state.imagePyramidStats.numberOfFeaturesPerScaleLevel.resize(pyramidScaleLevels);
 
-    _state.pyramidScaleFactors[0]        = 1.0f;
-    _state.inversePyramidScaleFactors[0] = 1.0f;
+    _state.imagePyramidStats.scaleFactors[0]        = 1.0f;
+    _state.imagePyramidStats.inverseScaleFactors[0] = 1.0f;
 
-    for (i32 i = 1; i < _state.pyramidScaleLevels; i++)
+    for (i32 i = 1; i < pyramidScaleLevels; i++)
     {
-        _state.pyramidScaleFactors[i]        = _state.pyramidScaleFactors[i - 1] * scaleFactor;
-        _state.inversePyramidScaleFactors[i] = 1.0f / _state.pyramidScaleFactors[i];
+        _state.imagePyramidStats.scaleFactors[i]        = _state.imagePyramidStats.scaleFactors[i - 1] * scaleFactor;
+        _state.imagePyramidStats.inverseScaleFactors[i] = 1.0f / _state.imagePyramidStats.scaleFactors[i];
     }
 
     r32 inverseScaleFactor            = 1.0f / scaleFactor;
@@ -1123,11 +1119,11 @@ WAI::ModeOrbSlam2DataOriented::ModeOrbSlam2DataOriented(SensorCamera* camera)
     i32 sumFeatures                   = 0;
     for (i32 level = 0; level < pyramidScaleLevels - 1; level++)
     {
-        _state.numberOfFeaturesPerScaleLevel[level] = cvRound(numberOfFeaturesPerScaleLevel);
-        sumFeatures += _state.numberOfFeaturesPerScaleLevel[level];
+        _state.imagePyramidStats.numberOfFeaturesPerScaleLevel[level] = cvRound(numberOfFeaturesPerScaleLevel);
+        sumFeatures += _state.imagePyramidStats.numberOfFeaturesPerScaleLevel[level];
         numberOfFeaturesPerScaleLevel *= inverseScaleFactor;
     }
-    _state.numberOfFeaturesPerScaleLevel[pyramidScaleLevels - 1] = std::max(numberOfFeatures - sumFeatures, 0);
+    _state.imagePyramidStats.numberOfFeaturesPerScaleLevel[pyramidScaleLevels - 1] = std::max(numberOfFeatures - sumFeatures, 0);
 
     // This is for orientation
     // pre-compute the end of a row in a circular patch
@@ -1156,15 +1152,24 @@ WAI::ModeOrbSlam2DataOriented::ModeOrbSlam2DataOriented(SensorCamera* camera)
     _camera->subscribeToUpdate(this);
 }
 
-static void initializeKeyFrame(const OrbSlamState*        state,
-                               const cv::Mat&             cameraFrame,
-                               const cv::Mat&             cameraMat,
-                               const cv::Mat&             distortionMat,
-                               i32&                       numberOfKeyPoints,
-                               std::vector<cv::KeyPoint>& keyPoints,
-                               std::vector<cv::KeyPoint>& undistortedKeyPoints,
-                               std::vector<size_t>        keyPointIndexGrid[FRAME_GRID_COLS][FRAME_GRID_ROWS],
-                               cv::Mat&                   descriptors)
+static void initializeKeyFrame(const ImagePyramidStats      imagePyramidStats,
+                               const i32                    edgeThreshold,
+                               const cv::Mat&               cameraFrame,
+                               const cv::Mat&               cameraMat,
+                               const cv::Mat&               distortionMat,
+                               const i32                    numberOfFeatures,
+                               const i32                    initialFastThreshold,
+                               const i32                    minimalFastThreshold,
+                               const i32                    orbOctTreePatchSize,
+                               const i32                    orbOctTreeHalfPatchSize,
+                               const std::vector<i32>       umax,
+                               const std::vector<cv::Point> orbPattern,
+                               const GridConstraints        gridConstraints,
+                               i32&                         numberOfKeyPoints,
+                               std::vector<cv::KeyPoint>&   keyPoints,
+                               std::vector<cv::KeyPoint>&   undistortedKeyPoints,
+                               std::vector<size_t>          keyPointIndexGrid[FRAME_GRID_COLS][FRAME_GRID_ROWS],
+                               cv::Mat&                     descriptors)
 {
     numberOfKeyPoints = 0;
     keyPoints.clear();
@@ -1179,32 +1184,29 @@ static void initializeKeyFrame(const OrbSlamState*        state,
     }
 
     std::vector<cv::Mat> imagePyramid;
-    imagePyramid.resize(state->pyramidScaleLevels);
+    imagePyramid.resize(imagePyramidStats.numberOfScaleLevels);
 
     // Compute scaled images according to scale factors
     computeScalePyramid(cameraFrame,
-                        state->pyramidScaleLevels,
-                        state->inversePyramidScaleFactors,
-                        state->edgeThreshold,
+                        imagePyramidStats,
+                        edgeThreshold,
                         imagePyramid);
 
     // Compute key points, distributed in an evenly spaced grid
     // on every scale level
     std::vector<std::vector<cv::KeyPoint>> allKeyPoints;
-    computeKeyPointsInOctTree(state->pyramidScaleLevels,
+    computeKeyPointsInOctTree(imagePyramidStats,
                               imagePyramid,
-                              state->edgeThreshold,
-                              state->numberOfFeatures,
-                              state->numberOfFeaturesPerScaleLevel,
-                              state->initialFastThreshold,
-                              state->minimalFastThreshold,
-                              state->orbOctTreePatchSize,
-                              state->orbOctTreeHalfPatchSize,
-                              state->pyramidScaleFactors,
-                              state->umax,
+                              edgeThreshold,
+                              numberOfFeatures,
+                              initialFastThreshold,
+                              minimalFastThreshold,
+                              orbOctTreePatchSize,
+                              orbOctTreeHalfPatchSize,
+                              umax,
                               allKeyPoints);
 
-    for (i32 level = 0; level < state->pyramidScaleLevels; level++)
+    for (i32 level = 0; level < imagePyramidStats.numberOfScaleLevels; level++)
     {
         numberOfKeyPoints += (i32)allKeyPoints[level].size();
     }
@@ -1217,7 +1219,7 @@ static void initializeKeyFrame(const OrbSlamState*        state,
     keyPoints.reserve(numberOfKeyPoints);
 
     i32 offset = 0;
-    for (i32 level = 0; level < state->pyramidScaleLevels; ++level)
+    for (i32 level = 0; level < imagePyramidStats.numberOfScaleLevels; level++)
     {
         i32                        tOffset           = level * 3;
         std::vector<cv::KeyPoint>& keyPointsForLevel = allKeyPoints[level];
@@ -1234,19 +1236,21 @@ static void initializeKeyFrame(const OrbSlamState*        state,
 
         for (size_t i = 0; i < keyPointsForLevel.size(); i++)
         {
-            computeOrbDescriptor(keyPointsForLevel[i], cameraFrame, &state->pattern[0], desc.ptr((i32)i));
+            computeOrbDescriptor(keyPointsForLevel[i], cameraFrame, &orbPattern[0], desc.ptr((i32)i));
         }
         offset += nkeypointsLevel;
 
         // Scale keypoint coordinates
         if (level != 0)
         {
-            r32 scale = state->pyramidScaleFactors[level]; //getScale(level, firstLevel, scaleFactor);
+            r32 scale = imagePyramidStats.scaleFactors[level];
             for (std::vector<cv::KeyPoint>::iterator keypoint    = keyPointsForLevel.begin(),
                                                      keypointEnd = keyPointsForLevel.end();
                  keypoint != keypointEnd;
                  keypoint++)
+            {
                 keypoint->pt *= scale;
+            }
         }
 
         // Add the keypoints to the output
@@ -1278,7 +1282,7 @@ static void initializeKeyFrame(const OrbSlamState*        state,
         const cv::KeyPoint& kp = undistortedKeyPoints[i];
 
         i32    xPos, yPos;
-        bool32 keyPointIsInGrid = calculateKeyPointGridCell(kp, state->minX, state->minY, state->invGridElementWidth, state->invGridElementWidth, &xPos, &yPos);
+        bool32 keyPointIsInGrid = calculateKeyPointGridCell(kp, gridConstraints, &xPos, &yPos);
         if (keyPointIsInGrid)
         {
             keyPointIndexGrid[xPos][yPos].push_back(i);
@@ -1292,10 +1296,7 @@ static std::vector<size_t> getFeatureIndicesForArea(const i32                   
                                                     const r32                       searchWindowSize,
                                                     const r32                       x,
                                                     const r32                       y,
-                                                    const r32                       minX,
-                                                    const r32                       minY,
-                                                    const r32                       invGridElementWidth,
-                                                    const r32                       invGridElementHeight,
+                                                    const GridConstraints           gridConstraints,
                                                     const i32                       minLevel,
                                                     const i32                       maxLevel,
                                                     const std::vector<size_t>       keyPointIndexGrid[FRAME_GRID_COLS][FRAME_GRID_ROWS],
@@ -1305,19 +1306,19 @@ static std::vector<size_t> getFeatureIndicesForArea(const i32                   
 
     result.reserve(numberOfKeyPoints);
 
-    const i32 nMinCellX = std::max(0, (i32)floor((x - minX - searchWindowSize) * invGridElementWidth));
+    const i32 nMinCellX = std::max(0, (i32)floor((x - gridConstraints.minX - searchWindowSize) * gridConstraints.invGridElementWidth));
     if (nMinCellX >= FRAME_GRID_COLS)
         return result;
 
-    const i32 nMaxCellX = std::min((i32)FRAME_GRID_COLS - 1, (i32)ceil((x - minX + searchWindowSize) * invGridElementWidth));
+    const i32 nMaxCellX = std::min((i32)FRAME_GRID_COLS - 1, (i32)ceil((x - gridConstraints.minX + searchWindowSize) * gridConstraints.invGridElementWidth));
     if (nMaxCellX < 0)
         return result;
 
-    const i32 nMinCellY = std::max(0, (i32)floor((y - minY - searchWindowSize) * invGridElementHeight));
+    const i32 nMinCellY = std::max(0, (i32)floor((y - gridConstraints.minY - searchWindowSize) * gridConstraints.invGridElementHeight));
     if (nMinCellY >= FRAME_GRID_ROWS)
         return result;
 
-    const i32 nMaxCellY = std::min((i32)FRAME_GRID_ROWS - 1, (i32)ceil((y - minY + searchWindowSize) * invGridElementHeight));
+    const i32 nMaxCellY = std::min((i32)FRAME_GRID_ROWS - 1, (i32)ceil((y - gridConstraints.minY + searchWindowSize) * gridConstraints.invGridElementHeight));
     if (nMaxCellY < 0)
         return result;
 
@@ -1366,6 +1367,8 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
 
             if (!_state.referenceKeyFrame)
             {
+                r32 minX, maxX, minY, maxY;
+
                 if (distortionMat.at<r32>(0) != 0.0)
                 {
                     cv::Mat mat(4, 2, CV_32F);
@@ -1383,21 +1386,23 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                     cv::undistortPoints(mat, mat, cameraMat, distortionMat, cv::Mat(), cameraMat);
                     mat = mat.reshape(1);
 
-                    _state.minX = (r32)std::min(mat.at<r32>(0, 0), mat.at<r32>(2, 0));
-                    _state.maxX = (r32)std::max(mat.at<r32>(1, 0), mat.at<r32>(3, 0));
-                    _state.minY = (r32)std::min(mat.at<r32>(0, 1), mat.at<r32>(1, 1));
-                    _state.maxY = (r32)std::max(mat.at<r32>(2, 1), mat.at<r32>(3, 1));
+                    minX = (r32)std::min(mat.at<r32>(0, 0), mat.at<r32>(2, 0));
+                    maxX = (r32)std::max(mat.at<r32>(1, 0), mat.at<r32>(3, 0));
+                    minY = (r32)std::min(mat.at<r32>(0, 1), mat.at<r32>(1, 1));
+                    maxY = (r32)std::max(mat.at<r32>(2, 1), mat.at<r32>(3, 1));
                 }
                 else
                 {
-                    _state.minX = 0.0f;
-                    _state.maxX = cameraFrame.cols;
-                    _state.minY = 0.0f;
-                    _state.maxY = cameraFrame.rows;
+                    minX = 0.0f;
+                    maxX = cameraFrame.cols;
+                    minY = 0.0f;
+                    maxY = cameraFrame.rows;
                 }
 
-                _state.invGridElementWidth  = static_cast<r32>(FRAME_GRID_COLS) / static_cast<r32>(_state.maxX - _state.minX);
-                _state.invGridElementHeight = static_cast<r32>(FRAME_GRID_ROWS) / static_cast<r32>(_state.maxY - _state.minY);
+                _state.gridConstraints.minX                 = minX;
+                _state.gridConstraints.minY                 = minY;
+                _state.gridConstraints.invGridElementWidth  = static_cast<r32>(FRAME_GRID_COLS) / static_cast<r32>(maxX - minX);
+                _state.gridConstraints.invGridElementHeight = static_cast<r32>(FRAME_GRID_ROWS) / static_cast<r32>(maxY - minY);
 
                 _state.fx    = cameraMat.at<r32>(0, 0);
                 _state.fy    = cameraMat.at<r32>(1, 1);
@@ -1408,10 +1413,19 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
 
                 _state.referenceKeyFrame = new KeyFrame();
 
-                initializeKeyFrame(&_state,
+                initializeKeyFrame(_state.imagePyramidStats,
+                                   _state.edgeThreshold,
                                    cameraFrame,
                                    cameraMat,
                                    distortionMat,
+                                   _state.numberOfFeatures,
+                                   _state.initialFastThreshold,
+                                   _state.minimalFastThreshold,
+                                   _state.orbOctTreePatchSize,
+                                   _state.orbOctTreeHalfPatchSize,
+                                   _state.umax,
+                                   _state.pattern,
+                                   _state.gridConstraints,
                                    _state.referenceKeyFrame->numberOfKeyPoints,
                                    _state.referenceKeyFrame->keyPoints,
                                    _state.referenceKeyFrame->undistortedKeyPoints,
@@ -1438,10 +1452,19 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
             {
                 KeyFrame currentKeyFrame = {};
 
-                initializeKeyFrame(&_state,
+                initializeKeyFrame(_state.imagePyramidStats,
+                                   _state.edgeThreshold,
                                    cameraFrame,
                                    cameraMat,
                                    distortionMat,
+                                   _state.numberOfFeatures,
+                                   _state.initialFastThreshold,
+                                   _state.minimalFastThreshold,
+                                   _state.orbOctTreePatchSize,
+                                   _state.orbOctTreeHalfPatchSize,
+                                   _state.umax,
+                                   _state.pattern,
+                                   _state.gridConstraints,
                                    currentKeyFrame.numberOfKeyPoints,
                                    currentKeyFrame.keyPoints,
                                    currentKeyFrame.undistortedKeyPoints,
@@ -1481,10 +1504,7 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                                                    100,
                                                    _state.previouslyMatchedKeyPoints[i1].x,
                                                    _state.previouslyMatchedKeyPoints[i1].y,
-                                                   _state.minX,
-                                                   _state.minY,
-                                                   _state.invGridElementWidth,
-                                                   _state.invGridElementHeight,
+                                                   _state.gridConstraints,
                                                    level1,
                                                    level1,
                                                    currentKeyFrame.keyPointIndexGrid,
@@ -1592,17 +1612,6 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                         }
                     }
 
-                    // Check if there are enough matches
-                    if (numberOfMatches >= 100)
-                    {
-                        printf("Enough matches found\n");
-                    }
-                    else
-                    {
-                        delete _state.referenceKeyFrame;
-                        _state.referenceKeyFrame = nullptr;
-                    }
-
                     for (u32 i = 0; i < _state.referenceKeyFrame->keyPoints.size(); i++)
                     {
                         cv::rectangle(_camera->getImageRGB(),
@@ -1623,137 +1632,146 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                         }
                     }
 
-                    cv::Mat                  rcw;            // Current Camera Rotation
-                    cv::Mat                  tcw;            // Current Camera Translation
-                    std::vector<bool32>      vbTriangulated; // Triangulated Correspondences (mvIniMatches)
-                    std::vector<cv::Point3f> initialPoints;
-
+                    // Check if there are enough matches
+                    if (numberOfMatches >= 100)
                     {
-                        const i32 maxRansacIterations = 200;
-                        const r32 sigma               = 1.0f;
+                        cv::Mat                  rcw;            // Current Camera Rotation
+                        cv::Mat                  tcw;            // Current Camera Translation
+                        std::vector<bool32>      vbTriangulated; // Triangulated Correspondences (mvIniMatches)
+                        std::vector<cv::Point3f> initialPoints;
 
-                        std::vector<Match>  matches;
-                        std::vector<bool32> matched;
-
-                        matches.reserve(currentKeyFrame.undistortedKeyPoints.size());
-                        matched.resize(_state.referenceKeyFrame->undistortedKeyPoints.size());
-                        for (size_t i = 0, iend = _state.initializationMatches.size(); i < iend; i++)
                         {
-                            if (_state.initializationMatches[i] >= 0)
+                            const i32 maxRansacIterations = 200;
+                            const r32 sigma               = 1.0f;
+
+                            std::vector<Match>  matches;
+                            std::vector<bool32> matched;
+
+                            matches.reserve(currentKeyFrame.undistortedKeyPoints.size());
+                            matched.resize(_state.referenceKeyFrame->undistortedKeyPoints.size());
+                            for (size_t i = 0, iend = _state.initializationMatches.size(); i < iend; i++)
                             {
-                                matches.push_back(std::make_pair(i, _state.initializationMatches[i]));
-                                matched[i] = true;
+                                if (_state.initializationMatches[i] >= 0)
+                                {
+                                    matches.push_back(std::make_pair(i, _state.initializationMatches[i]));
+                                    matched[i] = true;
+                                }
+                                else
+                                    matched[i] = false;
+                            }
+
+                            const i32 N = matches.size();
+
+                            // Indices for minimum set selection
+                            std::vector<size_t> vAllIndices;
+                            vAllIndices.reserve(N);
+                            std::vector<size_t> vAvailableIndices;
+
+                            for (i32 i = 0; i < N; i++)
+                            {
+                                vAllIndices.push_back(i);
+                            }
+
+                            // Generate sets of 8 points for each RANSAC iteration
+                            std::vector<std::vector<size_t>> ransacSets = std::vector<std::vector<size_t>>(maxRansacIterations, std::vector<size_t>(8, 0));
+
+                            DUtils::Random::SeedRandOnce(0);
+
+                            for (i32 it = 0; it < maxRansacIterations; it++)
+                            {
+                                vAvailableIndices = vAllIndices;
+
+                                // Select a minimum set
+                                for (size_t j = 0; j < 8; j++)
+                                {
+                                    i32 randi = DUtils::Random::RandomInt(0, vAvailableIndices.size() - 1);
+                                    i32 idx   = vAvailableIndices[randi];
+
+                                    ransacSets[it][j] = idx;
+
+                                    vAvailableIndices[randi] = vAvailableIndices.back();
+                                    vAvailableIndices.pop_back();
+                                }
+                            }
+
+                            // Launch threads to compute in parallel a fundamental matrix and a homography
+                            std::vector<bool32> vbMatchesInliersH, vbMatchesInliersF;
+                            r32                 scoreHomography, scoreFundamental;
+                            cv::Mat             H, F;
+
+                            std::thread threadH(&findHomography,
+                                                std::ref(matches),
+                                                std::ref(_state.referenceKeyFrame->undistortedKeyPoints),
+                                                std::ref(currentKeyFrame.undistortedKeyPoints),
+                                                maxRansacIterations,
+                                                std::ref(ransacSets),
+                                                sigma,
+                                                std::ref(scoreHomography),
+                                                std::ref(vbMatchesInliersH),
+                                                std ::ref(H));
+                            std::thread threadF(&findFundamental,
+                                                std::ref(matches),
+                                                std::ref(_state.referenceKeyFrame->undistortedKeyPoints),
+                                                std::ref(currentKeyFrame.undistortedKeyPoints),
+                                                maxRansacIterations,
+                                                std::ref(ransacSets),
+                                                sigma,
+                                                std::ref(scoreFundamental),
+                                                std::ref(vbMatchesInliersF),
+                                                std::ref(F));
+
+                            // Wait until both threads have finished
+                            threadH.join();
+                            threadF.join();
+
+                            // Compute ratio of scores
+                            r32 ratioHomography = scoreHomography / (scoreHomography + scoreFundamental);
+
+                            // Try to reconstruct from homography or fundamental depending on the ratio (0.40-0.45)
+                            bool32 reconstructed = false;
+                            if (ratioHomography > 0.40)
+                            {
+                                reconstructed = reconstructH(matches,
+                                                             _state.referenceKeyFrame->undistortedKeyPoints,
+                                                             currentKeyFrame.undistortedKeyPoints,
+                                                             sigma,
+                                                             matched,
+                                                             H,
+                                                             cameraMat,
+                                                             rcw,
+                                                             tcw,
+                                                             initialPoints,
+                                                             vbTriangulated,
+                                                             1.0,
+                                                             50);
                             }
                             else
-                                matched[i] = false;
-                        }
-
-                        const i32 N = matches.size();
-
-                        // Indices for minimum set selection
-                        std::vector<size_t> vAllIndices;
-                        vAllIndices.reserve(N);
-                        std::vector<size_t> vAvailableIndices;
-
-                        for (i32 i = 0; i < N; i++)
-                        {
-                            vAllIndices.push_back(i);
-                        }
-
-                        // Generate sets of 8 points for each RANSAC iteration
-                        std::vector<std::vector<size_t>> ransacSets = std::vector<std::vector<size_t>>(maxRansacIterations, std::vector<size_t>(8, 0));
-
-                        DUtils::Random::SeedRandOnce(0);
-
-                        for (i32 it = 0; it < maxRansacIterations; it++)
-                        {
-                            vAvailableIndices = vAllIndices;
-
-                            // Select a minimum set
-                            for (size_t j = 0; j < 8; j++)
                             {
-                                i32 randi = DUtils::Random::RandomInt(0, vAvailableIndices.size() - 1);
-                                i32 idx   = vAvailableIndices[randi];
+                                reconstructed = reconstructF(matches,
+                                                             _state.referenceKeyFrame->undistortedKeyPoints,
+                                                             currentKeyFrame.undistortedKeyPoints,
+                                                             sigma,
+                                                             vbMatchesInliersF,
+                                                             F,
+                                                             cameraMat,
+                                                             rcw,
+                                                             tcw,
+                                                             initialPoints,
+                                                             vbTriangulated,
+                                                             1.0,
+                                                             50);
+                            }
 
-                                ransacSets[it][j] = idx;
-
-                                vAvailableIndices[randi] = vAvailableIndices.back();
-                                vAvailableIndices.pop_back();
+                            if (reconstructed)
+                            {
+                                printf("Model valid!!!\n");
                             }
                         }
-
-                        // Launch threads to compute in parallel a fundamental matrix and a homography
-                        std::vector<bool32> vbMatchesInliersH, vbMatchesInliersF;
-                        r32                 scoreHomography, scoreFundamental;
-                        cv::Mat             H, F;
-
-                        std::thread threadH(&findHomography,
-                                            std::ref(matches),
-                                            std::ref(_state.referenceKeyFrame->undistortedKeyPoints),
-                                            std::ref(currentKeyFrame.undistortedKeyPoints),
-                                            maxRansacIterations,
-                                            std::ref(ransacSets),
-                                            sigma,
-                                            std::ref(scoreHomography),
-                                            std::ref(vbMatchesInliersH),
-                                            std ::ref(H));
-                        std::thread threadF(&findFundamental,
-                                            std::ref(matches),
-                                            std::ref(_state.referenceKeyFrame->undistortedKeyPoints),
-                                            std::ref(currentKeyFrame.undistortedKeyPoints),
-                                            maxRansacIterations,
-                                            std::ref(ransacSets),
-                                            sigma,
-                                            std::ref(scoreFundamental),
-                                            std::ref(vbMatchesInliersF),
-                                            std::ref(F));
-
-                        // Wait until both threads have finished
-                        threadH.join();
-                        threadF.join();
-
-                        // Compute ratio of scores
-                        r32 ratioHomography = scoreHomography / (scoreHomography + scoreFundamental);
-
-                        // Try to reconstruct from homography or fundamental depending on the ratio (0.40-0.45)
-                        bool32 reconstructed = false;
-                        if (ratioHomography > 0.40)
-                        {
-                            reconstructed = reconstructH(matches,
-                                                         _state.referenceKeyFrame->undistortedKeyPoints,
-                                                         currentKeyFrame.undistortedKeyPoints,
-                                                         sigma,
-                                                         matched,
-                                                         H,
-                                                         cameraMat,
-                                                         rcw,
-                                                         tcw,
-                                                         initialPoints,
-                                                         vbTriangulated,
-                                                         1.0,
-                                                         50);
-                        }
-                        else
-                        {
-                            reconstructed = reconstructF(matches,
-                                                         _state.referenceKeyFrame->undistortedKeyPoints,
-                                                         currentKeyFrame.undistortedKeyPoints,
-                                                         sigma,
-                                                         vbMatchesInliersF,
-                                                         F,
-                                                         cameraMat,
-                                                         rcw,
-                                                         tcw,
-                                                         initialPoints,
-                                                         vbTriangulated,
-                                                         1.0,
-                                                         50);
-                        }
-
-                        if (reconstructed)
-                        {
-                            printf("Model valid!!!\n");
-                        }
+                    }
+                    else
+                    {
+                        delete _state.referenceKeyFrame;
+                        _state.referenceKeyFrame = nullptr;
                     }
                 }
                 else

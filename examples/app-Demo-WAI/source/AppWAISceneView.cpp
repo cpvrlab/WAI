@@ -5,6 +5,8 @@
 #include <SLPoints.h>
 
 #include <SLCVCamera.h>
+#include <SLCVCapture.h>
+#include <SLFileSystem.h>
 
 #include <WAIMapStorage.h>
 
@@ -16,7 +18,7 @@
 #include <AppWAISceneView.h>
 
 WAISceneView::WAISceneView(SLCVCalibration* calib, std::string externalDir, std::string dataRoot)
-  : _wai(dataRoot),
+  : wai(dataRoot),
     _mapPC(new SLNode("MapPC")),
     _mapMatchedPC(new SLNode("MapMatchedPC")),
     _mapLocalPC(new SLNode("MapLocalPC")),
@@ -33,20 +35,6 @@ WAISceneView::WAISceneView(SLCVCalibration* calib, std::string externalDir, std:
     _externalDir(externalDir)
 {
     WAIMapStorage::init(externalDir);
-    WAI::CameraCalibration calibration = {calib->fx(),
-                                          calib->fy(),
-                                          calib->cx(),
-                                          calib->cy(),
-                                          calib->k1(),
-                                          calib->k2(),
-                                          calib->p1(),
-                                          calib->p2()};
-    _wai.activateSensor(WAI::SensorType_Camera, &calibration);
-#if DATA_ORIENTED
-    _mode = (WAI::ModeOrbSlam2DataOriented*)_wai.setMode(WAI::ModeType_ORB_SLAM2_DATA_ORIENTED);
-#else
-    _mode = (WAI::ModeOrbSlam2*)_wai.setMode(WAI::ModeType_ORB_SLAM2);
-#endif
 }
 //-----------------------------------------------------------------------------
 void WAISceneView::setMapNode(SLNode* mapNode)
@@ -68,7 +56,17 @@ void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
     s->name("Track Keyframe based Features");
     s->info("Example for loading an existing pose graph with map points.");
 
+#if VIDEO_LIVE
     s->videoType(VT_MAIN);
+#else
+    SLstring calibFileName = "cam_calibration_huawei_p10_640_360.xml";
+    SLApplication::calibVideoFile.load(SLFileSystem::externalDir() + "calibrations/", calibFileName, false, false);
+    SLApplication::calibVideoFile.loadCalibParams();
+
+    s->videoType(VT_FILE);
+    SLCVCapture::videoFilename = "street3.mp4";
+    SLCVCapture::videoLoops    = true;
+#endif
 
     //make some light
     SLLightSpot* light1 = new SLLightSpot(1, 1, 1, 0.3f);
@@ -120,7 +118,23 @@ void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
     sv->onInitialize();
     s->onAfterLoad();
 
-#ifndef DATA_ORIENTED
+    WAI::CameraCalibration calibration = {SLApplication::activeCalib->fx(),
+                                          SLApplication::activeCalib->fy(),
+                                          SLApplication::activeCalib->cx(),
+                                          SLApplication::activeCalib->cy(),
+                                          SLApplication::activeCalib->k1(),
+                                          SLApplication::activeCalib->k2(),
+                                          SLApplication::activeCalib->p1(),
+                                          SLApplication::activeCalib->p2()};
+    waiSceneView->wai.activateSensor(WAI::SensorType_Camera, &calibration);
+#if DATA_ORIENTED
+    waiSceneView->setMode((WAI::ModeOrbSlam2DataOriented*)waiSceneView->wai.setMode(WAI::ModeType_ORB_SLAM2_DATA_ORIENTED));
+#else
+    waiSceneView->setMode((WAI::ModeOrbSlam2*)waiSceneView->wai.setMode(WAI::ModeType_ORB_SLAM2));
+#endif
+
+#if DATA_ORIENTED
+#else
     auto trackedMapping = std::make_shared<AppDemoGuiTrackedMapping>("Tracked mapping", waiSceneView->getMode());
     AppDemoGui::addInfoDialog(trackedMapping);
     auto mapStorage = std::make_shared<AppDemoGuiMapStorage>("Map Storage",
@@ -143,7 +157,7 @@ void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
 void WAISceneView::update()
 {
     cv::Mat pose          = cv::Mat(4, 4, CV_32F);
-    bool    iKnowWhereIAm = _wai.whereAmI(&pose);
+    bool    iKnowWhereIAm = wai.whereAmI(&pose);
 
     if (iKnowWhereIAm)
     {
@@ -232,7 +246,7 @@ void WAISceneView::update()
 //-----------------------------------------------------------------------------
 void WAISceneView::updateCamera(WAI::CameraData* cameraData)
 {
-    _wai.updateSensor(WAI::SensorType_Camera, cameraData);
+    wai.updateSensor(WAI::SensorType_Camera, cameraData);
 }
 //-----------------------------------------------------------------------------
 void WAISceneView::updateMinNumOfCovisibles(int n)
