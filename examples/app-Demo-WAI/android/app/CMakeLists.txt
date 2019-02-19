@@ -14,6 +14,10 @@ file(GLOB headers
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiInfosMapNodeTransform.h
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiInfosTracking.h
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAISceneView.h
+    ${WAI_ROOT}/examples/source/WAIFileSystem.h
+    ${WAI_ROOT}/examples/source/WAIMapIO.h
+    ${WAI_ROOT}/examples/source/WAIMapStorage.h
+    ${WAI_ROOT}/examples/source/WAIUtils.h
     )
 
 file(GLOB sources
@@ -24,6 +28,9 @@ file(GLOB sources
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAISceneView.cpp
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiInfosMapNodeTransform.cpp
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiInfosTracking.cpp
+    ${WAI_ROOT}/examples/source/WAIFileSystem.cpp
+    ${WAI_ROOT}/examples/source/WAIMapIO.cpp
+    ${WAI_ROOT}/examples/source/WAIMapStorage.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/main/cpp/AppDemoAndroidJNI.cpp
     )
 
@@ -37,6 +44,7 @@ target_include_directories(${target}
     PRIVATE
 
     PUBLIC
+    ${WAI_ROOT}/examples/source
     ${WAI_ROOT}/examples/app-Demo-WAI/source
     ${WAI_ROOT}/lib-WAI/source
     ${OpenCV_INCLUDE_DIR}
