@@ -41,6 +41,7 @@
 #include <WAIMapPoint.h>
 #include <WAIKeyFrameDB.h>
 #include <WAIKeyFrame.h>
+#include <WAIHelper.h>
 
 using namespace std;
 
@@ -48,7 +49,7 @@ using namespace std;
 //!
 /*! 
 */
-class WAIMap
+class WAI_API WAIMap
 {
     public:
     enum TransformType

@@ -56,7 +56,7 @@ void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
     s->name("Track Keyframe based Features");
     s->info("Example for loading an existing pose graph with map points.");
 
-#if VIDEO_LIVE
+#if LIVE_VIDEO
     s->videoType(VT_MAIN);
 #else
     SLstring calibFileName = "cam_calibration_huawei_p10_640_360.xml";

@@ -11,7 +11,7 @@ file(GLOB headers
     )
 
 file(GLOB sources
-    ${WAI_ROOT}/examples/app-Demo-OrbExtractor/fpl_orbextractor.cpp
+    ${WAI_ROOT}/experimental/app-Demo-OrbExtractor/fpl_orbextractor.cpp
     )
 
 add_executable(${target}
@@ -22,12 +22,12 @@ add_executable(${target}
 set_target_properties(${target}
     PROPERTIES
     ${DEFAULT_PROJECT_OPTIONS}
-    FOLDER "examples"
+    FOLDER "experimental"
     )
 
 target_include_directories(${target}
     PRIVATE
-    ${WAI_ROOT}/examples/app-Demo-OrbExtractor
+    ${WAI_ROOT}/experimental/app-Demo-OrbExtractor
 
     PUBLIC
     ${OpenCV_INCLUDE_DIR}

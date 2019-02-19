@@ -3,12 +3,12 @@
 
 WAI::WAI::WAI(std::string dataRoot)
 {
-    _dataRoot = WAIFileSystem::unifySlashes(dataRoot);
+    _dataRoot = dataRoot;
 }
 
 void WAI::WAI::setDataRoot(std::string dataRoot)
 {
-    _dataRoot = WAIFileSystem::unifySlashes(dataRoot);
+    _dataRoot = dataRoot;
 }
 
 WAI::Mode* WAI::WAI::setMode(ModeType modeType)

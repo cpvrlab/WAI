@@ -28,5 +28,6 @@ include(cmake/PlatformLinkLibs.cmake)
 include(cmake/DownloadPrebuilts.cmake)
 
 add_subdirectory(examples)
+add_subdirectory(experimental)
 add_subdirectory(thirdparty)
 add_subdirectory(lib-WAI)
