@@ -30,11 +30,11 @@ WAI::Mode* WAI::WAI::setMode(ModeType modeType)
             else
             {
                 _mode = new ModeOrbSlam2((SensorCamera*)_sensors[SensorType_Camera],
-                                         true,
                                          false,
                                          false,
                                          false,
-                                         _dataRoot + "calibrations/ORBvoc.bin");
+                                         false,
+                                         _dataRoot + "/calibrations/ORBvoc.bin");
             }
         }
         break;
