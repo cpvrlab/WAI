@@ -26,6 +26,8 @@
 
 #ifndef _WINDOWS
 #    include <unistd.h>
+#else
+# include <windows.h>
 #endif
 
 namespace ORB_SLAM2

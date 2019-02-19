@@ -144,6 +144,17 @@ elseif("${SYSTEM_NAME_UPPER}" STREQUAL "WINDOWS") #----------------------------
             ${lib}
         )
     endforeach(lib)
+    
+    set(g2o_PREBUILT_ZIP "win64_g2o.zip")
+    set(g2o_URL ${PREBUILT_URL}/${g2o_PREBUILT_ZIP})
+      
+    if (NOT EXISTS "${g2o_DIR}")
+        file(DOWNLOAD "${PREBUILT_URL}/${g2o_PREBUILT_ZIP}" "${PREBUILT_PATH}/${g2o_PREBUILT_ZIP}")
+        execute_process(COMMAND ${CMAKE_COMMAND} -E tar xzf
+            "${PREBUILT_PATH}/${g2o_PREBUILT_ZIP}"
+            WORKING_DIRECTORY "${PREBUILT_PATH}")
+        file(REMOVE "${PREBUILT_PATH}/${g2o_PREBUILT_ZIP}")
+    endif ()
 
 elseif("${SYSTEM_NAME_UPPER}" STREQUAL "DARWIN") #-----------------------------
     # Download first for iOS
