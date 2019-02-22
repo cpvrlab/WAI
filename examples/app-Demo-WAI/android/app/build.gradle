@@ -9,11 +9,11 @@ android {
             storePassword 'uwenadat'
         }
     }
-    compileSdkVersion 24
+    compileSdkVersion 26
     defaultConfig {
         applicationId "ch.fhnw.comgr"
         minSdkVersion 21
-        targetSdkVersion 23
+        targetSdkVersion 26
         versionCode 19
         versionName "2.0.019"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"

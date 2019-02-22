@@ -1,6 +1,10 @@
 _build*
 CMakeLists.txt.user
 thirdparty/prebuilt/*
+thirdparty/g2o/BUILD*
+thirdparty/g2o/INSTALL*
+thirdparty/g2o/bin
 data
 build
 .vscode
+/examples/app-Demo-WAI/android/app/app.iml___jb_tmp___

@@ -23,11 +23,11 @@ set CMAKE_GENERATOR="Visual Studio 15 2017 Win64"
 set EIGEN_VERSION=3.3.3
 
 :: g2o configuration flags
-set BUILD_APPS=ON
-set BUILD_EXAMPLES=ON
+set BUILD_APPS=OFF
+set BUILD_EXAMPLES=OFF
 set USE_CSPARSE=ON
 set USE_CHOLMOD=ON
-set USE_OPENGL=ON
+set USE_OPENGL=OFF
 
 set QGLVIEWER_DIR=%cd%\libQGLViewer\QGLViewer
 set QGLVIEWER_DEBUG_LIB=%cd%\libQGLViewer\QGLViewer\QGLViewerd2d.lib

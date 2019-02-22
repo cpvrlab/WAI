@@ -3,12 +3,12 @@
 
 WAI::WAI::WAI(std::string dataRoot)
 {
-    _dataRoot = WAIFileSystem::unifySlashes(dataRoot);
+    _dataRoot = dataRoot;
 }
 
 void WAI::WAI::setDataRoot(std::string dataRoot)
 {
-    _dataRoot = WAIFileSystem::unifySlashes(dataRoot);
+    _dataRoot = dataRoot;
 }
 
 WAI::Mode* WAI::WAI::setMode(ModeType modeType)
@@ -30,11 +30,11 @@ WAI::Mode* WAI::WAI::setMode(ModeType modeType)
             else
             {
                 _mode = new ModeOrbSlam2((SensorCamera*)_sensors[SensorType_Camera],
-                                         true,
                                          false,
                                          false,
                                          false,
-                                         _dataRoot + "calibrations/ORBvoc.bin");
+                                         false,
+                                         _dataRoot + "/calibrations/ORBvoc.bin");
             }
         }
         break;

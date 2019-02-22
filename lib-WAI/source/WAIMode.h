@@ -4,6 +4,7 @@
 #include <opencv2/core.hpp>
 
 #include <WAIMath.h>
+#include <WAIHelper.h>
 
 namespace WAI
 {
@@ -16,7 +17,7 @@ enum ModeType
     ModeType_ORB_SLAM2_DATA_ORIENTED
 };
 
-class Mode
+class WAI_API Mode
 {
     public:
     virtual ~Mode()                     = 0;

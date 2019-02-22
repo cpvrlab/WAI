@@ -8,14 +8,11 @@ set(target lib-WAI)
 file(GLOB headers
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAI.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIHelper.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIFileSystem.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIFrame.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIKeyFrame.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIKeyFrameDB.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIMap.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIMapPoint.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIMapIO.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIMapStorage.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIOrbVocabulary.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIMath.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIMode.h
@@ -40,14 +37,11 @@ file(GLOB sources
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAI.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIHelper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIInterface.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIFileSystem.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIFrame.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIKeyFrame.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIKeyFrameDB.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIMap.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIMapPoint.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIMapIO.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIMapStorage.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIOrbVocabulary.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIMode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIModeAruco.cpp
@@ -119,13 +113,13 @@ target_compile_options(${target}
 message(STATUS "PlatformLinkLibs ${PlatformLinkLibs}")
 target_link_libraries(${target}
     PRIVATE
-    ${META_PROJECT_NAME}::lib-DBoW2
 
     PUBLIC
     ${PlatformLinkLibs}
     ${DEFAULT_LINKER_OPTIONS}
     ${OpenCV_LIBS}
     ${g2o_LIBS}
+    ${META_PROJECT_NAME}::lib-DBoW2
 
     INTERFACE
     )

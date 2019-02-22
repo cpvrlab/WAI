@@ -9,6 +9,7 @@
 //#############################################################################
 
 #include <WAIFileSystem.h>
+#include <WAIUtils.h>
 
 #ifdef WAI_OS_WINDOWS
 #    include <direct.h> //_getcwd
@@ -69,7 +70,7 @@ void WAIFileSystem::removeDir(const std::string& path)
     {
         errno_t err;
         _get_errno(&err);
-        SL_LOG("Could not remove directory: %s\nErrno: %s\n", path.c_str(), strerror(errno));
+        printf("Could not remove directory: %s\nErrno: %s\n", path.c_str(), strerror(errno));
     }
 #else
     int         ret       = rmdir(path.c_str());
@@ -94,7 +95,7 @@ std::string WAIFileSystem::getAppsWritableDir()
 #ifdef WAI_OS_WINDOWS
     std::string appData   = getenv("APPDATA");
     std::string configDir = appData + "/SLProject";
-    SLUtils::replaceString(configDir, "\\", "/");
+    WAIUtils::replaceString(configDir, "\\", "/");
     if (!dirExists(configDir))
         _mkdir(configDir.c_str());
     return configDir + "/";
@@ -122,12 +123,12 @@ std::string WAIFileSystem::getAppsWritableDir()
 std::string WAIFileSystem::getCurrentWorkingDir()
 {
 #ifdef WAI_OS_WINDOWS
-    SLint size   = 256;
+    int   size   = 256;
     char* buffer = (char*)malloc(size);
     if (_getcwd(buffer, size) == buffer)
     {
         std::string dir = buffer;
-        SLUtils::replaceString(dir, "\\", "/");
+        WAIUtils::replaceString(dir, "\\", "/");
         return dir + "/";
     }
 
