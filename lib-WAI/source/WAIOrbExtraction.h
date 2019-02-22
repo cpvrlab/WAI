@@ -10,7 +10,7 @@ struct OrbExtractorNode
 {
     std::vector<cv::KeyPoint>             keys;
     cv::Point2i                           topLeft, topRight, bottomLeft, bottomRight;
-    std::list<OrbExtractorNode>::iterator lit;
+    std::list<OrbExtractorNode>::iterator iteratorToNode;
     bool32                                noMoreSubdivision;
 };
 

@@ -145,219 +145,232 @@ void divideOrbExtractorNode(OrbExtractorNode& parentNode,
         n4.noMoreSubdivision = true;
 }
 
-std::vector<cv::KeyPoint> distributeOctTree(const std::vector<cv::KeyPoint>& vToDistributeKeys,
+std::vector<cv::KeyPoint> distributeOctTree(const std::vector<cv::KeyPoint>& keyPointsToDistribute,
                                             const i32                        minX,
                                             const i32                        maxX,
                                             const i32                        minY,
                                             const i32                        maxY,
-                                            const i32                        N,
-                                            const i32                        level,
-                                            const i32                        numberOfFeatures)
+                                            const i32                        requiredFeatureCount,
+                                            const i32                        level)
 {
     // Compute how many initial nodes
-    const i32 nIni = std::round(static_cast<r32>(maxX - minX) / (maxY - minY));
+    const r32 regionWidth  = (r32)(maxX - minX);
+    const r32 regionHeight = (r32)(maxY - minY);
 
-    const r32 hX = static_cast<r32>(maxX - minX) / nIni;
+    const i32 initialNodeCount = std::round(regionWidth / regionHeight);
 
-    std::list<OrbExtractorNode> lNodes;
+    const r32 initialNodeWidth = regionWidth / initialNodeCount;
 
-    std::vector<OrbExtractorNode*> vpIniNodes;
-    vpIniNodes.resize(nIni);
+    std::list<OrbExtractorNode> nodes;
 
-    for (i32 i = 0; i < nIni; i++)
+    std::vector<OrbExtractorNode*> initialNodes;
+    initialNodes.resize(initialNodeCount);
+
+    for (i32 i = 0; i < initialNodeCount; i++)
     {
-        OrbExtractorNode ni = {};
-        ni.topLeft          = cv::Point2i(hX * static_cast<r32>(i), 0);
-        ni.topRight         = cv::Point2i(hX * static_cast<r32>(i + 1), 0);
-        ni.bottomLeft       = cv::Point2i(ni.topLeft.x, maxY - minY);
-        ni.bottomRight      = cv::Point2i(ni.topRight.x, maxY - minY);
-        ni.keys.reserve(vToDistributeKeys.size());
+        OrbExtractorNode node = {};
 
-        lNodes.push_back(ni);
-        vpIniNodes[i] = &lNodes.back();
+        r32 leftX  = initialNodeWidth * static_cast<r32>(i);
+        r32 rightX = initialNodeWidth * static_cast<r32>(i + 1);
+
+        node.topLeft     = cv::Point2i(leftX, 0);
+        node.topRight    = cv::Point2i(rightX, 0);
+        node.bottomLeft  = cv::Point2i(leftX, regionHeight);
+        node.bottomRight = cv::Point2i(rightX, regionHeight);
+        node.keys.reserve(keyPointsToDistribute.size());
+
+        nodes.push_back(node);
+        initialNodes[i] = &nodes.back();
     }
 
-    // Associate points to childs
-    for (size_t i = 0; i < vToDistributeKeys.size(); i++)
+    // Assign keypoints to initial nodes
+    for (size_t i = 0; i < keyPointsToDistribute.size(); i++)
     {
-        const cv::KeyPoint& kp = vToDistributeKeys[i];
-        vpIniNodes[kp.pt.x / hX]->keys.push_back(kp);
+        const cv::KeyPoint& kp = keyPointsToDistribute[i];
+        initialNodes[kp.pt.x / initialNodeWidth]->keys.push_back(kp);
     }
 
-    std::list<OrbExtractorNode>::iterator lit = lNodes.begin();
+    std::list<OrbExtractorNode>::iterator nodeIterator = nodes.begin();
 
-    while (lit != lNodes.end())
+    // flag, delete or leave initial nodes, according to their keypoint count
+    while (nodeIterator != nodes.end())
     {
-        if (lit->keys.size() == 1)
+        if (nodeIterator->keys.size() == 1)
         {
-            lit->noMoreSubdivision = true;
-            lit++;
+            nodeIterator->noMoreSubdivision = true;
+            nodeIterator++;
         }
-        else if (lit->keys.empty())
-            lit = lNodes.erase(lit);
+        else if (nodeIterator->keys.empty())
+        {
+            nodeIterator = nodes.erase(nodeIterator);
+        }
         else
-            lit++;
+        {
+            nodeIterator++;
+        }
     }
 
-    bool bFinish = false;
+    bool32 finish = false;
 
     i32 iteration = 0;
 
-    std::vector<std::pair<i32, OrbExtractorNode*>> vSizeAndPointerToNode;
-    vSizeAndPointerToNode.reserve(lNodes.size() * 4);
+    std::vector<std::pair<i32, OrbExtractorNode*>> nodesToExpand;
+    nodesToExpand.reserve(nodes.size() * 4);
 
-    while (!bFinish)
+    while (!finish)
     {
         iteration++;
 
-        i32 prevSize = lNodes.size();
+        i32 prevNodeCount = nodes.size();
 
-        lit = lNodes.begin();
+        nodeIterator = nodes.begin();
 
-        i32 nToExpand = 0;
+        i32 amountOfNodesToExpand = 0;
 
-        vSizeAndPointerToNode.clear();
+        nodesToExpand.clear();
 
-        while (lit != lNodes.end())
+        while (nodeIterator != nodes.end())
         {
-            if (lit->noMoreSubdivision)
+            if (nodeIterator->noMoreSubdivision)
             {
                 // If node only contains one point do not subdivide and continue
-                lit++;
+                nodeIterator++;
                 continue;
             }
             else
             {
                 // If more than one point, subdivide
                 OrbExtractorNode n1 = {}, n2 = {}, n3 = {}, n4 = {};
-                divideOrbExtractorNode(*lit, n1, n2, n3, n4);
+                divideOrbExtractorNode(*nodeIterator, n1, n2, n3, n4);
 
                 // Add childs if they contain points
                 if (n1.keys.size() > 0)
                 {
-                    lNodes.push_front(n1);
+                    nodes.push_front(n1);
                     if (n1.keys.size() > 1)
                     {
-                        nToExpand++;
-                        vSizeAndPointerToNode.push_back(std::make_pair(n1.keys.size(), &lNodes.front()));
-                        lNodes.front().lit = lNodes.begin();
+                        amountOfNodesToExpand++;
+                        nodesToExpand.push_back(std::make_pair(n1.keys.size(), &nodes.front()));
+                        nodes.front().iteratorToNode = nodes.begin();
                     }
                 }
                 if (n2.keys.size() > 0)
                 {
-                    lNodes.push_front(n2);
+                    nodes.push_front(n2);
                     if (n2.keys.size() > 1)
                     {
-                        nToExpand++;
-                        vSizeAndPointerToNode.push_back(std::make_pair(n2.keys.size(), &lNodes.front()));
-                        lNodes.front().lit = lNodes.begin();
+                        amountOfNodesToExpand++;
+                        nodesToExpand.push_back(std::make_pair(n2.keys.size(), &nodes.front()));
+                        nodes.front().iteratorToNode = nodes.begin();
                     }
                 }
                 if (n3.keys.size() > 0)
                 {
-                    lNodes.push_front(n3);
+                    nodes.push_front(n3);
                     if (n3.keys.size() > 1)
                     {
-                        nToExpand++;
-                        vSizeAndPointerToNode.push_back(std::make_pair(n3.keys.size(), &lNodes.front()));
-                        lNodes.front().lit = lNodes.begin();
+                        amountOfNodesToExpand++;
+                        nodesToExpand.push_back(std::make_pair(n3.keys.size(), &nodes.front()));
+                        nodes.front().iteratorToNode = nodes.begin();
                     }
                 }
                 if (n4.keys.size() > 0)
                 {
-                    lNodes.push_front(n4);
+                    nodes.push_front(n4);
                     if (n4.keys.size() > 1)
                     {
-                        nToExpand++;
-                        vSizeAndPointerToNode.push_back(std::make_pair(n4.keys.size(), &lNodes.front()));
-                        lNodes.front().lit = lNodes.begin();
+                        amountOfNodesToExpand++;
+                        nodesToExpand.push_back(std::make_pair(n4.keys.size(), &nodes.front()));
+                        nodes.front().iteratorToNode = nodes.begin();
                     }
                 }
 
-                lit = lNodes.erase(lit);
-                continue;
+                nodeIterator = nodes.erase(nodeIterator);
+                //continue;
             }
         }
 
         // Finish if there are more nodes than required features
         // or all nodes contain just one point
-        if ((i32)lNodes.size() >= N || (i32)lNodes.size() == prevSize)
+        if ((i32)nodes.size() >= requiredFeatureCount || (i32)nodes.size() == prevNodeCount)
         {
-            bFinish = true;
+            finish = true;
         }
-        else if (((i32)lNodes.size() + nToExpand * 3) > N)
+        // continue dividing nodes until we have enough nodes to reach the required feature count
+        else if (((i32)nodes.size() + amountOfNodesToExpand * 3) > requiredFeatureCount)
         {
-
-            while (!bFinish)
+            while (!finish)
             {
+                prevNodeCount = (i32)nodes.size();
 
-                prevSize = (i32)lNodes.size();
+                std::vector<std::pair<i32, OrbExtractorNode*>> previousNodesToExpand = nodesToExpand;
+                nodesToExpand.clear();
 
-                std::vector<std::pair<i32, OrbExtractorNode*>> vPrevSizeAndPointerToNode = vSizeAndPointerToNode;
-                vSizeAndPointerToNode.clear();
-
-                sort(vPrevSizeAndPointerToNode.begin(), vPrevSizeAndPointerToNode.end());
-                for (i32 j = vPrevSizeAndPointerToNode.size() - 1; j >= 0; j--)
+                std::sort(previousNodesToExpand.begin(), previousNodesToExpand.end());
+                for (i32 j = previousNodesToExpand.size() - 1; j >= 0; j--)
                 {
                     OrbExtractorNode n1 = {}, n2 = {}, n3 = {}, n4 = {};
-                    divideOrbExtractorNode(*vPrevSizeAndPointerToNode[j].second, n1, n2, n3, n4);
+                    divideOrbExtractorNode(*previousNodesToExpand[j].second, n1, n2, n3, n4);
 
                     // Add childs if they contain points
                     if (n1.keys.size() > 0)
                     {
-                        lNodes.push_front(n1);
+                        nodes.push_front(n1);
                         if (n1.keys.size() > 1)
                         {
-                            vSizeAndPointerToNode.push_back(std::make_pair(n1.keys.size(), &lNodes.front()));
-                            lNodes.front().lit = lNodes.begin();
+                            nodesToExpand.push_back(std::make_pair(n1.keys.size(), &nodes.front()));
+                            nodes.front().iteratorToNode = nodes.begin();
                         }
                     }
                     if (n2.keys.size() > 0)
                     {
-                        lNodes.push_front(n2);
+                        nodes.push_front(n2);
                         if (n2.keys.size() > 1)
                         {
-                            vSizeAndPointerToNode.push_back(std::make_pair(n2.keys.size(), &lNodes.front()));
-                            lNodes.front().lit = lNodes.begin();
+                            nodesToExpand.push_back(std::make_pair(n2.keys.size(), &nodes.front()));
+                            nodes.front().iteratorToNode = nodes.begin();
                         }
                     }
                     if (n3.keys.size() > 0)
                     {
-                        lNodes.push_front(n3);
+                        nodes.push_front(n3);
                         if (n3.keys.size() > 1)
                         {
-                            vSizeAndPointerToNode.push_back(std::make_pair(n3.keys.size(), &lNodes.front()));
-                            lNodes.front().lit = lNodes.begin();
+                            nodesToExpand.push_back(std::make_pair(n3.keys.size(), &nodes.front()));
+                            nodes.front().iteratorToNode = nodes.begin();
                         }
                     }
                     if (n4.keys.size() > 0)
                     {
-                        lNodes.push_front(n4);
+                        nodes.push_front(n4);
                         if (n4.keys.size() > 1)
                         {
-                            vSizeAndPointerToNode.push_back(std::make_pair(n4.keys.size(), &lNodes.front()));
-                            lNodes.front().lit = lNodes.begin();
+                            nodesToExpand.push_back(std::make_pair(n4.keys.size(), &nodes.front()));
+                            nodes.front().iteratorToNode = nodes.begin();
                         }
                     }
 
-                    lNodes.erase(vPrevSizeAndPointerToNode[j].second->lit);
+                    nodes.erase(previousNodesToExpand[j].second->iteratorToNode);
 
-                    if ((i32)lNodes.size() >= N)
-                        break;
+                    if ((i32)nodes.size() >= requiredFeatureCount) break;
                 }
 
-                if ((i32)lNodes.size() >= N || (i32)lNodes.size() == prevSize)
-                    bFinish = true;
+                if ((i32)nodes.size() >= requiredFeatureCount || (i32)nodes.size() == prevNodeCount)
+                {
+                    finish = true;
+                }
             }
         }
     }
 
     // Retain the best point in each node
-    std::vector<cv::KeyPoint> vResultKeys;
-    vResultKeys.reserve(numberOfFeatures);
-    for (std::list<OrbExtractorNode>::iterator lit = lNodes.begin(); lit != lNodes.end(); lit++)
+    std::vector<cv::KeyPoint> result;
+    result.reserve(nodes.size());
+    for (std::list<OrbExtractorNode>::iterator nodeIterator = nodes.begin();
+         nodeIterator != nodes.end();
+         nodeIterator++)
     {
-        std::vector<cv::KeyPoint>& vNodeKeys   = lit->keys;
+        std::vector<cv::KeyPoint>& vNodeKeys   = nodeIterator->keys;
         cv::KeyPoint*              pKP         = &vNodeKeys[0];
         r32                        maxResponse = pKP->response;
 
@@ -370,10 +383,84 @@ std::vector<cv::KeyPoint> distributeOctTree(const std::vector<cv::KeyPoint>& vTo
             }
         }
 
-        vResultKeys.push_back(*pKP);
+        result.push_back(*pKP);
     }
 
-    return vResultKeys;
+    return result;
+}
+
+void computePyramidOctTree(const ImagePyramidStats&    imagePyramidStats,
+                           const std::vector<cv::Mat>& imagePyramid,
+                           const i32                   edgeThreshold,
+                           PyramidOctTree*             octTree)
+{
+    octTree->levels.resize(imagePyramidStats.numberOfScaleLevels);
+
+    const r32 cellCount = 30;
+
+    for (i32 level = 0; level < imagePyramidStats.numberOfScaleLevels; level++)
+    {
+        PyramidOctTreeLevel* octTreeLevel = &octTree->levels[level];
+        octTreeLevel->cells.clear();
+
+        octTreeLevel->minBorderX = edgeThreshold - 3;
+        octTreeLevel->minBorderY = octTreeLevel->minBorderX;
+        octTreeLevel->maxBorderX = imagePyramid[level].cols - edgeThreshold + 3;
+        octTreeLevel->maxBorderY = imagePyramid[level].rows - edgeThreshold + 3;
+
+        //std::vector<cv::KeyPoint> keyPointsToDistribute;
+        //keyPointsToDistribute.reserve(fastFeatureConstraints.numberOfFeatures * 10);
+
+        const r32 width  = (octTreeLevel->maxBorderX - octTreeLevel->minBorderX);
+        const r32 height = (octTreeLevel->maxBorderY - octTreeLevel->minBorderY);
+
+        const i32 columnCount = width / cellCount;
+        const i32 rowCount    = height / cellCount;
+        const i32 cellWidth   = ceil(width / columnCount);
+        const i32 cellHeight  = ceil(height / rowCount);
+
+        for (i32 i = 0; i < rowCount; i++)
+        {
+            const r32 iniY = octTreeLevel->minBorderY + i * cellHeight;
+            r32       maxY = iniY + cellHeight + 6;
+
+            if (iniY >= octTreeLevel->maxBorderY - 3)
+            {
+                continue;
+            }
+
+            if (maxY > octTreeLevel->maxBorderY)
+            {
+                maxY = (r32)octTreeLevel->maxBorderY;
+            }
+
+            for (i32 j = 0; j < columnCount; j++)
+            {
+                const r32 iniX = octTreeLevel->minBorderX + j * cellWidth;
+                r32       maxX = iniX + cellWidth + 6;
+                if (iniX >= octTreeLevel->maxBorderX - 6)
+                {
+                    continue;
+                }
+
+                if (maxX > octTreeLevel->maxBorderX)
+                {
+                    maxX = (r32)octTreeLevel->maxBorderX;
+                }
+
+                PyramidOctTreeCell cell = {};
+                cell.minX               = iniX;
+                cell.minY               = iniY;
+                cell.maxX               = maxX;
+                cell.maxY               = maxY;
+                cell.xOffset            = j * cellWidth;
+                cell.yOffset            = i * cellHeight;
+                cell.imagePyramidLevel  = level;
+
+                octTreeLevel->cells.push_back(cell);
+            }
+        }
+    }
 }
 
 /**
@@ -381,14 +468,12 @@ std::vector<cv::KeyPoint> distributeOctTree(const std::vector<cv::KeyPoint>& vTo
  * 2. Detects corners in a 7x7 cell area
  * 3. Make sure key points are well distributed
  * 4. Compute orientation of keypoints
- * @param allKeypoints
  */
-void computeKeyPointsInOctTree(const ImagePyramidStats                 imagePyramidStats,
+void computeKeyPointsInOctTree(const PyramidOctTree&                   octTree,
+                               const ImagePyramidStats&                imagePyramidStats,
                                const std::vector<cv::Mat>&             imagePyramid,
+                               const FastFeatureConstraints&           fastFeatureConstraints,
                                const i32                               edgeThreshold,
-                               const i32                               numberOfFeatures,
-                               const r32                               initialFastThreshold,
-                               const r32                               minimalFastThreshold,
                                const i32                               patchSize,
                                const i32                               halfPatchSize,
                                const std::vector<i32>                  umax,
@@ -396,99 +481,64 @@ void computeKeyPointsInOctTree(const ImagePyramidStats                 imagePyra
 {
     allKeypoints.resize(imagePyramidStats.numberOfScaleLevels);
 
-    const r32 W = 30; // TODO(jan): number of cells?
-
     for (i32 level = 0; level < imagePyramidStats.numberOfScaleLevels; level++)
     {
-        const i32 minBorderX = edgeThreshold - 3;
-        const i32 minBorderY = minBorderX;
-        const i32 maxBorderX = imagePyramid[level].cols - edgeThreshold + 3;
-        const i32 maxBorderY = imagePyramid[level].rows - edgeThreshold + 3;
-
         std::vector<cv::KeyPoint> keyPointsToDistribute;
-        keyPointsToDistribute.reserve(numberOfFeatures * 10);
+        keyPointsToDistribute.reserve(fastFeatureConstraints.numberOfFeatures * 10);
 
-        const r32 width  = (maxBorderX - minBorderX);
-        const r32 height = (maxBorderY - minBorderY);
-
-        const i32 nCols = width / W;
-        const i32 nRows = height / W;
-        const i32 wCell = ceil(width / nCols);
-        const i32 hCell = ceil(height / nRows);
-
-        for (i32 i = 0; i < nRows; i++)
+        for (i32 cellIndex = 0; cellIndex < octTree.levels[level].cells.size(); cellIndex++)
         {
-            const r32 iniY = minBorderY + i * hCell;
-            r32       maxY = iniY + hCell + 6;
+            const PyramidOctTreeCell* cell = &octTree.levels[level].cells[cellIndex];
 
-            if (iniY >= maxBorderY - 3)
-                continue;
-            if (maxY > maxBorderY)
-                maxY = (r32)maxBorderY;
+            std::vector<cv::KeyPoint> keyPointsInCell;
+            cv::FAST(imagePyramid[level].rowRange(cell->minY, cell->maxY).colRange(cell->minX, cell->maxX),
+                     keyPointsInCell,
+                     fastFeatureConstraints.initialThreshold,
+                     true);
 
-            for (i32 j = 0; j < nCols; j++)
+            if (keyPointsInCell.empty())
             {
-                const r32 iniX = minBorderX + j * wCell;
-                r32       maxX = iniX + wCell + 6;
-                if (iniX >= maxBorderX - 6)
-                    continue;
-                if (maxX > maxBorderX)
-                    maxX = (r32)maxBorderX;
+                FAST(imagePyramid[level].rowRange(cell->minY, cell->maxY).colRange(cell->minX, cell->maxX),
+                     keyPointsInCell,
+                     fastFeatureConstraints.minimalThreshold,
+                     true);
+            }
 
-                std::vector<cv::KeyPoint> keyPointsInCell;
-                cv::FAST(imagePyramid[level].rowRange(iniY, maxY).colRange(iniX, maxX),
-                         keyPointsInCell,
-                         initialFastThreshold,
-                         true);
-
-                if (keyPointsInCell.empty())
+            if (!keyPointsInCell.empty())
+            {
+                for (std::vector<cv::KeyPoint>::iterator vit = keyPointsInCell.begin(); vit != keyPointsInCell.end(); vit++)
                 {
-                    FAST(imagePyramid[level].rowRange(iniY, maxY).colRange(iniX, maxX),
-                         keyPointsInCell,
-                         minimalFastThreshold,
-                         true);
-                }
-
-                if (!keyPointsInCell.empty())
-                {
-                    for (std::vector<cv::KeyPoint>::iterator vit = keyPointsInCell.begin(); vit != keyPointsInCell.end(); vit++)
-                    {
-                        (*vit).pt.x += j * wCell;
-                        (*vit).pt.y += i * hCell;
-                        keyPointsToDistribute.push_back(*vit);
-                    }
+                    //(*vit).pt.x += j * cell->width;
+                    //(*vit).pt.y += i * cell->height;
+                    (*vit).pt.x += cell->xOffset;
+                    (*vit).pt.y += cell->yOffset;
+                    keyPointsToDistribute.push_back(*vit);
                 }
             }
         }
 
         std::vector<cv::KeyPoint>& keypoints = allKeypoints[level];
-        keypoints.reserve(numberOfFeatures);
+        keypoints.reserve(fastFeatureConstraints.numberOfFeatures);
 
         keypoints = distributeOctTree(keyPointsToDistribute,
-                                      minBorderX,
-                                      maxBorderX,
-                                      minBorderY,
-                                      maxBorderY,
+                                      octTree.levels[level].minBorderX,
+                                      octTree.levels[level].maxBorderX,
+                                      octTree.levels[level].minBorderY,
+                                      octTree.levels[level].maxBorderY,
                                       imagePyramidStats.numberOfFeaturesPerScaleLevel[level],
-                                      level,
-                                      numberOfFeatures);
+                                      level);
 
         const i32 scaledPatchSize = patchSize * imagePyramidStats.scaleFactors[level];
 
         // Add border to coordinates and scale information
-        const i32 nkps = keypoints.size();
-        for (i32 i = 0; i < nkps; i++)
+        for (i32 i = 0; i < keypoints.size(); i++)
         {
-            keypoints[i].pt.x += minBorderX;
-            keypoints[i].pt.y += minBorderY;
+            keypoints[i].pt.x += octTree.levels[level].minBorderX;
+            keypoints[i].pt.y += octTree.levels[level].minBorderY;
             keypoints[i].octave = level;
             keypoints[i].size   = (r32)scaledPatchSize;
         }
-    }
 
-    // compute orientations
-    for (i32 level = 0; level < imagePyramidStats.numberOfScaleLevels; level++)
-    {
         std::vector<cv::KeyPoint> keyPoints = allKeypoints[level];
         for (std::vector<cv::KeyPoint>::iterator keyPoint    = keyPoints.begin(),
                                                  keyPointEnd = keyPoints.end();

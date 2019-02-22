@@ -11,7 +11,15 @@
 enum OrbSlamStatus
 {
     OrbSlamStatus_None,
-    OrbSlamStatus_Initializing
+    OrbSlamStatus_Initializing,
+    OrbSlamStatus_Tracking
+};
+
+struct MapPoint
+{
+    cv::Mat position;
+    cv::Mat normalVector;
+    cv::Mat descriptor;
 };
 
 struct KeyFrame
@@ -21,6 +29,31 @@ struct KeyFrame
     std::vector<cv::KeyPoint> undistortedKeyPoints;
     std::vector<size_t>       keyPointIndexGrid[FRAME_GRID_COLS][FRAME_GRID_ROWS];
     cv::Mat                   descriptors;
+    cv::Mat                   pose;
+    std::vector<i32>          mapPointIndices;
+    std::vector<cv::Mat>      mapPointDescriptors;
+    std::vector<r32>          mapPointAngles;
+};
+
+struct PyramidOctTreeCell
+{
+    r32 minX, maxX, minY, maxY;
+    i32 imagePyramidLevel;
+    i32 xOffset, yOffset;
+};
+
+struct PyramidOctTreeLevel
+{
+    i32                             minBorderX;
+    i32                             minBorderY;
+    i32                             maxBorderX;
+    i32                             maxBorderY;
+    std::vector<PyramidOctTreeCell> cells;
+};
+
+struct PyramidOctTree
+{
+    std::vector<PyramidOctTreeLevel> levels;
 };
 
 struct ImagePyramidStats
@@ -29,6 +62,13 @@ struct ImagePyramidStats
     std::vector<r32> scaleFactors;
     std::vector<r32> inverseScaleFactors;
     std::vector<i32> numberOfFeaturesPerScaleLevel;
+};
+
+struct FastFeatureConstraints
+{
+    i32 initialThreshold;
+    i32 minimalThreshold;
+    i32 numberOfFeatures;
 };
 
 struct GridConstraints
@@ -42,13 +82,9 @@ struct GridConstraints
 struct OrbSlamState
 {
     OrbSlamStatus status;
-    KeyFrame*     referenceKeyFrame = nullptr; // keyframe no. 0
 
     // pyramid + orb stuff
     i32                    edgeThreshold;
-    i32                    numberOfFeatures;
-    i32                    initialFastThreshold;
-    i32                    minimalFastThreshold;
     i32                    orbOctTreePatchSize;
     i32                    orbOctTreeHalfPatchSize;
     std::vector<i32>       umax;
@@ -56,14 +92,18 @@ struct OrbSlamState
 
     // initialization stuff
     std::vector<cv::Point2f> previouslyMatchedKeyPoints;
-    std::vector<i32>         initializationMatches;
 
     // camera stuff
     r32 fx, fy, cx, cy;
     r32 invfx, invfy;
 
-    ImagePyramidStats imagePyramidStats;
-    GridConstraints   gridConstraints;
+    ImagePyramidStats      imagePyramidStats;
+    GridConstraints        gridConstraints;
+    FastFeatureConstraints fastFeatureConstraints;
+
+    std::vector<KeyFrame> keyFrames;
+    i32                   keyFrameCount;
+    std::vector<MapPoint> mapPoints;
 };
 
 namespace WAI
@@ -74,7 +114,13 @@ class WAI_API ModeOrbSlam2DataOriented : public Mode
     public:
     ModeOrbSlam2DataOriented(SensorCamera* camera);
     void notifyUpdate();
-    bool getPose(cv::Mat* pose) { return false; }
+    bool getPose(cv::Mat* pose)
+    {
+        *pose = cv::Mat::eye(4, 4, CV_32F);
+        return true;
+    }
+    std::vector<MapPoint> getMapPoints();
+    i32                   getMapPointCount() { return _state.mapPoints.size(); }
 
     private:
     SensorCamera* _camera;

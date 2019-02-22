@@ -59,7 +59,7 @@ void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
 #if VIDEO_LIVE
     s->videoType(VT_MAIN);
 #else
-    SLstring calibFileName = "cam_calibration_huawei_p10_640_360.xml";
+    SLstring calibFileName = "cam_calibration_main_huawei_p10_640_360.xml";
     SLApplication::calibVideoFile.load(SLFileSystem::externalDir() + "calibrations/", calibFileName, false, false);
     SLApplication::calibVideoFile.loadCalibParams();
 
@@ -127,14 +127,11 @@ void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
                                           SLApplication::activeCalib->p1(),
                                           SLApplication::activeCalib->p2()};
     waiSceneView->wai.activateSensor(WAI::SensorType_Camera, &calibration);
+
 #if DATA_ORIENTED
     waiSceneView->setMode((WAI::ModeOrbSlam2DataOriented*)waiSceneView->wai.setMode(WAI::ModeType_ORB_SLAM2_DATA_ORIENTED));
 #else
     waiSceneView->setMode((WAI::ModeOrbSlam2*)waiSceneView->wai.setMode(WAI::ModeType_ORB_SLAM2));
-#endif
-
-#if DATA_ORIENTED
-#else
     auto trackedMapping = std::make_shared<AppDemoGuiTrackedMapping>("Tracked mapping", waiSceneView->getMode());
     AppDemoGui::addInfoDialog(trackedMapping);
     auto mapStorage = std::make_shared<AppDemoGuiMapStorage>("Map Storage",
@@ -168,7 +165,35 @@ void WAISceneView::update()
         }
         if (_showKeyPoints)
         {
-#ifndef DATA_ORIENTED
+#if DATA_ORIENTED
+            //remove old mesh, if it exists
+            if (_mappointsMesh)
+            {
+                _mapPC->deleteMesh(_mappointsMesh);
+            }
+
+            std::vector<MapPoint> mapPoints = _mode->getMapPoints();
+
+            //instantiate and add new mesh
+            if (mapPoints.size())
+            {
+                //get points as Vec3f
+                std::vector<SLVec3f> points, normals;
+                for (MapPoint mapPoint : mapPoints)
+                {
+                    points.push_back(SLVec3f(mapPoint.position.at<float>(0, 0),
+                                             mapPoint.position.at<float>(1, 0),
+                                             mapPoint.position.at<float>(2, 0)));
+                    normals.push_back(SLVec3f(mapPoint.normalVector.at<float>(0, 0),
+                                              mapPoint.normalVector.at<float>(1, 0),
+                                              mapPoint.normalVector.at<float>(2, 0)));
+                }
+
+                _mappointsMesh = new SLPoints(points, normals, "MapPoints", _redMat);
+                _mapPC->addMesh(_mappointsMesh);
+                _mapPC->updateAABBRec();
+            }
+#else
             renderMapPoints("MapPoints",
                             _mode->getMapPoints(),
                             _mapPC,
