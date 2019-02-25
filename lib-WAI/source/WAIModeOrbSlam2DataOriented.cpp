@@ -150,6 +150,7 @@ static void initializeKeyFrame(const ImagePyramidStats&      imagePyramidStats,
     }
 
     keyFrame->keyPoints.reserve(keyFrame->numberOfKeyPoints);
+    keyFrame->mapPointIndices = std::vector<i32>(keyFrame->numberOfKeyPoints, -1);
 
     i32 offset = 0;
     for (i32 level = 0; level < imagePyramidStats.numberOfScaleLevels; level++)
@@ -407,11 +408,7 @@ bool32 computeGeometricalModel(const KeyFrame*           referenceKeyFrame,
                                cv::Mat&                  rcw,
                                cv::Mat&                  tcw,
                                std::vector<bool32>&      keyPointTriangulatedFlags,
-                               std::vector<cv::Point3f>& initialPoints,
-                               std::vector<cv::Mat>&     initialPointDescriptorsReferenceKeyFrame,
-                               std::vector<cv::Mat>&     initialPointDescriptorsCurrentKeyFrame,
-                               std::vector<r32>&         initialPointAnglesReferenceKeyFrame,
-                               std::vector<r32>&         initialPointAnglesCurrentKeyFrame)
+                               std::vector<cv::Point3f>& initialPoints)
 {
     bool32 result = false;
 
@@ -518,10 +515,6 @@ bool32 computeGeometricalModel(const KeyFrame*           referenceKeyFrame,
                                        rcw,
                                        tcw,
                                        initialPoints,
-                                       initialPointDescriptorsReferenceKeyFrame,
-                                       initialPointDescriptorsCurrentKeyFrame,
-                                       initialPointAnglesReferenceKeyFrame,
-                                       initialPointAnglesCurrentKeyFrame,
                                        keyPointTriangulatedFlags,
                                        1.0,
                                        50);
@@ -541,10 +534,6 @@ bool32 computeGeometricalModel(const KeyFrame*           referenceKeyFrame,
                                         rcw,
                                         tcw,
                                         initialPoints,
-                                        initialPointDescriptorsReferenceKeyFrame,
-                                        initialPointDescriptorsCurrentKeyFrame,
-                                        initialPointAnglesReferenceKeyFrame,
-                                        initialPointAnglesCurrentKeyFrame,
                                         keyPointTriangulatedFlags,
                                         1.0,
                                         50);
@@ -625,6 +614,10 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
 
                 if (currentKeyFrame.numberOfKeyPoints > 100)
                 {
+                    // NOTE(jan): initialization matches contains the index of the matched keypoint
+                    // of the current keyframe for every keypoint of the reference keyframe or
+                    // -1 if not matched.
+                    // currentKeyFrame->keyPoints[initializationMatches[i]] is matched to referenceKeyFrame->keyPoints[i]
                     std::vector<i32> initializationMatches                 = std::vector<i32>(_state.keyFrames[0].numberOfKeyPoints, -1);
                     bool32           checkOrientation                      = true;
                     r32              shortestToSecondShortestDistanceRatio = 0.9f;
@@ -678,10 +671,6 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                         cv::Mat                  tcw;                       // Current Camera Translation
                         std::vector<bool32>      keyPointTriangulatedFlags; // Triangulated Correspondences (mvIniMatches)
                         std::vector<cv::Point3f> initialPoints;
-                        std::vector<cv::Mat>     initialPointDescriptorsReferenceKeyFrame;
-                        std::vector<cv::Mat>     initialPointDescriptorsCurrentKeyFrame;
-                        std::vector<r32>         initialPointAnglesReferenceKeyFrame;
-                        std::vector<r32>         initialPointAnglesCurrentKeyFrame;
 
                         bool32 validModelFound = computeGeometricalModel(&_state.keyFrames[0],
                                                                          &currentKeyFrame,
@@ -690,15 +679,12 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                                                                          rcw,
                                                                          tcw,
                                                                          keyPointTriangulatedFlags,
-                                                                         initialPoints,
-                                                                         initialPointDescriptorsReferenceKeyFrame,
-                                                                         initialPointDescriptorsCurrentKeyFrame,
-                                                                         initialPointAnglesReferenceKeyFrame,
-                                                                         initialPointAnglesCurrentKeyFrame);
+                                                                         initialPoints);
 
                         if (validModelFound)
                         {
                             i32 mapPointIndex = 0;
+                            _state.mapPoints.clear();
                             for (size_t i = 0, iend = initializationMatches.size(); i < iend; i++)
                             {
                                 if ((initializationMatches[i] >= 0 && !keyPointTriangulatedFlags[i]) ||
@@ -710,43 +696,106 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                                 MapPoint mapPoint     = {};
                                 mapPoint.normalVector = cv::Mat::zeros(3, 1, CV_32F);
                                 mapPoint.position     = cv::Mat(initialPoints[i]);
+                                mapPoint.observations = 2;
 
-                                _state.keyFrames[0].mapPointIndices.push_back(mapPointIndex);
-                                _state.keyFrames[0].mapPointDescriptors.push_back(initialPointDescriptorsReferenceKeyFrame[i]);
-                                _state.keyFrames[0].mapPointAngles.push_back(initialPointAnglesReferenceKeyFrame[i]);
-
-                                currentKeyFrame.mapPointIndices.push_back(mapPointIndex);
-                                currentKeyFrame.mapPointDescriptors.push_back(initialPointDescriptorsCurrentKeyFrame[i]);
-                                currentKeyFrame.mapPointAngles.push_back(initialPointAnglesCurrentKeyFrame[i]);
+                                _state.keyFrames[0].mapPointIndices[i]                    = mapPointIndex;
+                                currentKeyFrame.mapPointIndices[initializationMatches[i]] = mapPointIndex;
 
                                 mapPointIndex++;
 
                                 _state.mapPoints.push_back(mapPoint);
                             }
 
-                            _state.keyFrames[0].pose = cv::Mat::eye(4, 4, CV_32F);
-                            currentKeyFrame.pose     = cv::Mat::eye(4, 4, CV_32F);
-                            rcw.copyTo(currentKeyFrame.pose.rowRange(0, 3).colRange(0, 3));
-                            tcw.copyTo(currentKeyFrame.pose.rowRange(0, 3).col(3));
+                            _state.keyFrames[0].cTw = cv::Mat::eye(4, 4, CV_32F);
+                            currentKeyFrame.cTw     = cv::Mat::eye(4, 4, CV_32F);
+                            rcw.copyTo(currentKeyFrame.cTw.rowRange(0, 3).colRange(0, 3));
+                            tcw.copyTo(currentKeyFrame.cTw.rowRange(0, 3).col(3));
 
                             _state.keyFrameCount++;
                             _state.keyFrames.push_back(currentKeyFrame);
 
                             printf("New Map created with %i points\n", _state.mapPoints.size());
 
-                            // TODO(jan): bundle adjustment
+                            // TODO(jan): global bundle adjustment
 
-                            _state.status = OrbSlamStatus_Tracking;
+                            r32 medianDepth;
+                            // WAIKeyFrame->ComputeSceneMedianDepth
+                            {
+                                std::vector<i32> mapPointIndices = _state.keyFrames[0].mapPointIndices;
+
+                                std::vector<r32> depths;
+                                depths.reserve(mapPointIndices.size());
+                                cv::Mat Rcw2 = _state.keyFrames[0].cTw.row(2).colRange(0, 3);
+                                Rcw2         = Rcw2.t();
+                                r32 zcw      = _state.keyFrames[0].cTw.at<r32>(2, 3);
+                                for (i32 i = 0; i < mapPointIndices.size(); i++)
+                                {
+                                    if (mapPointIndices[i] < 0) continue;
+
+                                    MapPoint* mapPoint = &_state.mapPoints[mapPointIndices[i]];
+                                    cv::Mat   x3Dw     = mapPoint->position;
+                                    r32       z        = Rcw2.dot(x3Dw) + zcw;
+                                    depths.push_back(z);
+                                }
+
+                                std::sort(depths.begin(), depths.end());
+
+                                medianDepth = depths[(depths.size() - 1) / 2];
+                            }
+
+                            // TODO(jan): is the check for tracked map points necessary,
+                            // as we have the same check already higher up?
+                            i32 trackedMapPoints;
+                            // WAIKeyFrame->TrackedMapPoints
+                            {
+                                std::vector<i32> mapPointIndices = _state.keyFrames[0].mapPointIndices;
+                                for (i32 i = 0; i < mapPointIndices.size(); i++)
+                                {
+                                    if (mapPointIndices[i] < 0) continue;
+
+                                    MapPoint* mapPoint = &_state.mapPoints[mapPointIndices[i]];
+
+                                    // TODO(jan): check mapPoints->isBad
+                                    if (mapPoint->observations > 0)
+                                    {
+                                        trackedMapPoints++;
+                                    }
+                                }
+                            }
+
+                            r32 invMedianDepth = 1.0f / medianDepth;
+
+                            if (medianDepth > 0.0f && trackedMapPoints >= 100)
+                            {
+                                cv::Mat scaledPose               = currentKeyFrame.cTw;
+                                scaledPose.col(3).rowRange(0, 3) = scaledPose.col(3).rowRange(0, 3) * invMedianDepth;
+                                currentKeyFrame.cTw              = scaledPose;
+
+                                for (i32 i = 0; i < _state.mapPoints.size(); i++)
+                                {
+                                    MapPoint* mapPoint = &_state.mapPoints[i];
+                                    mapPoint->position *= invMedianDepth;
+                                }
+
+                                // TODO(jan): add keyframes to local mapper
+                                // TODO(jan): save stuff for camera trajectory
+
+                                _state.status = OrbSlamStatus_Tracking;
+                            }
+                            else
+                            {
+                                _state.keyFrameCount = 0;
+                            }
                         }
                     }
                     else
                     {
-                        _state.keyFrameCount--;
+                        _state.keyFrameCount = 0;
                     }
                 }
                 else
                 {
-                    _state.keyFrameCount--;
+                    _state.keyFrameCount = 0;
                 }
             }
         }
@@ -772,74 +821,84 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                                _state.gridConstraints,
                                &currentFrame);
 
-            std::vector<i32> rotHist[ROTATION_HISTORY_LENGTH];
-            i32              matchCount = 0;
-            for (i32 i = 0; i < ROTATION_HISTORY_LENGTH; i++)
+            i32 matchCount = 0;
             {
-                rotHist[i].reserve(500);
-            }
-            const r32 factor = 1.0f / ROTATION_HISTORY_LENGTH;
-
-            for (i32 i = 0; i < currentFrame.undistortedKeyPoints.size(); i++)
-            {
-                i32 bestMatchIndex = -1;
-                i32 bestDist       = INT_MAX;
-                i32 secondBestDist = INT_MAX;
-                for (i32 j = 0; j < _state.keyFrames[0].mapPointIndices.size(); j++)
-                {
-                    i32 dist = descriptorDistance(_state.keyFrames[0].mapPointDescriptors[j],
-                                                  currentFrame.descriptors.row(i));
-
-                    if (dist < bestDist)
-                    {
-                        bestMatchIndex = j;
-                        secondBestDist = bestDist;
-                        bestDist       = dist;
-                    }
-                }
-
-                if (bestDist <= MATCHER_DISTANCE_THRESHOLD_LOW)
-                {
-                    if ((r32)bestDist < 0.75f * (r32)secondBestDist)
-                    {
-                        // compute orientation
-                        {
-                            r32 rot = currentFrame.keyPoints[i].angle - _state.keyFrames[0].mapPointAngles[bestMatchIndex];
-                            if (rot < 0.0)
-                            {
-                                rot += 360.0f;
-                            }
-
-                            i32 bin = round(rot * factor);
-                            if (bin == ROTATION_HISTORY_LENGTH)
-                            {
-                                bin = 0;
-                            }
-
-                            assert(bin >= 0 && bin < ROTATION_HISTORY_LENGTH);
-                            rotHist[bin].push_back(bestMatchIndex);
-                        }
-
-                        matchCount++;
-                    }
-                }
-            }
-
-            i32 ind1 = -1;
-            i32 ind2 = -1;
-            i32 ind3 = -1;
-
-            computeThreeMaxima(rotHist, ROTATION_HISTORY_LENGTH, ind1, ind2, ind3);
-
-            // check orientation
-            {
+                std::vector<i32> rotHist[ROTATION_HISTORY_LENGTH];
                 for (i32 i = 0; i < ROTATION_HISTORY_LENGTH; i++)
                 {
-                    if (i == ind1 || i == ind2 || i == ind3) continue;
+                    rotHist[i].reserve(500);
+                }
+                const r32 factor = 1.0f / ROTATION_HISTORY_LENGTH;
 
-                    for (size_t j = 0, jend = rotHist[i].size(); j < jend; j++)
+                std::vector<bool32> mapPointMatched = std::vector<bool32>(_state.keyFrames[0].mapPointIndices.size(), 0);
+
+                for (i32 i = 0; i < currentFrame.undistortedKeyPoints.size(); i++)
+                {
+                    i32 bestMatchIndex = -1;
+                    i32 bestDist       = INT_MAX;
+                    i32 secondBestDist = INT_MAX;
+                    for (i32 j = 0; j < _state.keyFrames[0].mapPointIndices.size(); j++)
                     {
-                        matchCount--;
+                        if (_state.keyFrames[0].mapPointIndices[j] < 0) continue;
+                        if (mapPointMatched[j]) continue;
+
+                        i32 dist = descriptorDistance(_state.keyFrames[0].descriptors.row(j),
+                                                      currentFrame.descriptors.row(i));
+
+                        if (dist < bestDist)
+                        {
+                            bestMatchIndex = j;
+                            secondBestDist = bestDist;
+                            bestDist       = dist;
+                        }
+                    }
+
+                    if (bestDist <= MATCHER_DISTANCE_THRESHOLD_LOW)
+                    {
+                        if ((r32)bestDist < 0.75f * (r32)secondBestDist)
+                        {
+                            mapPointMatched[bestMatchIndex] = true;
+
+                            // compute orientation
+                            {
+                                r32 rot = currentFrame.keyPoints[i].angle - _state.keyFrames[0].keyPoints[bestMatchIndex].angle;
+                                if (rot < 0.0)
+                                {
+                                    rot += 360.0f;
+                                }
+
+                                i32 bin = round(rot * factor);
+                                if (bin == ROTATION_HISTORY_LENGTH)
+                                {
+                                    bin = 0;
+                                }
+
+                                assert(bin >= 0 && bin < ROTATION_HISTORY_LENGTH);
+                                rotHist[bin].push_back(bestMatchIndex);
+                            }
+
+                            matchCount++;
+                        }
+                    }
+                }
+
+                i32 ind1 = -1;
+                i32 ind2 = -1;
+                i32 ind3 = -1;
+
+                computeThreeMaxima(rotHist, ROTATION_HISTORY_LENGTH, ind1, ind2, ind3);
+
+                // check orientation
+                {
+                    for (i32 i = 0; i < ROTATION_HISTORY_LENGTH; i++)
+                    {
+                        if (i == ind1 || i == ind2 || i == ind3) continue;
+
+                        for (size_t j = 0, jend = rotHist[i].size(); j < jend; j++)
+                        {
+                            mapPointMatched[rotHist[i][j]] = false;
+                            matchCount--;
+                        }
                     }
                 }
             }

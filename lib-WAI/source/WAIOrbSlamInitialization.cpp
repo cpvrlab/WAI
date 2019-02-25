@@ -49,18 +49,14 @@ void triangulate(const cv::KeyPoint& kp1,
 
 i32 checkRT(const cv::Mat&                   R,
             const cv::Mat&                   t,
-            const std::vector<cv::KeyPoint>& vKeys1,
-            const std::vector<cv::KeyPoint>& vKeys2,
+            const std::vector<cv::KeyPoint>& keyPointsKeyFrame1,
+            const std::vector<cv::KeyPoint>& keyPointsKeyFrame2,
             const cv::Mat&                   descriptors1,
             const cv::Mat&                   descriptors2,
-            const std::vector<Match>&        vMatches12,
+            const std::vector<Match>&        matches,
             std::vector<bool32>&             vbMatchesInliers,
             const cv::Mat&                   cameraMat,
             std::vector<cv::Point3f>&        pointCandidates,
-            std::vector<cv::Mat>&            pointCandidateDescriptors1,
-            std::vector<cv::Mat>&            pointCandidateDescriptors2,
-            std::vector<r32>&                pointCandidateAngles1,
-            std::vector<r32>&                pointCandidateAngles2,
             r32                              th2,
             std::vector<bool32>&             vbGood,
             r32&                             parallax)
@@ -71,15 +67,11 @@ i32 checkRT(const cv::Mat&                   R,
     const r32 cx = cameraMat.at<r32>(0, 2);
     const r32 cy = cameraMat.at<r32>(1, 2);
 
-    vbGood = std::vector<bool32>(vKeys1.size(), false);
-    pointCandidates.resize(vKeys1.size());
-    pointCandidateDescriptors1.resize(vKeys1.size());
-    pointCandidateDescriptors2.resize(vKeys1.size());
-    pointCandidateAngles1.resize(vKeys1.size());
-    pointCandidateAngles2.resize(vKeys1.size());
+    vbGood = std::vector<bool32>(keyPointsKeyFrame1.size(), false);
+    pointCandidates.resize(keyPointsKeyFrame1.size());
 
     std::vector<r32> vCosParallax;
-    vCosParallax.reserve(vKeys1.size());
+    vCosParallax.reserve(keyPointsKeyFrame1.size());
 
     // Camera 1 Projection Matrix K[I|0]
     cv::Mat P1(3, 4, CV_32F, cv::Scalar(0));
@@ -97,13 +89,13 @@ i32 checkRT(const cv::Mat&                   R,
 
     i32 nGood = 0;
 
-    for (size_t i = 0, iend = vMatches12.size(); i < iend; i++)
+    for (size_t i = 0, iend = matches.size(); i < iend; i++)
     {
         if (!vbMatchesInliers[i])
             continue;
 
-        const cv::KeyPoint& kp1 = vKeys1[vMatches12[i].first];
-        const cv::KeyPoint& kp2 = vKeys2[vMatches12[i].second];
+        const cv::KeyPoint& kp1 = keyPointsKeyFrame1[matches[i].first];
+        const cv::KeyPoint& kp2 = keyPointsKeyFrame2[matches[i].second];
         cv::Mat             p3dC1;
 
         triangulate(kp1, kp2, P1, P2, p3dC1);
@@ -112,7 +104,7 @@ i32 checkRT(const cv::Mat&                   R,
             !std::isfinite(p3dC1.at<r32>(1)) ||
             !std::isfinite(p3dC1.at<r32>(2)))
         {
-            vbGood[vMatches12[i].first] = false;
+            vbGood[matches[i].first] = false;
             continue;
         }
 
@@ -158,15 +150,11 @@ i32 checkRT(const cv::Mat&                   R,
             continue;
 
         vCosParallax.push_back(cosParallax);
-        pointCandidates[vMatches12[i].first]            = cv::Point3f(p3dC1.at<r32>(0), p3dC1.at<r32>(1), p3dC1.at<r32>(2));
-        pointCandidateDescriptors1[vMatches12[i].first] = descriptors1.row(vMatches12[i].first);
-        pointCandidateDescriptors2[vMatches12[i].first] = descriptors2.row(vMatches12[i].second);
-        pointCandidateAngles1[vMatches12[i].first]      = kp1.angle;
-        pointCandidateAngles2[vMatches12[i].first]      = kp2.angle;
+        pointCandidates[matches[i].first] = cv::Point3f(p3dC1.at<r32>(0), p3dC1.at<r32>(1), p3dC1.at<r32>(2));
         nGood++;
 
         if (cosParallax < 0.99998)
-            vbGood[vMatches12[i].first] = true;
+            vbGood[matches[i].first] = true;
     }
 
     if (nGood > 0)
@@ -196,10 +184,6 @@ bool reconstructFundamental(const std::vector<Match>&        matches,
                             cv::Mat&                         R21,
                             cv::Mat&                         t21,
                             std::vector<cv::Point3f>&        initialPoints,
-                            std::vector<cv::Mat>&            initialPointDescriptors1,
-                            std::vector<cv::Mat>&            initialPointDescriptors2,
-                            std::vector<r32>&                initialPointAngles1,
-                            std::vector<r32>&                initialPointAngles2,
                             std::vector<bool32>&             vbTriangulated,
                             float                            minParallax,
                             int                              minTriangulated)
@@ -222,16 +206,62 @@ bool reconstructFundamental(const std::vector<Match>&        matches,
 
     // Reconstruct with the 4 hyphoteses and check
     std::vector<cv::Point3f> vP3D1, vP3D2, vP3D3, vP3D4;
-    std::vector<cv::Mat>     pointCandidateDescriptors11, pointCandidateDescriptors21, pointCandidateDescriptors12, pointCandidateDescriptors22, pointCandidateDescriptors13, pointCandidateDescriptors23, pointCandidateDescriptors14, pointCandidateDescriptors24;
-    std::vector<r32>         pointCandidateAngles11, pointCandidateAngles21, pointCandidateAngles12, pointCandidateAngles22, pointCandidateAngles13, pointCandidateAngles23, pointCandidateAngles14, pointCandidateAngles24;
     std::vector<bool32>      vbTriangulated1, vbTriangulated2, vbTriangulated3, vbTriangulated4;
     float                    parallax1, parallax2, parallax3, parallax4;
 
     r32 sigmaSq = sigma * sigma;
-    int nGood1  = checkRT(R1, t1, keyPoints1, keyPoints2, descriptors1, descriptors2, matches, vbMatchesInliers, cameraMat, vP3D1, pointCandidateDescriptors11, pointCandidateDescriptors21, pointCandidateAngles11, pointCandidateAngles21, 4.0 * sigmaSq, vbTriangulated1, parallax1);
-    int nGood2  = checkRT(R2, t1, keyPoints1, keyPoints2, descriptors1, descriptors2, matches, vbMatchesInliers, cameraMat, vP3D2, pointCandidateDescriptors12, pointCandidateDescriptors22, pointCandidateAngles12, pointCandidateAngles22, 4.0 * sigmaSq, vbTriangulated2, parallax2);
-    int nGood3  = checkRT(R1, t2, keyPoints1, keyPoints2, descriptors1, descriptors2, matches, vbMatchesInliers, cameraMat, vP3D3, pointCandidateDescriptors13, pointCandidateDescriptors23, pointCandidateAngles13, pointCandidateAngles23, 4.0 * sigmaSq, vbTriangulated3, parallax3);
-    int nGood4  = checkRT(R2, t2, keyPoints1, keyPoints2, descriptors1, descriptors2, matches, vbMatchesInliers, cameraMat, vP3D4, pointCandidateDescriptors14, pointCandidateDescriptors24, pointCandidateAngles14, pointCandidateAngles24, 4.0 * sigmaSq, vbTriangulated4, parallax4);
+    int nGood1  = checkRT(R1,
+                         t1,
+                         keyPoints1,
+                         keyPoints2,
+                         descriptors1,
+                         descriptors2,
+                         matches,
+                         vbMatchesInliers,
+                         cameraMat,
+                         vP3D1,
+                         4.0 * sigmaSq,
+                         vbTriangulated1,
+                         parallax1);
+    int nGood2  = checkRT(R2,
+                         t1,
+                         keyPoints1,
+                         keyPoints2,
+                         descriptors1,
+                         descriptors2,
+                         matches,
+                         vbMatchesInliers,
+                         cameraMat,
+                         vP3D2,
+                         4.0 * sigmaSq,
+                         vbTriangulated2,
+                         parallax2);
+    int nGood3  = checkRT(R1,
+                         t2,
+                         keyPoints1,
+                         keyPoints2,
+                         descriptors1,
+                         descriptors2,
+                         matches,
+                         vbMatchesInliers,
+                         cameraMat,
+                         vP3D3,
+                         4.0 * sigmaSq,
+                         vbTriangulated3,
+                         parallax3);
+    int nGood4  = checkRT(R2,
+                         t2,
+                         keyPoints1,
+                         keyPoints2,
+                         descriptors1,
+                         descriptors2,
+                         matches,
+                         vbMatchesInliers,
+                         cameraMat,
+                         vP3D4,
+                         4.0 * sigmaSq,
+                         vbTriangulated4,
+                         parallax4);
 
     int maxGood = std::max(nGood1, std::max(nGood2, std::max(nGood3, nGood4)));
 
@@ -261,11 +291,7 @@ bool reconstructFundamental(const std::vector<Match>&        matches,
     {
         if (parallax1 > minParallax)
         {
-            initialPoints            = vP3D1;
-            initialPointDescriptors1 = pointCandidateDescriptors11;
-            initialPointDescriptors2 = pointCandidateDescriptors21;
-            initialPointAngles1      = pointCandidateAngles11;
-            initialPointAngles2      = pointCandidateAngles21;
+            initialPoints = vP3D1;
 
             vbTriangulated = vbTriangulated1;
 
@@ -278,11 +304,7 @@ bool reconstructFundamental(const std::vector<Match>&        matches,
     {
         if (parallax2 > minParallax)
         {
-            initialPoints            = vP3D2;
-            initialPointDescriptors1 = pointCandidateDescriptors12;
-            initialPointDescriptors2 = pointCandidateDescriptors22;
-            initialPointAngles1      = pointCandidateAngles12;
-            initialPointAngles2      = pointCandidateAngles22;
+            initialPoints = vP3D2;
 
             vbTriangulated = vbTriangulated2;
 
@@ -295,11 +317,7 @@ bool reconstructFundamental(const std::vector<Match>&        matches,
     {
         if (parallax3 > minParallax)
         {
-            initialPoints            = vP3D3;
-            initialPointDescriptors1 = pointCandidateDescriptors13;
-            initialPointDescriptors2 = pointCandidateDescriptors23;
-            initialPointAngles1      = pointCandidateAngles13;
-            initialPointAngles2      = pointCandidateAngles23;
+            initialPoints = vP3D3;
 
             vbTriangulated = vbTriangulated3;
 
@@ -312,11 +330,7 @@ bool reconstructFundamental(const std::vector<Match>&        matches,
     {
         if (parallax4 > minParallax)
         {
-            initialPoints            = vP3D4;
-            initialPointDescriptors1 = pointCandidateDescriptors14;
-            initialPointDescriptors2 = pointCandidateDescriptors24;
-            initialPointAngles1      = pointCandidateAngles14;
-            initialPointAngles2      = pointCandidateAngles24;
+            initialPoints = vP3D4;
 
             vbTriangulated = vbTriangulated4;
 
@@ -341,10 +355,6 @@ bool32 reconstructHomography(const std::vector<Match>&        matches,
                              cv::Mat&                         R21,
                              cv::Mat&                         t21,
                              std::vector<cv::Point3f>&        initialPoints,
-                             std::vector<cv::Mat>&            initialPointDescriptors1,
-                             std::vector<cv::Mat>&            initialPointDescriptors2,
-                             std::vector<r32>&                initialPointAngles1,
-                             std::vector<r32>&                initialPointAngles2,
                              std::vector<bool32>&             vbTriangulated,
                              r32                              minParallax,
                              i32                              minTriangulated)
@@ -471,8 +481,6 @@ bool32 reconstructHomography(const std::vector<Match>&        matches,
     i32                      bestSolutionIdx = -1;
     r32                      bestParallax    = -1;
     std::vector<cv::Point3f> bestInitialPoints;
-    std::vector<cv::Mat>     bestInitialPointDescriptors1, bestInitialPointDescriptors2;
-    std::vector<r32>         bestInitialPointAngles1, bestInitialPointAngles2;
     std::vector<bool32>      bestTriangulated;
 
     // Instead of applying the visibility constraints proposed in the Faugeras' paper (which could fail for points seen with low parallax)
@@ -481,8 +489,6 @@ bool32 reconstructHomography(const std::vector<Match>&        matches,
     {
         r32                      parallaxi;
         std::vector<cv::Point3f> pointCandidates;
-        std::vector<cv::Mat>     pointCandidateDescriptors1, pointCandidateDescriptors2;
-        std::vector<r32>         pointCandidateAngles1, pointCandidateAngles2;
         std::vector<bool32>      vbTriangulatedi;
 
         i32 nGood =
@@ -496,26 +502,18 @@ bool32 reconstructHomography(const std::vector<Match>&        matches,
                   vbMatchesInliers,
                   cameraMat,
                   pointCandidates,
-                  pointCandidateDescriptors1,
-                  pointCandidateDescriptors2,
-                  pointCandidateAngles1,
-                  pointCandidateAngles2,
                   4.0 * (sigma * sigma),
                   vbTriangulatedi,
                   parallaxi);
 
         if (nGood > bestGood)
         {
-            secondBestGood               = bestGood;
-            bestGood                     = nGood;
-            bestSolutionIdx              = i;
-            bestParallax                 = parallaxi;
-            bestInitialPoints            = pointCandidates;
-            bestInitialPointDescriptors1 = pointCandidateDescriptors1;
-            bestInitialPointDescriptors2 = pointCandidateDescriptors2;
-            bestInitialPointAngles1      = pointCandidateAngles1;
-            bestInitialPointAngles2      = pointCandidateAngles2;
-            bestTriangulated             = vbTriangulatedi;
+            secondBestGood    = bestGood;
+            bestGood          = nGood;
+            bestSolutionIdx   = i;
+            bestParallax      = parallaxi;
+            bestInitialPoints = pointCandidates;
+            bestTriangulated  = vbTriangulatedi;
         }
         else if (nGood > secondBestGood)
         {
@@ -527,10 +525,8 @@ bool32 reconstructHomography(const std::vector<Match>&        matches,
     {
         vR[bestSolutionIdx].copyTo(R21);
         vt[bestSolutionIdx].copyTo(t21);
-        initialPoints            = bestInitialPoints;
-        initialPointDescriptors1 = bestInitialPointDescriptors1;
-        initialPointDescriptors2 = bestInitialPointDescriptors2;
-        vbTriangulated           = bestTriangulated;
+        initialPoints  = bestInitialPoints;
+        vbTriangulated = bestTriangulated;
 
         return true;
     }

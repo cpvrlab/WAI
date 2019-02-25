@@ -22,7 +22,7 @@
 #include <WAI.h>
 
 #define DATA_ORIENTED 0
-#define LIVE_VIDEO 1
+#define LIVE_VIDEO 0
 
 void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid);
 

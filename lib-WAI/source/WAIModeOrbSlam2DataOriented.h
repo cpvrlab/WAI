@@ -20,6 +20,7 @@ struct MapPoint
     cv::Mat position;
     cv::Mat normalVector;
     cv::Mat descriptor;
+    i32     observations;
 };
 
 struct KeyFrame
@@ -29,10 +30,8 @@ struct KeyFrame
     std::vector<cv::KeyPoint> undistortedKeyPoints;
     std::vector<size_t>       keyPointIndexGrid[FRAME_GRID_COLS][FRAME_GRID_ROWS];
     cv::Mat                   descriptors;
-    cv::Mat                   pose;
-    std::vector<i32>          mapPointIndices;
-    std::vector<cv::Mat>      mapPointDescriptors;
-    std::vector<r32>          mapPointAngles;
+    cv::Mat                   cTw;
+    std::vector<i32>          mapPointIndices; // same size as keyPoints, initialized with -1
 };
 
 struct PyramidOctTreeCell
