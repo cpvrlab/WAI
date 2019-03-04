@@ -1,5 +1,13 @@
 #include <thread>
 
+#include <g2o/core/block_solver.h>
+#include <g2o/core/optimization_algorithm_levenberg.h>
+#include <g2o/solvers/eigen/linear_solver_eigen.h>
+#include <g2o/types/sba/types_six_dof_expmap.h>
+#include <g2o/core/robust_kernel_impl.h>
+#include <g2o/solvers/dense/linear_solver_dense.h>
+#include <g2o/types/sim3/types_seven_dof_expmap.h>
+
 #include <DUtils/Random.h>
 
 #include <WAIModeOrbSlam2DataOriented.h>
@@ -37,15 +45,22 @@ WAI::ModeOrbSlam2DataOriented::ModeOrbSlam2DataOriented(SensorCamera* camera)
 
     _state.imagePyramidStats.scaleFactors.resize(pyramidScaleLevels);
     _state.imagePyramidStats.inverseScaleFactors.resize(pyramidScaleLevels);
+    _state.imagePyramidStats.sigmaSquared.resize(pyramidScaleLevels);
+    _state.imagePyramidStats.inverseSigmaSquared.resize(pyramidScaleLevels);
     _state.imagePyramidStats.numberOfFeaturesPerScaleLevel.resize(pyramidScaleLevels);
 
     _state.imagePyramidStats.scaleFactors[0]        = 1.0f;
     _state.imagePyramidStats.inverseScaleFactors[0] = 1.0f;
+    _state.imagePyramidStats.sigmaSquared[0]        = 1.0f;
+    _state.imagePyramidStats.inverseSigmaSquared[0] = 1.0f;
 
     for (i32 i = 1; i < pyramidScaleLevels; i++)
     {
-        _state.imagePyramidStats.scaleFactors[i]        = _state.imagePyramidStats.scaleFactors[i - 1] * scaleFactor;
+        r32 sigma                                       = _state.imagePyramidStats.scaleFactors[i - 1] * scaleFactor;
+        _state.imagePyramidStats.scaleFactors[i]        = sigma;
+        _state.imagePyramidStats.sigmaSquared[i]        = sigma * sigma;
         _state.imagePyramidStats.inverseScaleFactors[i] = 1.0f / _state.imagePyramidStats.scaleFactors[i];
+        _state.imagePyramidStats.inverseSigmaSquared[i] = 1.0f / (sigma * sigma);
     }
 
     r32 inverseScaleFactor            = 1.0f / scaleFactor;
@@ -84,6 +99,21 @@ WAI::ModeOrbSlam2DataOriented::ModeOrbSlam2DataOriented(SensorCamera* camera)
     }
 
     _camera->subscribeToUpdate(this);
+}
+
+// Converter::toSE3Quat
+static g2o::SE3Quat convertCvMatToG2OSE3Quat(const cv::Mat& mat)
+{
+    Eigen::Matrix<r64, 3, 3> R;
+    R << mat.at<r32>(0, 0), mat.at<r32>(0, 1), mat.at<r32>(0, 2),
+      mat.at<r32>(1, 0), mat.at<r32>(1, 1), mat.at<r32>(1, 2),
+      mat.at<r32>(2, 0), mat.at<r32>(2, 1), mat.at<r32>(2, 2);
+
+    Eigen::Matrix<r64, 3, 1> t(mat.at<r32>(0, 3), mat.at<r32>(1, 3), mat.at<r32>(2, 3));
+
+    g2o::SE3Quat result = g2o::SE3Quat(R, t);
+
+    return result;
 }
 
 static void initializeKeyFrame(const ImagePyramidStats&      imagePyramidStats,
@@ -830,7 +860,8 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                 }
                 const r32 factor = 1.0f / ROTATION_HISTORY_LENGTH;
 
-                std::vector<bool32> mapPointMatched = std::vector<bool32>(_state.keyFrames[0].mapPointIndices.size(), 0);
+                std::vector<bool32> mapPointMatched      = std::vector<bool32>(_state.keyFrames[0].mapPointIndices.size(), 0);
+                std::vector<i32>    matchedMapPointIndex = std::vector<i32>(currentFrame.keyPoints.size(), -1);
 
                 for (i32 i = 0; i < currentFrame.undistortedKeyPoints.size(); i++)
                 {
@@ -858,6 +889,7 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                         if ((r32)bestDist < 0.75f * (r32)secondBestDist)
                         {
                             mapPointMatched[bestMatchIndex] = true;
+                            matchedMapPointIndex[i]         = bestMatchIndex;
 
                             // compute orientation
                             {
@@ -901,9 +933,178 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                         }
                     }
                 }
+
+                for (i32 i = 0; i < matchedMapPointIndex.size(); i++)
+                {
+                    i32 mapPointIndexReferenceKeyframe = matchedMapPointIndex[i];
+
+                    if (mapPointMatched[mapPointIndexReferenceKeyframe])
+                    {
+                        currentFrame.mapPointIndices[i] = _state.keyFrames[0].mapPointIndices[mapPointIndexReferenceKeyframe];
+                    }
+                }
+
+                currentFrame.mapPointIsOutlier = std::vector<bool32>(currentFrame.keyPoints.size(), false);
             }
 
-            printf("Found %i matches\n", matchCount);
+            currentFrame.cTw   = _state.keyFrames[0].cTw; // TODO(jan): need clone?
+            i32 goodMatchCount = 0;
+
+            // pose otimization
+            {
+                //ghm1: Attention, we add every map point associated to a keypoint to the optimizer
+                g2o::SparseOptimizer                    optimizer;
+                g2o::BlockSolver_6_3::LinearSolverType* linearSolver;
+
+                linearSolver = new g2o::LinearSolverDense<g2o::BlockSolver_6_3::PoseMatrixType>();
+
+                g2o::BlockSolver_6_3* solver_ptr = new g2o::BlockSolver_6_3(linearSolver);
+
+                g2o::OptimizationAlgorithmLevenberg* solver = new g2o::OptimizationAlgorithmLevenberg(solver_ptr);
+                optimizer.setAlgorithm(solver);
+
+                i32 nInitialCorrespondences = 0;
+
+                g2o::SE3Quat se3quat = convertCvMatToG2OSE3Quat(currentFrame.cTw);
+
+                // Set Frame vertex
+                g2o::VertexSE3Expmap* vSE3 = new g2o::VertexSE3Expmap();
+                vSE3->setEstimate(se3quat);
+                vSE3->setId(0);
+                vSE3->setFixed(false);
+                optimizer.addVertex(vSE3);
+
+                // Set WAIMapPoint vertices
+                const int N = currentFrame.numberOfKeyPoints;
+
+                std::vector<g2o::EdgeSE3ProjectXYZOnlyPose*> vpEdgesMono;
+                std::vector<size_t>                          vnIndexEdgeMono;
+                vpEdgesMono.reserve(N);
+                vnIndexEdgeMono.reserve(N);
+
+                const float deltaMono = sqrt(5.991);
+
+                {
+                    for (i32 i = 0; i < currentFrame.mapPointIndices.size(); i++)
+                    {
+                        i32 mapPointIndex = currentFrame.mapPointIndices[i];
+
+                        if (mapPointIndex >= 0)
+                        {
+                            MapPoint* mapPoint = &_state.mapPoints[mapPointIndex];
+
+                            nInitialCorrespondences++;
+                            currentFrame.mapPointIsOutlier[i] = false;
+
+                            Eigen::Matrix<r64, 2, 1> obs;
+                            const cv::KeyPoint&      kpUn = currentFrame.undistortedKeyPoints[i];
+                            obs << kpUn.pt.x, kpUn.pt.y;
+
+                            g2o::EdgeSE3ProjectXYZOnlyPose* e = new g2o::EdgeSE3ProjectXYZOnlyPose();
+
+                            e->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(0)));
+                            e->setMeasurement(obs);
+                            const r32 invSigma2 = _state.imagePyramidStats.inverseSigmaSquared[kpUn.octave];
+                            e->setInformation(Eigen::Matrix2d::Identity() * invSigma2);
+
+                            g2o::RobustKernelHuber* rk = new g2o::RobustKernelHuber;
+                            e->setRobustKernel(rk);
+                            rk->setDelta(deltaMono);
+
+                            e->fx      = _state.fx;
+                            e->fy      = _state.fy;
+                            e->cx      = _state.cx;
+                            e->cy      = _state.cy;
+                            cv::Mat Xw = mapPoint->position;
+                            e->Xw[0]   = Xw.at<r32>(0);
+                            e->Xw[1]   = Xw.at<r32>(1);
+                            e->Xw[2]   = Xw.at<r32>(2);
+
+                            optimizer.addEdge(e);
+
+                            vpEdgesMono.push_back(e);
+                            vnIndexEdgeMono.push_back(i);
+                        }
+                    }
+                }
+
+                if (nInitialCorrespondences > 3)
+                {
+                    // We perform 4 optimizations, after each optimization we classify observation as inlier/outlier
+                    // At the next optimization, outliers are not included, but at the end they can be classified as inliers again.
+                    const float chi2Mono[4] = {5.991, 5.991, 5.991, 5.991};
+                    const int   its[4]      = {10, 10, 10, 10};
+
+                    int nBad = 0;
+                    for (size_t it = 0; it < 4; it++)
+                    {
+                        se3quat = convertCvMatToG2OSE3Quat(currentFrame.cTw);
+                        vSE3->setEstimate(se3quat);
+                        optimizer.initializeOptimization(0);
+                        optimizer.optimize(its[it]);
+
+                        nBad = 0;
+                        for (size_t i = 0, iend = vpEdgesMono.size(); i < iend; i++)
+                        {
+                            g2o::EdgeSE3ProjectXYZOnlyPose* e = vpEdgesMono[i];
+
+                            const size_t idx = vnIndexEdgeMono[i];
+
+                            if (currentFrame.mapPointIsOutlier[idx])
+                            {
+                                e->computeError();
+                            }
+
+                            const float chi2 = e->chi2();
+
+                            if (chi2 > chi2Mono[it])
+                            {
+                                currentFrame.mapPointIsOutlier[idx] = true;
+                                e->setLevel(1);
+                                nBad++;
+                            }
+                            else
+                            {
+                                currentFrame.mapPointIsOutlier[idx] = false;
+                                e->setLevel(0);
+                            }
+
+                            if (it == 2)
+                            {
+                                e->setRobustKernel(0);
+                            }
+                        }
+
+                        if (optimizer.edges().size() < 10) break;
+                    }
+
+                    // Recover optimized pose and return number of inliers
+                    g2o::VertexSE3Expmap* vSE3_recov    = static_cast<g2o::VertexSE3Expmap*>(optimizer.vertex(0));
+                    g2o::SE3Quat          SE3quat_recov = vSE3_recov->estimate();
+                    cv::Mat               pose;
+
+                    // Converter::toCvMat
+                    {
+                        Eigen::Matrix<double, 4, 4> eigMat = SE3quat_recov.to_homogeneous_matrix();
+                        pose                               = cv::Mat(4, 4, CV_32F);
+                        for (int i = 0; i < 4; i++)
+                        {
+                            for (int j = 0; j < 4; j++)
+                            {
+                                pose.at<r32>(i, j) = (r32)eigMat(i, j);
+                            }
+                        }
+                    }
+
+                    currentFrame.cTw = pose;
+
+                    goodMatchCount = nInitialCorrespondences - nBad;
+                }
+            }
+
+            printf("Found %i good matches (out of %i)\n", goodMatchCount, matchCount);
+            printf("pose: ");
+            std::cout << currentFrame.cTw << std::endl;
         }
         break;
     }

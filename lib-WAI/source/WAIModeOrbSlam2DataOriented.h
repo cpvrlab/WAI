@@ -25,13 +25,16 @@ struct MapPoint
 
 struct KeyFrame
 {
-    i32                       numberOfKeyPoints;
+    i32 numberOfKeyPoints;
+
     std::vector<cv::KeyPoint> keyPoints; // only used for visualization
     std::vector<cv::KeyPoint> undistortedKeyPoints;
-    std::vector<size_t>       keyPointIndexGrid[FRAME_GRID_COLS][FRAME_GRID_ROWS];
-    cv::Mat                   descriptors;
-    cv::Mat                   cTw;
-    std::vector<i32>          mapPointIndices; // same size as keyPoints, initialized with -1
+    std::vector<i32>          mapPointIndices;   // same size as keyPoints, initialized with -1
+    std::vector<bool32>       mapPointIsOutlier; // same size as keyPoints
+
+    std::vector<size_t> keyPointIndexGrid[FRAME_GRID_COLS][FRAME_GRID_ROWS];
+    cv::Mat             descriptors;
+    cv::Mat             cTw;
 };
 
 struct PyramidOctTreeCell
@@ -60,6 +63,8 @@ struct ImagePyramidStats
     i32              numberOfScaleLevels;
     std::vector<r32> scaleFactors;
     std::vector<r32> inverseScaleFactors;
+    std::vector<r32> sigmaSquared;
+    std::vector<r32> inverseSigmaSquared;
     std::vector<i32> numberOfFeaturesPerScaleLevel;
 };
 
