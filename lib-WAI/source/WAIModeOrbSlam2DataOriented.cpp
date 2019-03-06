@@ -22,6 +22,8 @@
 WAI::ModeOrbSlam2DataOriented::ModeOrbSlam2DataOriented(SensorCamera* camera)
   : _camera(camera)
 {
+    _pose = cv::Mat::eye(4, 4, CV_32F);
+
     r32 scaleFactor        = 1.2f;
     i32 pyramidScaleLevels = 8;
     i32 numberOfFeatures   = 2000; // TODO(jan): 2000 for initialization, 1000 otherwise
@@ -101,7 +103,6 @@ WAI::ModeOrbSlam2DataOriented::ModeOrbSlam2DataOriented(SensorCamera* camera)
     _camera->subscribeToUpdate(this);
 }
 
-// Converter::toSE3Quat
 static g2o::SE3Quat convertCvMatToG2OSE3Quat(const cv::Mat& mat)
 {
     Eigen::Matrix<r64, 3, 3> R;
@@ -112,6 +113,43 @@ static g2o::SE3Quat convertCvMatToG2OSE3Quat(const cv::Mat& mat)
     Eigen::Matrix<r64, 3, 1> t(mat.at<r32>(0, 3), mat.at<r32>(1, 3), mat.at<r32>(2, 3));
 
     g2o::SE3Quat result = g2o::SE3Quat(R, t);
+
+    return result;
+}
+
+static cv::Mat convertG2OSE3QuatToCvMat(const g2o::SE3Quat se3)
+{
+    Eigen::Matrix<r64, 4, 4> mat = se3.to_homogeneous_matrix();
+
+    cv::Mat result = cv::Mat(4, 4, CV_32F);
+    for (i32 i = 0; i < 4; i++)
+    {
+        for (i32 j = 0; j < 4; j++)
+        {
+            result.at<r32>(i, j) = (r32)mat(i, j);
+        }
+    }
+
+    return result;
+}
+
+static Eigen::Matrix<r64, 3, 1> convertCvMatToEigenVector3D(const cv::Mat& mat)
+{
+    Eigen::Matrix<r64, 3, 1> result;
+
+    result << mat.at<r32>(0), mat.at<r32>(1), mat.at<r32>(2);
+
+    return result;
+}
+
+static cv::Mat convertEigenVector3DToCvMat(const Eigen::Matrix<r64, 3, 1>& vec3d)
+{
+    cv::Mat result = cv::Mat(3, 1, CV_32F);
+
+    for (int i = 0; i < 3; i++)
+    {
+        result.at<r32>(i) = (r32)vec3d(i);
+    }
 
     return result;
 }
@@ -674,6 +712,7 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                         }
                     }
 
+#if 0 // Draw keypoints in reference keyframe
                     for (u32 i = 0; i < _state.keyFrames[0].keyPoints.size(); i++)
                     {
                         cv::rectangle(_camera->getImageRGB(),
@@ -681,6 +720,7 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                                       cv::Point(_state.keyFrames[0].keyPoints[i].pt.x + 3, _state.keyFrames[0].keyPoints[i].pt.y + 3),
                                       cv::Scalar(0, 0, 255));
                     }
+#endif
 
                     //ghm1: decorate image with tracked matches
                     for (u32 i = 0; i < initializationMatches.size(); i++)
@@ -726,7 +766,12 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                                 MapPoint mapPoint     = {};
                                 mapPoint.normalVector = cv::Mat::zeros(3, 1, CV_32F);
                                 mapPoint.position     = cv::Mat(initialPoints[i]);
-                                mapPoint.observations = 2;
+                                mapPoint.observations.resize(2);
+
+                                mapPoint.observations[0].first  = 0;
+                                mapPoint.observations[0].second = i;
+                                mapPoint.observations[1].first  = 1;
+                                mapPoint.observations[1].second = initializationMatches[i];
 
                                 _state.keyFrames[0].mapPointIndices[i]                    = mapPointIndex;
                                 currentKeyFrame.mapPointIndices[initializationMatches[i]] = mapPointIndex;
@@ -742,11 +787,176 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                             tcw.copyTo(currentKeyFrame.cTw.rowRange(0, 3).col(3));
 
                             _state.keyFrameCount++;
-                            _state.keyFrames.push_back(currentKeyFrame);
+                            _state.keyFrames[1] = currentKeyFrame;
 
                             printf("New Map created with %i points\n", _state.mapPoints.size());
 
-                            // TODO(jan): global bundle adjustment
+#if 1
+                            { // (Global) bundle adjustment
+                                const i32 numberOfIterations = 20;
+
+                                std::vector<bool32> vbNotIncludedMP;
+                                vbNotIncludedMP.resize(_state.mapPoints.size());
+
+                                g2o::SparseOptimizer                    optimizer;
+                                g2o::BlockSolver_6_3::LinearSolverType* linearSolver;
+
+                                linearSolver = new g2o::LinearSolverEigen<g2o::BlockSolver_6_3::PoseMatrixType>();
+
+                                g2o::BlockSolver_6_3* solver_ptr = new g2o::BlockSolver_6_3(linearSolver);
+
+                                g2o::OptimizationAlgorithmLevenberg* solver = new g2o::OptimizationAlgorithmLevenberg(solver_ptr);
+                                optimizer.setAlgorithm(solver);
+
+                                u64 maxKFid = 0;
+
+                                // Set WAIKeyFrame vertices
+                                for (i32 i = 0; i < _state.keyFrameCount; i++)
+                                {
+                                    KeyFrame* keyFrame = &_state.keyFrames[i];
+
+                                    // TODO(jan): bad check
+
+                                    g2o::SE3Quat se3Quat = convertCvMatToG2OSE3Quat(keyFrame->cTw);
+
+                                    g2o::VertexSE3Expmap* vSE3 = new g2o::VertexSE3Expmap();
+                                    vSE3->setEstimate(se3Quat);
+                                    vSE3->setId(i);
+                                    vSE3->setFixed(i == 0);
+                                    optimizer.addVertex(vSE3);
+                                }
+
+                                const r32 thHuber2D = sqrt(5.99);
+
+                                for (i32 i = 0; i < _state.mapPoints.size(); i++)
+                                {
+                                    MapPoint* mapPoint = &_state.mapPoints[i];
+
+                                    // TODO(jan): bad check
+
+                                    Eigen::Matrix<r64, 3, 1> vec3d = convertCvMatToEigenVector3D(mapPoint->position);
+
+                                    g2o::VertexSBAPointXYZ* vPoint = new g2o::VertexSBAPointXYZ();
+                                    vPoint->setEstimate(vec3d);
+                                    const i32 id = i + _state.keyFrameCount;
+                                    vPoint->setId(id);
+                                    vPoint->setMarginalized(true);
+                                    optimizer.addVertex(vPoint);
+
+                                    const std::vector<std::pair<i32, i32>> observations = mapPoint->observations;
+
+                                    i32 nEdges = 0;
+
+                                    //SET EDGES
+                                    for (i32 j = 0; j < observations.size(); j++)
+                                    {
+                                        std::pair<i32, i32> observation = observations[j];
+
+                                        i32       keyFrameIndex = observation.first;
+                                        KeyFrame* keyFrame      = &_state.keyFrames[keyFrameIndex];
+
+                                        //if (pKF->isBad() || pKF->mnId > maxKFid)
+                                        //continue;
+
+                                        nEdges++;
+
+                                        const cv::KeyPoint& kpUn = keyFrame->undistortedKeyPoints[observation.second];
+
+                                        Eigen::Matrix<r64, 2, 1> obs;
+                                        obs << kpUn.pt.x, kpUn.pt.y;
+
+                                        g2o::EdgeSE3ProjectXYZ* e = new g2o::EdgeSE3ProjectXYZ();
+
+                                        e->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(id)));
+                                        e->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(keyFrameIndex)));
+                                        e->setMeasurement(obs);
+                                        const float& invSigma2 = _state.imagePyramidStats.inverseSigmaSquared[kpUn.octave];
+                                        e->setInformation(Eigen::Matrix2d::Identity() * invSigma2);
+
+                                        //if (bRobust)
+                                        //{
+                                        g2o::RobustKernelHuber* rk = new g2o::RobustKernelHuber;
+                                        e->setRobustKernel(rk);
+                                        rk->setDelta(thHuber2D);
+                                        //}
+
+                                        e->fx = _state.fx;
+                                        e->fy = _state.fy;
+                                        e->cx = _state.cx;
+                                        e->cy = _state.cy;
+
+                                        optimizer.addEdge(e);
+                                    }
+
+                                    if (nEdges == 0)
+                                    {
+                                        optimizer.removeVertex(vPoint);
+                                        vbNotIncludedMP[i] = true;
+                                    }
+                                    else
+                                    {
+                                        vbNotIncludedMP[i] = false;
+                                    }
+                                }
+
+                                // Optimize!
+                                optimizer.initializeOptimization();
+                                optimizer.optimize(numberOfIterations);
+
+                                // Recover optimized data
+
+                                for (i32 i = 0; i < _state.keyFrames.size(); i++)
+                                {
+                                    KeyFrame* keyFrame = &_state.keyFrames[i];
+
+                                    //if (pKF->isBad())
+                                    //continue;
+
+                                    g2o::VertexSE3Expmap* vSE3    = static_cast<g2o::VertexSE3Expmap*>(optimizer.vertex(i));
+                                    g2o::SE3Quat          se3quat = vSE3->estimate();
+
+                                    keyFrame->cTw = convertG2OSE3QuatToCvMat(se3quat);
+
+                                    /*if (nLoopKF == 0)
+                                    {
+                                    pKF->SetPose(Converter::toCvMat(SE3quat));
+                                    }
+                                    else
+                                    {
+                                        pKF->mTcwGBA.create(4, 4, CV_32F);
+                                        Converter::toCvMat(SE3quat).copyTo(pKF->mTcwGBA);
+                                        pKF->mnBAGlobalForKF = nLoopKF;
+                                    }*/
+                                }
+
+                                for (size_t i = 0; i < _state.mapPoints.size(); i++)
+                                {
+                                    if (vbNotIncludedMP[i]) continue;
+
+                                    MapPoint* mapPoint = &_state.mapPoints[i];
+
+                                    //if (pMP->isBad())
+                                    //continue;
+
+                                    g2o::VertexSBAPointXYZ* vPoint = static_cast<g2o::VertexSBAPointXYZ*>(optimizer.vertex(i + _state.keyFrameCount));
+                                    mapPoint->position             = convertEigenVector3DToCvMat(vPoint->estimate());
+
+                                    // TODO(jan): update normal and depth
+
+                                    /*if (nLoopKF == 0)
+                                    {
+                                        pMP->SetWorldPos(Converter::toCvMat(vPoint->estimate()));
+                                        pMP->UpdateNormalAndDepth();
+                                    }
+                                    else
+                                    {
+                                        pMP->mPosGBA.create(3, 1, CV_32F);
+                                        Converter::toCvMat(vPoint->estimate()).copyTo(pMP->mPosGBA);
+                                        pMP->mnBAGlobalForKF = nLoopKF;
+                                    }*/
+                                }
+                            }
+#endif
 
                             r32 medianDepth;
                             // WAIKeyFrame->ComputeSceneMedianDepth
@@ -786,7 +996,7 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                                     MapPoint* mapPoint = &_state.mapPoints[mapPointIndices[i]];
 
                                     // TODO(jan): check mapPoints->isBad
-                                    if (mapPoint->observations > 0)
+                                    if (mapPoint->observations.size() > 0)
                                     {
                                         trackedMapPoints++;
                                     }
@@ -851,6 +1061,8 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                                _state.gridConstraints,
                                &currentFrame);
 
+            KeyFrame* referenceKeyFrame = &_state.keyFrames[1];
+
             i32 matchCount = 0;
             {
                 std::vector<i32> rotHist[ROTATION_HISTORY_LENGTH];
@@ -860,7 +1072,7 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                 }
                 const r32 factor = 1.0f / ROTATION_HISTORY_LENGTH;
 
-                std::vector<bool32> mapPointMatched      = std::vector<bool32>(_state.keyFrames[0].mapPointIndices.size(), 0);
+                std::vector<bool32> mapPointMatched      = std::vector<bool32>(referenceKeyFrame->mapPointIndices.size(), 0);
                 std::vector<i32>    matchedMapPointIndex = std::vector<i32>(currentFrame.keyPoints.size(), -1);
 
                 for (i32 i = 0; i < currentFrame.undistortedKeyPoints.size(); i++)
@@ -868,12 +1080,12 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                     i32 bestMatchIndex = -1;
                     i32 bestDist       = INT_MAX;
                     i32 secondBestDist = INT_MAX;
-                    for (i32 j = 0; j < _state.keyFrames[0].mapPointIndices.size(); j++)
+                    for (i32 j = 0; j < referenceKeyFrame->mapPointIndices.size(); j++)
                     {
-                        if (_state.keyFrames[0].mapPointIndices[j] < 0) continue;
+                        if (referenceKeyFrame->mapPointIndices[j] < 0) continue;
                         if (mapPointMatched[j]) continue;
 
-                        i32 dist = descriptorDistance(_state.keyFrames[0].descriptors.row(j),
+                        i32 dist = descriptorDistance(referenceKeyFrame->descriptors.row(j),
                                                       currentFrame.descriptors.row(i));
 
                         if (dist < bestDist)
@@ -893,7 +1105,7 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
 
                             // compute orientation
                             {
-                                r32 rot = currentFrame.keyPoints[i].angle - _state.keyFrames[0].keyPoints[bestMatchIndex].angle;
+                                r32 rot = currentFrame.keyPoints[i].angle - referenceKeyFrame->keyPoints[bestMatchIndex].angle;
                                 if (rot < 0.0)
                                 {
                                     rot += 360.0f;
@@ -940,14 +1152,14 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
 
                     if (mapPointMatched[mapPointIndexReferenceKeyframe])
                     {
-                        currentFrame.mapPointIndices[i] = _state.keyFrames[0].mapPointIndices[mapPointIndexReferenceKeyframe];
+                        currentFrame.mapPointIndices[i] = referenceKeyFrame->mapPointIndices[mapPointIndexReferenceKeyframe];
                     }
                 }
 
                 currentFrame.mapPointIsOutlier = std::vector<bool32>(currentFrame.keyPoints.size(), false);
             }
 
-            currentFrame.cTw   = _state.keyFrames[0].cTw; // TODO(jan): need clone?
+            currentFrame.cTw   = referenceKeyFrame->cTw.clone();
             i32 goodMatchCount = 0;
 
             // pose otimization
@@ -1103,8 +1315,10 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
             }
 
             printf("Found %i good matches (out of %i)\n", goodMatchCount, matchCount);
-            printf("pose: ");
-            std::cout << currentFrame.cTw << std::endl;
+
+            _pose = currentFrame.cTw.clone();
+
+            // TODO(jan): track local map if tracking ok
         }
         break;
     }
@@ -1115,4 +1329,11 @@ std::vector<MapPoint> WAI::ModeOrbSlam2DataOriented::getMapPoints()
     std::vector<MapPoint> result = _state.mapPoints;
 
     return result;
+}
+
+bool WAI::ModeOrbSlam2DataOriented::getPose(cv::Mat* pose)
+{
+    *pose = _pose;
+
+    return true;
 }

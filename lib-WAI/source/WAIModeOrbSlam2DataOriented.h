@@ -17,10 +17,10 @@ enum OrbSlamStatus
 
 struct MapPoint
 {
-    cv::Mat position;
-    cv::Mat normalVector;
-    cv::Mat descriptor;
-    i32     observations;
+    cv::Mat                          position;
+    cv::Mat                          normalVector;
+    cv::Mat                          descriptor;
+    std::vector<std::pair<i32, i32>> observations; // each pair contains the index of the keyframe in _state.keyframes and the index of the keyframes keypoint
 };
 
 struct KeyFrame
@@ -118,17 +118,15 @@ class WAI_API ModeOrbSlam2DataOriented : public Mode
     public:
     ModeOrbSlam2DataOriented(SensorCamera* camera);
     void notifyUpdate();
-    bool getPose(cv::Mat* pose)
-    {
-        *pose = cv::Mat::eye(4, 4, CV_32F);
-        return true;
-    }
+    bool getPose(cv::Mat* pose);
+
     std::vector<MapPoint> getMapPoints();
     i32                   getMapPointCount() { return _state.mapPoints.size(); }
 
     private:
     SensorCamera* _camera;
     OrbSlamState  _state;
+    cv::Mat       _pose;
 };
 }
 
