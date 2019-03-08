@@ -15,12 +15,24 @@ enum OrbSlamStatus
     OrbSlamStatus_Tracking
 };
 
+struct MapPointTrackingInfos
+{
+    bool32 inView;
+    r32    projX;
+    r32    projY;
+    r32    scaleLevel;
+    r32    viewCos;
+};
+
 struct MapPoint
 {
-    cv::Mat                          position;
-    cv::Mat                          normalVector;
-    cv::Mat                          descriptor;
-    std::vector<std::pair<i32, i32>> observations; // each pair contains the index of the keyframe in _state.keyframes and the index of the keyframes keypoint
+    cv::Mat            position;
+    cv::Mat            normalVector;
+    cv::Mat            descriptor;
+    std::map<i32, i32> observations; // each pair contains the index of the keyframe in _state.keyframes and the index of the keyframes keypoint
+
+    r32 maxDistance;
+    r32 minDistance;
 };
 
 struct KeyFrame
@@ -35,6 +47,10 @@ struct KeyFrame
     std::vector<size_t> keyPointIndexGrid[FRAME_GRID_COLS][FRAME_GRID_ROWS];
     cv::Mat             descriptors;
     cv::Mat             cTw;
+    cv::Mat             worldOrigin;
+
+    i32              parentIndex;
+    std::vector<i32> childrenIndices; // children in covisibility graph
 };
 
 struct PyramidOctTreeCell
@@ -79,6 +95,8 @@ struct GridConstraints
 {
     r32 minX;
     r32 minY;
+    r32 maxX;
+    r32 maxY;
     r32 invGridElementWidth;
     r32 invGridElementHeight;
 };
@@ -108,6 +126,13 @@ struct OrbSlamState
     std::vector<KeyFrame> keyFrames;
     i32                   keyFrameCount;
     std::vector<MapPoint> mapPoints;
+
+    std::vector<std::vector<i32>> orderedConnectedKeyFrameIndices; // ordered connected keyframes for every keyframe in keyframes vector
+
+    i32 referenceKeyFrameId;
+
+    i32 frameCountSinceLastKeyFrame;
+    i32 frameCountSinceLastRelocalization;
 };
 
 namespace WAI
