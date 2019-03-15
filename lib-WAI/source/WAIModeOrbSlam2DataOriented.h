@@ -133,6 +133,8 @@ struct OrbSlamState
 
     i32 frameCountSinceLastKeyFrame;
     i32 frameCountSinceLastRelocalization;
+
+    r32 scaleFactor;
 };
 
 namespace WAI

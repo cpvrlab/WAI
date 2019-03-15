@@ -36,6 +36,7 @@ WAI::ModeOrbSlam2DataOriented::ModeOrbSlam2DataOriented(SensorCamera* camera)
     _state.orbOctTreePatchSize                   = orbPatchSize;
     _state.orbOctTreeHalfPatchSize               = orbHalfPatchSize;
     _state.edgeThreshold                         = 19;
+    _state.scaleFactor                           = scaleFactor;
 
     _state.fastFeatureConstraints.numberOfFeatures = numberOfFeatures;
     _state.fastFeatureConstraints.initialThreshold = 20;
@@ -152,6 +153,439 @@ static cv::Mat convertEigenVector3DToCvMat(const Eigen::Matrix<r64, 3, 1>& vec3d
     }
 
     return result;
+}
+
+static std::vector<i32> getBestCovisibilityKeyFrames(const i32                            maxNumberOfKeyFramesToGet,
+                                                     const i32                            keyFrameIndex,
+                                                     const std::vector<std::vector<i32>>& orderedConnectedKeyFrameIndices)
+{
+    std::vector<i32> result;
+
+    if (orderedConnectedKeyFrameIndices[keyFrameIndex].size() < maxNumberOfKeyFramesToGet)
+    {
+        result = orderedConnectedKeyFrameIndices[keyFrameIndex];
+    }
+    else
+    {
+        result = std::vector<i32>(orderedConnectedKeyFrameIndices[keyFrameIndex].begin(), orderedConnectedKeyFrameIndices[keyFrameIndex].begin() + 10);
+    }
+
+    return result;
+}
+
+static r32 computeSceneMedianDepthForKeyFrame(const KeyFrame*              keyFrame,
+                                              const std::vector<MapPoint>& mapPoints)
+{
+    std::vector<i32> mapPointIndices = keyFrame->mapPointIndices;
+
+    std::vector<r32> depths;
+    depths.reserve(mapPointIndices.size());
+
+    cv::Mat crw           = keyFrame->cTw.row(2).colRange(0, 3);
+    cv::Mat wrc           = crw.t();
+    r32     keyFrameDepth = keyFrame->cTw.at<r32>(2, 3);
+
+    for (i32 i = 0; i < mapPointIndices.size(); i++)
+    {
+        if (mapPointIndices[i] < 0) continue;
+
+        const MapPoint* mapPoint = &mapPoints[mapPointIndices[i]];
+        cv::Mat         position = mapPoint->position;
+        r32             depth    = wrc.dot(position) + keyFrameDepth;
+
+        depths.push_back(depth);
+    }
+
+    std::sort(depths.begin(), depths.end());
+
+    r32 result = depths[(depths.size() - 1) / 2];
+
+    return result;
+}
+
+static inline cv::Mat getKeyFrameRotation(const KeyFrame* keyFrame)
+{
+    cv::Mat result = keyFrame->cTw.rowRange(0, 3).colRange(0, 3).clone();
+
+    return result;
+}
+
+static inline cv::Mat getKeyFrameTranslation(const KeyFrame* keyFrame)
+{
+    cv::Mat result = keyFrame->cTw.rowRange(0, 3).col(3).clone();
+
+    return result;
+}
+
+cv::Mat computeF12(const KeyFrame* keyFrame1,
+                   const KeyFrame* keyFrame2,
+                   const cv::Mat&  cameraMat)
+{
+    cv::Mat wr1 = getKeyFrameRotation(keyFrame1);
+    cv::Mat wt1 = getKeyFrameTranslation(keyFrame1);
+    cv::Mat wr2 = getKeyFrameRotation(keyFrame2);
+    cv::Mat wt2 = getKeyFrameTranslation(keyFrame2);
+
+    cv::Mat R12 = wr1 * wr2.t();
+    cv::Mat t12 = -wr1 * wr2.t() * wt2 + wt1;
+
+    cv::Mat t12x = (cv::Mat_<float>(3, 3) << 0.0f, -t12.at<float>(2), t12.at<float>(1), t12.at<float>(2), 0.0f, -t12.at<float>(0), -t12.at<float>(1), t12.at<float>(0), 0.0f); //SkewSymmetricMatrix(t12);
+
+    const cv::Mat& K1 = cameraMat;
+    const cv::Mat& K2 = cameraMat;
+
+    cv::Mat result = K1.t().inv() * t12x * R12 * K2.inv();
+    return result;
+}
+
+void calculateMapPointNormalAndDepth(const cv::Mat&               position,
+                                     std::map<i32, i32>&          observations,
+                                     const std::vector<KeyFrame>& keyFrames,
+                                     const i32                    referenceKeyFrameIndex,
+                                     const std::vector<r32>       scaleFactors,
+                                     const i32                    numberOfScaleLevels,
+                                     r32*                         minDistance,
+                                     r32*                         maxDistance,
+                                     cv::Mat*                     normalVector)
+{
+    //if (mbBad) return;
+
+    if (observations.empty())
+        return;
+
+    const KeyFrame* referenceKeyFrame = &keyFrames[referenceKeyFrameIndex];
+
+    cv::Mat normal = cv::Mat::zeros(3, 1, CV_32F);
+    i32     n      = 0;
+    for (std::map<i32, i32>::iterator it = observations.begin(), itend = observations.end(); it != itend; it++)
+    {
+        i32 keyFrameIndex = it->first;
+
+        const KeyFrame* keyFrame = &keyFrames[keyFrameIndex];
+
+        cv::Mat Owi     = keyFrame->worldOrigin;
+        cv::Mat normali = position - Owi;
+        normal          = normal + normali / cv::norm(normali);
+        n++;
+    }
+
+    cv::Mat   PC               = position - referenceKeyFrame->worldOrigin;
+    const r32 dist             = cv::norm(PC);
+    const i32 level            = referenceKeyFrame->undistortedKeyPoints[observations[referenceKeyFrameIndex]].octave;
+    const r32 levelScaleFactor = scaleFactors[level];
+
+    *maxDistance  = dist * levelScaleFactor;
+    *minDistance  = *maxDistance / scaleFactors[numberOfScaleLevels - 1];
+    *normalVector = normal / n;
+}
+
+static bool32 computeBestDescriptorFromObservations(const std::map<i32, i32>&    observations,
+                                                    const std::vector<KeyFrame>& keyFrames,
+                                                    cv::Mat*                     descriptor)
+{
+    bool32 result = false;
+
+    // Retrieve all observed descriptors
+    std::vector<cv::Mat> descriptors;
+
+    if (!observations.empty())
+    {
+        descriptors.reserve(observations.size());
+
+        for (std::map<i32, i32>::const_iterator mit = observations.begin(), mend = observations.end();
+             mit != mend;
+             mit++)
+        {
+            i32 keyFrameIndex = mit->first;
+
+            const KeyFrame* keyFrame = &keyFrames[keyFrameIndex];
+
+            //if (!pKF->isBad())
+            descriptors.push_back(keyFrame->descriptors.row(mit->second));
+        }
+
+        if (!descriptors.empty())
+        {
+            // Compute distances between them
+            const i32 descriptorsCount = descriptors.size();
+
+            r32 distances[descriptorsCount][descriptorsCount];
+            for (i32 i = 0; i < descriptorsCount; i++)
+            {
+                distances[i][i] = 0;
+                for (i32 j = i + 1; j < descriptorsCount; j++)
+                {
+                    i32 distij      = descriptorDistance(descriptors[i], descriptors[j]);
+                    distances[i][j] = distij;
+                    distances[j][i] = distij;
+                }
+            }
+
+            // Take the descriptor with least median distance to the rest
+            i32 bestMedian = INT_MAX;
+            i32 bestIndex  = 0;
+            for (i32 i = 0; i < descriptorsCount; i++)
+            {
+                std::vector<i32> sortedDistances(distances[i], distances[i] + descriptorsCount);
+                std::sort(sortedDistances.begin(), sortedDistances.end());
+                i32 median = sortedDistances[0.5 * (descriptorsCount - 1)];
+
+                if (median < bestMedian)
+                {
+                    bestMedian = median;
+                    bestIndex  = i;
+                }
+            }
+
+            *descriptor = descriptors[bestIndex].clone();
+
+            result = true;
+        }
+    }
+
+    return result;
+}
+
+static void createNewMapPoints(const i32                            keyFrameIndex,
+                               const std::vector<std::vector<i32>>& orderedConnectedKeyFrameIndices,
+                               const r32                            fx,
+                               const r32                            fy,
+                               const r32                            cx,
+                               const r32                            cy,
+                               const r32                            invfx,
+                               const r32                            invfy,
+                               const i32                            numberOfScaleLevels,
+                               const r32                            scaleFactor,
+                               const cv::Mat&                       cameraMat,
+                               const std::vector<r32>&              sigmaSquared,
+                               const std::vector<r32>&              scaleFactors,
+                               KeyFrame*                            keyFrame,
+                               std::vector<MapPoint>                mapPoints,
+                               std::vector<KeyFrame>&               keyFrames)
+{
+    const std::vector<i32> neighboringKeyFrameIndices = getBestCovisibilityKeyFrames(20,
+                                                                                     keyFrameIndex,
+                                                                                     orderedConnectedKeyFrameIndices);
+
+    //ORBmatcher matcher(0.6, false);
+
+    cv::Mat crw1 = getKeyFrameRotation(keyFrame);
+    cv::Mat wrc1 = crw1.t();
+    cv::Mat ctw1 = getKeyFrameTranslation(keyFrame);
+    cv::Mat cTw1(3, 4, CV_32F);
+
+    crw1.copyTo(cTw1.colRange(0, 3));
+    ctw1.copyTo(cTw1.col(3));
+    cv::Mat origin1 = keyFrame->worldOrigin;
+
+    const r32& fx1    = fx;
+    const r32& fy1    = fy;
+    const r32& cx1    = cx;
+    const r32& cy1    = cy;
+    const r32& invfx1 = invfx;
+    const r32& invfy1 = invfy;
+
+    const r32 ratioFactor = 1.5f * scaleFactor;
+
+    i32 numberOfNewMapPoints = 0;
+
+    // Search matches with epipolar restriction and triangulate
+    for (size_t i = 0; i < neighboringKeyFrameIndices.size(); i++)
+    {
+        // TODO(jan): reactivate
+        //if (i > 0 && CheckNewKeyFrames()) return;
+
+        i32       neighboringKeyFrameIndex = neighboringKeyFrameIndices[i];
+        KeyFrame* neighboringKeyFrame      = &keyFrames[neighboringKeyFrameIndex];
+
+        // Check first that baseline is not too short
+        cv::Mat origin2   = neighboringKeyFrame->worldOrigin;
+        cv::Mat vBaseline = origin2 - origin1;
+
+        const r32 baseline = cv::norm(vBaseline);
+
+        const r32 medianDepthNeighboringKeyFrame = computeSceneMedianDepthForKeyFrame(neighboringKeyFrame, mapPoints);
+        const r32 ratioBaselineDepth             = baseline / medianDepthNeighboringKeyFrame;
+
+        if (ratioBaselineDepth < 0.01) continue;
+
+        // Compute Fundamental Matrix
+        cv::Mat F12 = computeF12(keyFrame, neighboringKeyFrame, cameraMat); //ComputeF12(mpCurrentKeyFrame, pKF2);
+
+#if 0
+// Search matches that fullfil epipolar constraint
+        std::vector<std::pair<size_t, size_t>> vMatchedIndices;
+        matcher.SearchForTriangulation(mpCurrentKeyFrame, pKF2, F12, vMatchedIndices, false);
+#endif
+
+        // TODO(jan): dont use all matches
+        std::vector<std::pair<i32, i32>> matchedIndices;
+        for (i32 keyPointIndex1 = 0;
+             keyPointIndex1 < keyFrame->undistortedKeyPoints.size();
+             keyPointIndex1++)
+        {
+            i32 bestMatchIndex = -1;
+            i32 bestDist       = INT_MAX;
+
+            for (i32 keyPointIndex2 = 0;
+                 keyPointIndex2 < neighboringKeyFrame->undistortedKeyPoints.size();
+                 keyPointIndex2++)
+            {
+                i32 dist = descriptorDistance(keyFrame->descriptors.row(keyPointIndex1),
+                                              neighboringKeyFrame->descriptors.row(keyPointIndex2));
+
+                if (dist < bestDist)
+                {
+                    bestDist       = dist;
+                    bestMatchIndex = keyPointIndex2;
+                }
+            }
+
+            if (bestMatchIndex >= 0)
+            {
+                matchedIndices.push_back(std::pair<i32, i32>(keyPointIndex1, bestMatchIndex));
+            }
+        }
+
+        cv::Mat crw2 = getKeyFrameRotation(neighboringKeyFrame);
+        cv::Mat wrc2 = crw2.t();
+        cv::Mat ctw2 = getKeyFrameTranslation(neighboringKeyFrame);
+        cv::Mat cTw2(3, 4, CV_32F);
+        crw2.copyTo(cTw2.colRange(0, 3));
+        ctw2.copyTo(cTw2.col(3));
+
+        const r32& fx2    = fx;
+        const r32& fy2    = fy;
+        const r32& cx2    = cx;
+        const r32& cy2    = cy;
+        const r32& invfx2 = invfx;
+        const r32& invfy2 = invfy;
+
+        // Triangulate each match
+        const i32 matchCount = matchedIndices.size();
+        for (i32 matchIndex = 0; matchIndex < matchCount; matchIndex++)
+        {
+            const i32& keyPointIndex1 = matchedIndices[matchIndex].first;
+            const i32& keyPointIndex2 = matchedIndices[matchIndex].second;
+
+            const cv::KeyPoint& kp1 = keyFrame->undistortedKeyPoints[keyPointIndex1];
+            const cv::KeyPoint& kp2 = neighboringKeyFrame->undistortedKeyPoints[keyPointIndex2];
+
+            // Check parallax between rays
+            cv::Mat xn1 = (cv::Mat_<r32>(3, 1) << (kp1.pt.x - cx1) * invfx1, (kp1.pt.y - cy1) * invfy1, 1.0);
+            cv::Mat xn2 = (cv::Mat_<r32>(3, 1) << (kp2.pt.x - cx2) * invfx2, (kp2.pt.y - cy2) * invfy2, 1.0);
+
+            cv::Mat   ray1            = wrc1 * xn1;
+            cv::Mat   ray2            = wrc2 * xn2;
+            const r32 cosParallaxRays = ray1.dot(ray2) / (cv::norm(ray1) * cv::norm(ray2));
+
+            r32 cosParallaxStereo = cosParallaxRays + 1;
+
+            cv::Mat x3D;
+            if (cosParallaxRays < cosParallaxStereo && cosParallaxRays > 0 && cosParallaxRays < 0.9998)
+            {
+                // Linear Triangulation Method
+                cv::Mat A(4, 4, CV_32F);
+                A.row(0) = xn1.at<r32>(0) * cTw1.row(2) - cTw1.row(0);
+                A.row(1) = xn1.at<r32>(1) * cTw1.row(2) - cTw1.row(1);
+                A.row(2) = xn2.at<r32>(0) * cTw2.row(2) - cTw2.row(0);
+                A.row(3) = xn2.at<r32>(1) * cTw2.row(2) - cTw2.row(1);
+
+                cv::Mat w, u, vt;
+                cv::SVD::compute(A, w, u, vt, cv::SVD::MODIFY_A | cv::SVD::FULL_UV);
+
+                x3D = vt.row(3).t();
+
+                if (x3D.at<r32>(3) == 0) continue;
+
+                // Euclidean coordinates
+                x3D = x3D.rowRange(0, 3) / x3D.at<r32>(3);
+            }
+            else
+            {
+                continue; //No stereo and very low parallax
+            }
+
+            cv::Mat x3Dt = x3D.t();
+
+            //Check triangulation in front of cameras
+            r32 z1 = crw1.row(2).dot(x3Dt) + ctw1.at<r32>(2);
+            if (z1 <= 0) continue;
+
+            r32 z2 = crw2.row(2).dot(x3Dt) + ctw2.at<r32>(2);
+            if (z2 <= 0) continue;
+
+            //Check reprojection error in first keyframe
+            const r32& sigmaSquare1 = sigmaSquared[kp1.octave];
+            const r32  x1           = crw1.row(0).dot(x3Dt) + ctw1.at<r32>(0);
+            const r32  y1           = crw1.row(1).dot(x3Dt) + ctw1.at<r32>(1);
+            const r32  invz1        = 1.0 / z1;
+
+            r32 u1    = fx1 * x1 * invz1 + cx1;
+            r32 v1    = fy1 * y1 * invz1 + cy1;
+            r32 errX1 = u1 - kp1.pt.x;
+            r32 errY1 = v1 - kp1.pt.y;
+
+            if ((errX1 * errX1 + errY1 * errY1) > 5.991 * sigmaSquare1) continue;
+
+            //Check reprojection error in second keyframe
+            const r32 sigmaSquare2 = sigmaSquared[kp2.octave];
+            const r32 x2           = crw2.row(0).dot(x3Dt) + ctw2.at<r32>(0);
+            const r32 y2           = crw2.row(1).dot(x3Dt) + ctw2.at<r32>(1);
+            const r32 invz2        = 1.0 / z2;
+
+            r32 u2    = fx2 * x2 * invz2 + cx2;
+            r32 v2    = fy2 * y2 * invz2 + cy2;
+            r32 errX2 = u2 - kp2.pt.x;
+            r32 errY2 = v2 - kp2.pt.y;
+
+            if ((errX2 * errX2 + errY2 * errY2) > 5.991 * sigmaSquare2) continue;
+
+            //Check scale consistency
+            cv::Mat normal1 = x3D - origin1;
+            r32     dist1   = cv::norm(normal1);
+
+            cv::Mat normal2 = x3D - origin2;
+            r32     dist2   = cv::norm(normal2);
+
+            if (dist1 == 0 || dist2 == 0) continue;
+
+            const r32 ratioDist   = dist2 / dist1;
+            const r32 ratioOctave = scaleFactors[kp1.octave] / scaleFactors[kp2.octave];
+
+            if (ratioDist * ratioFactor < ratioOctave || ratioDist > ratioOctave * ratioFactor) continue;
+
+            // TODO(jan): improve map point indexing
+            // Triangulation is succesful
+            MapPoint mapPoint = {};
+            mapPoint.position = x3D;
+
+            i32 mapPointIndex = mapPoints.size() - 1;
+
+            keyFrame->mapPointIndices[keyPointIndex1]            = mapPointIndex;
+            neighboringKeyFrame->mapPointIndices[keyPointIndex2] = mapPointIndex;
+
+            mapPoint.observations[keyFrameIndex]            = keyPointIndex1;
+            mapPoint.observations[neighboringKeyFrameIndex] = keyPointIndex2;
+
+            computeBestDescriptorFromObservations(mapPoint.observations,
+                                                  keyFrames,
+                                                  &mapPoint.descriptor);
+            calculateMapPointNormalAndDepth(mapPoint.position,
+                                            mapPoint.observations,
+                                            keyFrames,
+                                            keyFrameIndex,
+                                            scaleFactors,
+                                            numberOfScaleLevels,
+                                            &mapPoint.minDistance,
+                                            &mapPoint.maxDistance,
+                                            &mapPoint.normalVector);
+
+            mapPoints.push_back(mapPoint);
+
+            numberOfNewMapPoints++;
+        }
+    }
 }
 
 static void initializeKeyFrame(const ImagePyramidStats&      imagePyramidStats,
@@ -492,10 +926,9 @@ bool32 needNewKeyFrame(const i32                    frameCountSinceLastKeyFrame,
                        const i32                    mapPointMatchCount,
                        const KeyFrame&              referenceKeyFrame,
                        const std::vector<MapPoint>& mapPoints,
+                       const i32                    keyFrameCount,
                        std::vector<KeyFrame>*       keyFrames)
 {
-    const i32 keyFrameCount = keyFrames->size();
-
     // Do not insert keyframes if not enough frames have passed from last relocalisation
     if (frameCountSinceLastRelocalization < maxFramesBetweenKeyFrames &&
         keyFrameCount > maxFramesBetweenKeyFrames)
@@ -561,47 +994,6 @@ bool32 needNewKeyFrame(const i32                    frameCountSinceLastKeyFrame,
         printf("NeedNewKeyFrame: NO!\n");
         return false;
     }
-}
-
-void calculateMapPointNormalAndDepth(const cv::Mat&               position,
-                                     std::map<i32, i32>&          observations,
-                                     const std::vector<KeyFrame>& keyFrames,
-                                     const i32                    referenceKeyFrameIndex,
-                                     const std::vector<r32>       scaleFactors,
-                                     const i32                    numberOfScaleLevels,
-                                     r32*                         minDistance,
-                                     r32*                         maxDistance,
-                                     cv::Mat*                     normalVector)
-{
-    //if (mbBad) return;
-
-    if (observations.empty())
-        return;
-
-    const KeyFrame* referenceKeyFrame = &keyFrames[referenceKeyFrameIndex];
-
-    cv::Mat normal = cv::Mat::zeros(3, 1, CV_32F);
-    i32     n      = 0;
-    for (std::map<i32, i32>::iterator it = observations.begin(), itend = observations.end(); it != itend; it++)
-    {
-        i32 keyFrameIndex = it->first;
-
-        const KeyFrame* keyFrame = &keyFrames[keyFrameIndex];
-
-        cv::Mat Owi     = keyFrame->worldOrigin;
-        cv::Mat normali = position - Owi;
-        normal          = normal + normali / cv::norm(normali);
-        n++;
-    }
-
-    cv::Mat   PC               = position - referenceKeyFrame->worldOrigin;
-    const r32 dist             = cv::norm(PC);
-    const i32 level            = referenceKeyFrame->undistortedKeyPoints[observations[referenceKeyFrameIndex]].octave;
-    const r32 levelScaleFactor = scaleFactors[level];
-
-    *maxDistance  = dist * levelScaleFactor;
-    *minDistance  = *maxDistance / scaleFactors[numberOfScaleLevels - 1];
-    *normalVector = normal / n;
 }
 
 i32 predictMapPointScale(const r32& currentDist,
@@ -1302,6 +1694,9 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                                 mapPoint.observations[0] = i;
                                 mapPoint.observations[1] = initializationMatches[i];
 
+                                computeBestDescriptorFromObservations(mapPoint.observations,
+                                                                      _state.keyFrames,
+                                                                      &mapPoint.descriptor);
                                 calculateMapPointNormalAndDepth(mapPoint.position,
                                                                 mapPoint.observations,
                                                                 _state.keyFrames,
@@ -1485,30 +1880,8 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                                 }
                             }
 
-                            r32 medianDepth;
-                            // WAIKeyFrame->ComputeSceneMedianDepth
-                            {
-                                std::vector<i32> mapPointIndices = _state.keyFrames[0].mapPointIndices;
-
-                                std::vector<r32> depths;
-                                depths.reserve(mapPointIndices.size());
-                                cv::Mat Rcw2 = _state.keyFrames[0].cTw.row(2).colRange(0, 3);
-                                Rcw2         = Rcw2.t();
-                                r32 zcw      = _state.keyFrames[0].cTw.at<r32>(2, 3);
-                                for (i32 i = 0; i < mapPointIndices.size(); i++)
-                                {
-                                    if (mapPointIndices[i] < 0) continue;
-
-                                    MapPoint* mapPoint = &_state.mapPoints[mapPointIndices[i]];
-                                    cv::Mat   x3Dw     = mapPoint->position;
-                                    r32       z        = Rcw2.dot(x3Dw) + zcw;
-                                    depths.push_back(z);
-                                }
-
-                                std::sort(depths.begin(), depths.end());
-
-                                medianDepth = depths[(depths.size() - 1) / 2];
-                            }
+                            r32 medianDepth = computeSceneMedianDepthForKeyFrame(&_state.keyFrames[0],
+                                                                                 _state.mapPoints);
 
                             // TODO(jan): is the check for tracked map points necessary,
                             // as we have the same check already higher up?
@@ -1763,17 +2136,9 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                         i32       keyFrameIndex = *itKF;
                         KeyFrame* keyFrame      = &_state.keyFrames[keyFrameIndex];
 
-                        std::vector<i32> neighborIndices;
-                        { // GetBestCovisibilityKeyFrames
-                            if (_state.orderedConnectedKeyFrameIndices[keyFrameIndex].size() < 10)
-                            {
-                                neighborIndices = _state.orderedConnectedKeyFrameIndices[keyFrameIndex];
-                            }
-                            else
-                            {
-                                neighborIndices = std::vector<i32>(_state.orderedConnectedKeyFrameIndices[keyFrameIndex].begin(), _state.orderedConnectedKeyFrameIndices[keyFrameIndex].begin() + 10);
-                            }
-                        }
+                        std::vector<i32> neighborIndices = getBestCovisibilityKeyFrames(10,
+                                                                                        keyFrameIndex,
+                                                                                        _state.orderedConnectedKeyFrameIndices);
 
                         for (std::vector<i32>::const_iterator itNeighKF = neighborIndices.begin(), itEndNeighKF = neighborIndices.end(); itNeighKF != itEndNeighKF; itNeighKF++)
                         {
@@ -1997,12 +2362,47 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                                                     inlierMatches,
                                                     _state.keyFrames[_state.referenceKeyFrameId],
                                                     _state.mapPoints,
+                                                    _state.keyFrameCount,
                                                     &_state.keyFrames);
 
             if (addNewKeyFrame)
             {
-                _state.keyFrames[_state.keyFrameCount] = currentFrame;
-                _state.referenceKeyFrameId             = _state.keyFrameCount;
+                i32 keyFrameIndex = _state.keyFrameCount;
+
+                _state.keyFrames[keyFrameIndex] = currentFrame;
+                _state.referenceKeyFrameId      = keyFrameIndex;
+
+                for (i32 i = 0; i < currentFrame.mapPointIndices.size(); i++)
+                {
+                    i32 mapPointIndex = currentFrame.mapPointIndices[i];
+
+                    if (mapPointIndex >= 0)
+                    {
+                        MapPoint* mapPoint                    = &_state.mapPoints[mapPointIndex];
+                        mapPoint->observations[keyFrameIndex] = i;
+
+                        computeBestDescriptorFromObservations(mapPoint->observations,
+                                                              _state.keyFrames,
+                                                              &mapPoint->descriptor);
+                    }
+                }
+
+                createNewMapPoints(keyFrameIndex,
+                                   _state.orderedConnectedKeyFrameIndices,
+                                   _state.fx,
+                                   _state.fy,
+                                   _state.cx,
+                                   _state.cy,
+                                   _state.invfx,
+                                   _state.invfy,
+                                   _state.imagePyramidStats.numberOfScaleLevels,
+                                   _state.scaleFactor,
+                                   cameraMat,
+                                   _state.imagePyramidStats.sigmaSquared,
+                                   _state.imagePyramidStats.scaleFactors,
+                                   &currentFrame,
+                                   _state.mapPoints,
+                                   _state.keyFrames);
 
                 _state.keyFrameCount++;
 
