@@ -155,19 +155,18 @@ static cv::Mat convertEigenVector3DToCvMat(const Eigen::Matrix<r64, 3, 1>& vec3d
     return result;
 }
 
-static std::vector<i32> getBestCovisibilityKeyFrames(const i32                            maxNumberOfKeyFramesToGet,
-                                                     const i32                            keyFrameIndex,
-                                                     const std::vector<std::vector<i32>>& orderedConnectedKeyFrameIndices)
+static std::vector<i32> getBestCovisibilityKeyFrames(const i32               maxNumberOfKeyFramesToGet,
+                                                     const std::vector<i32>& orderedConnectedKeyFrameIndices)
 {
     std::vector<i32> result;
 
-    if (orderedConnectedKeyFrameIndices[keyFrameIndex].size() < maxNumberOfKeyFramesToGet)
+    if (orderedConnectedKeyFrameIndices.size() < maxNumberOfKeyFramesToGet)
     {
-        result = orderedConnectedKeyFrameIndices[keyFrameIndex];
+        result = orderedConnectedKeyFrameIndices;
     }
     else
     {
-        result = std::vector<i32>(orderedConnectedKeyFrameIndices[keyFrameIndex].begin(), orderedConnectedKeyFrameIndices[keyFrameIndex].begin() + 10);
+        result = std::vector<i32>(orderedConnectedKeyFrameIndices.begin(), orderedConnectedKeyFrameIndices.begin() + maxNumberOfKeyFramesToGet);
     }
 
     return result;
@@ -346,25 +345,178 @@ static bool32 computeBestDescriptorFromObservations(const std::map<i32, i32>&   
     return result;
 }
 
-static void createNewMapPoints(const i32                            keyFrameIndex,
-                               const std::vector<std::vector<i32>>& orderedConnectedKeyFrameIndices,
-                               const r32                            fx,
-                               const r32                            fy,
-                               const r32                            cx,
-                               const r32                            cy,
-                               const r32                            invfx,
-                               const r32                            invfy,
-                               const i32                            numberOfScaleLevels,
-                               const r32                            scaleFactor,
-                               const cv::Mat&                       cameraMat,
-                               const std::vector<r32>&              sigmaSquared,
-                               const std::vector<r32>&              scaleFactors,
-                               KeyFrame*                            keyFrame,
-                               std::vector<MapPoint>                mapPoints,
-                               std::vector<KeyFrame>&               keyFrames)
+static void updateKeyFrameOrderedCovisibilityVectors(std::map<i32, i32>& connectedKeyFrameWeights,
+                                                     std::vector<i32>&   orderedConnectedKeyFrames,
+                                                     std::vector<i32>&   orderedWeights)
+{
+    std::vector<std::pair<i32, i32>> vPairs;
+
+    vPairs.reserve(connectedKeyFrameWeights.size());
+    for (std::map<i32, i32>::iterator mit = connectedKeyFrameWeights.begin(), mend = connectedKeyFrameWeights.end(); mit != mend; mit++)
+    {
+        vPairs.push_back(std::make_pair(mit->second, mit->first));
+    }
+
+    std::sort(vPairs.begin(), vPairs.end());
+
+    std::list<i32> keyFrameIndices;
+    std::list<i32> weights;
+    for (size_t i = 0, iend = vPairs.size(); i < iend; i++)
+    {
+        keyFrameIndices.push_front(vPairs[i].second);
+        weights.push_front(vPairs[i].first);
+    }
+
+    orderedConnectedKeyFrames = std::vector<i32>(keyFrameIndices.begin(), keyFrameIndices.end());
+    orderedWeights            = std::vector<i32>(weights.begin(), weights.end());
+}
+
+static void addKeyFrameCovisibilityConnection(const i32           keyFrameIndex,
+                                              const i32           weight,
+                                              std::map<i32, i32>& connectedKeyFrameWeights,
+                                              std::vector<i32>&   orderedConnectedKeyFrames,
+                                              std::vector<i32>&   orderedWeights)
+{
+    if (!connectedKeyFrameWeights.count(keyFrameIndex))
+    {
+        connectedKeyFrameWeights[keyFrameIndex] = weight;
+    }
+    else if (connectedKeyFrameWeights[keyFrameIndex] != weight)
+    {
+        connectedKeyFrameWeights[keyFrameIndex] = weight;
+    }
+    else
+    {
+        return;
+    }
+
+    updateKeyFrameOrderedCovisibilityVectors(connectedKeyFrameWeights, orderedConnectedKeyFrames, orderedWeights);
+}
+
+static void updateKeyFrameConnections(const std::vector<MapPoint>& mapPoints,
+                                      const std::vector<i32>       mapPointIndices,
+                                      const i32                    keyFrameIndex,
+                                      std::vector<KeyFrame>&       keyFrames,
+                                      std::map<i32, i32>&          connectedKeyFrameWeights,
+                                      std::vector<i32>&            orderedConnectedKeyFrames,
+                                      std::vector<i32>&            orderedWeights)
+{
+    std::map<i32, i32> keyFrameCounter; // first is the index of the keyframe in keyframes, second is the number of common mapPoints
+
+    //For all map points in keyframe check in which other keyframes are they seen
+    //Increase counter for those keyframes
+    for (std::vector<i32>::const_iterator vit = mapPointIndices.begin(), vend = mapPointIndices.end(); vit != vend; vit++)
+    {
+        i32 mapPointIndex = *vit;
+
+        if (mapPointIndex < 0) continue;
+
+        const MapPoint* mapPoint = &mapPoints[mapPointIndex];
+
+        // TODO(jan): bad check
+        //if (pMP->isBad()) continue;
+
+        std::map<i32, i32> observations = mapPoint->observations;
+
+        for (std::map<i32, i32>::iterator mit = observations.begin(), mend = observations.end(); mit != mend; mit++)
+        {
+            if (mit->first == keyFrameIndex) continue;
+
+            keyFrameCounter[mit->first]++;
+        }
+    }
+
+    // This should not happen
+    if (keyFrameCounter.empty()) return;
+
+    //If the counter is greater than threshold add connection
+    //In case no keyframe counter is over threshold add the one with maximum counter
+    i32 maxCommonMapPointCount = 0;
+    i32 maxKeyFrameIndex       = -1;
+    i32 threshold              = 15;
+
+    std::vector<std::pair<i32, i32>> vPairs;
+    vPairs.reserve(keyFrameCounter.size());
+    for (std::map<i32, i32>::iterator mit = keyFrameCounter.begin(), mend = keyFrameCounter.end(); mit != mend; mit++)
+    {
+        i32 connectedKeyFrameIndex = mit->first;
+        i32 weight                 = mit->second;
+
+        if (weight > maxCommonMapPointCount)
+        {
+            maxCommonMapPointCount = weight;
+            maxKeyFrameIndex       = mit->first;
+        }
+        if (weight >= threshold)
+        {
+            vPairs.push_back(std::make_pair(weight, connectedKeyFrameIndex));
+
+            KeyFrame* connectedKeyFrame = &keyFrames[connectedKeyFrameIndex];
+
+            addKeyFrameCovisibilityConnection(keyFrameIndex,
+                                              weight,
+                                              connectedKeyFrame->connectedKeyFrameWeights,
+                                              connectedKeyFrame->orderedConnectedKeyFrames,
+                                              connectedKeyFrame->orderedWeights);
+        }
+    }
+
+    if (vPairs.empty())
+    {
+        vPairs.push_back(std::make_pair(maxCommonMapPointCount, maxKeyFrameIndex));
+
+        KeyFrame* connectedKeyFrame = &keyFrames[maxCommonMapPointCount];
+
+        addKeyFrameCovisibilityConnection(keyFrameIndex,
+                                          maxCommonMapPointCount,
+                                          connectedKeyFrame->connectedKeyFrameWeights,
+                                          connectedKeyFrame->orderedConnectedKeyFrames,
+                                          connectedKeyFrame->orderedWeights);
+    }
+
+    sort(vPairs.begin(), vPairs.end());
+
+    std::list<i32> keyFrameIndices;
+    std::list<i32> weights;
+    for (size_t i = 0, iend = vPairs.size(); i < iend; i++)
+    {
+        keyFrameIndices.push_front(vPairs[i].second);
+        weights.push_front(vPairs[i].first);
+    }
+
+    connectedKeyFrameWeights  = keyFrameCounter;
+    orderedConnectedKeyFrames = std::vector<i32>(keyFrameIndices.begin(), keyFrameIndices.end());
+    orderedWeights            = std::vector<i32>(weights.begin(), weights.end());
+
+    // TODO(jan): add child and parent connections
+#if 0
+    if (mbFirstConnection && mnId != 0)
+    {
+        mpParent = mvpOrderedConnectedKeyFrames.front();
+        mpParent->AddChild(this);
+        mbFirstConnection = false;
+    }
+#endif
+}
+
+static i32 createNewMapPoints(const i32               keyFrameIndex,
+                              const std::vector<i32>& orderedConnectedKeyFrameIndices,
+                              const r32               fx,
+                              const r32               fy,
+                              const r32               cx,
+                              const r32               cy,
+                              const r32               invfx,
+                              const r32               invfy,
+                              const i32               numberOfScaleLevels,
+                              const r32               scaleFactor,
+                              const cv::Mat&          cameraMat,
+                              const std::vector<r32>& sigmaSquared,
+                              const std::vector<r32>& scaleFactors,
+                              KeyFrame*               keyFrame,
+                              std::vector<MapPoint>&  mapPoints,
+                              std::vector<KeyFrame>&  keyFrames)
 {
     const std::vector<i32> neighboringKeyFrameIndices = getBestCovisibilityKeyFrames(20,
-                                                                                     keyFrameIndex,
                                                                                      orderedConnectedKeyFrameIndices);
 
     //ORBmatcher matcher(0.6, false);
@@ -586,6 +738,8 @@ static void createNewMapPoints(const i32                            keyFrameInde
             numberOfNewMapPoints++;
         }
     }
+
+    return numberOfNewMapPoints;
 }
 
 static void initializeKeyFrame(const ImagePyramidStats&      imagePyramidStats,
@@ -1569,7 +1723,6 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                     }
 
                     _state.keyFrames.resize(100); // TODO(jan): totally arbitrary number
-                    _state.orderedConnectedKeyFrameIndices.resize(100);
                     _state.keyFrames[0] = referenceKeyFrame;
                     _state.keyFrameCount++;
                 }
@@ -1975,7 +2128,7 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                 }
                 const r32 factor = 1.0f / ROTATION_HISTORY_LENGTH;
 
-                std::vector<bool32> mapPointMatched      = std::vector<bool32>(referenceKeyFrame->mapPointIndices.size(), 0);
+                std::vector<bool32> mapPointMatched      = std::vector<bool32>(referenceKeyFrame->mapPointIndices.size(), false);
                 std::vector<i32>    matchedMapPointIndex = std::vector<i32>(currentFrame.keyPoints.size(), -1);
 
                 for (i32 i = 0; i < currentFrame.undistortedKeyPoints.size(); i++)
@@ -2137,8 +2290,7 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                         KeyFrame* keyFrame      = &_state.keyFrames[keyFrameIndex];
 
                         std::vector<i32> neighborIndices = getBestCovisibilityKeyFrames(10,
-                                                                                        keyFrameIndex,
-                                                                                        _state.orderedConnectedKeyFrameIndices);
+                                                                                        currentFrame.orderedConnectedKeyFrames);
 
                         for (std::vector<i32>::const_iterator itNeighKF = neighborIndices.begin(), itEndNeighKF = neighborIndices.end(); itNeighKF != itEndNeighKF; itNeighKF++)
                         {
@@ -2206,13 +2358,10 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                         for (std::vector<i32>::const_iterator itMP = mapPointIndices.begin(), itEndMP = mapPointIndices.end(); itMP != itEndMP; itMP++)
                         {
                             i32 mapPointIndex = *itMP;
-                            if (mapPointIndex < 0)
-                                continue;
+                            if (mapPointIndex < 0) continue;
+                            if (mapPointAlreadyLocal[mapPointIndex]) continue;
 
                             MapPoint* mapPoint = &_state.mapPoints[mapPointIndex];
-
-                            if (mapPointAlreadyLocal[mapPointIndex])
-                                continue;
 
                             //if (!pMP->isBad())
                             {
@@ -2381,33 +2530,44 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                         MapPoint* mapPoint                    = &_state.mapPoints[mapPointIndex];
                         mapPoint->observations[keyFrameIndex] = i;
 
+                        calculateMapPointNormalAndDepth(mapPoint->position,
+                                                        mapPoint->observations,
+                                                        _state.keyFrames,
+                                                        keyFrameIndex,
+                                                        _state.imagePyramidStats.scaleFactors,
+                                                        _state.imagePyramidStats.numberOfScaleLevels,
+                                                        &mapPoint->minDistance,
+                                                        &mapPoint->maxDistance,
+                                                        &mapPoint->normalVector);
                         computeBestDescriptorFromObservations(mapPoint->observations,
                                                               _state.keyFrames,
                                                               &mapPoint->descriptor);
                     }
                 }
 
-                createNewMapPoints(keyFrameIndex,
-                                   _state.orderedConnectedKeyFrameIndices,
-                                   _state.fx,
-                                   _state.fy,
-                                   _state.cx,
-                                   _state.cy,
-                                   _state.invfx,
-                                   _state.invfy,
-                                   _state.imagePyramidStats.numberOfScaleLevels,
-                                   _state.scaleFactor,
-                                   cameraMat,
-                                   _state.imagePyramidStats.sigmaSquared,
-                                   _state.imagePyramidStats.scaleFactors,
-                                   &currentFrame,
-                                   _state.mapPoints,
-                                   _state.keyFrames);
+                i32 newMapPointCount = createNewMapPoints(keyFrameIndex,
+                                                          currentFrame.orderedConnectedKeyFrames,
+                                                          _state.fx,
+                                                          _state.fy,
+                                                          _state.cx,
+                                                          _state.cy,
+                                                          _state.invfx,
+                                                          _state.invfy,
+                                                          _state.imagePyramidStats.numberOfScaleLevels,
+                                                          _state.scaleFactor,
+                                                          cameraMat,
+                                                          _state.imagePyramidStats.sigmaSquared,
+                                                          _state.imagePyramidStats.scaleFactors,
+                                                          &currentFrame,
+                                                          _state.mapPoints,
+                                                          _state.keyFrames);
 
                 _state.keyFrameCount++;
 
                 _state.frameCountSinceLastKeyFrame       = 0;
                 _state.frameCountSinceLastRelocalization = 0;
+
+                printf("Created %i new mapPoints\n", newMapPointCount);
             }
             else
             {

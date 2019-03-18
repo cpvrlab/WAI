@@ -51,6 +51,10 @@ struct KeyFrame
 
     i32              parentIndex;
     std::vector<i32> childrenIndices; // children in covisibility graph
+
+    std::vector<i32>   orderedConnectedKeyFrames;
+    std::vector<i32>   orderedWeights;
+    std::map<i32, i32> connectedKeyFrameWeights;
 };
 
 struct PyramidOctTreeCell
@@ -126,8 +130,6 @@ struct OrbSlamState
     std::vector<KeyFrame> keyFrames;
     i32                   keyFrameCount;
     std::vector<MapPoint> mapPoints;
-
-    std::vector<std::vector<i32>> orderedConnectedKeyFrameIndices; // ordered connected keyframes for every keyframe in keyframes vector
 
     i32 referenceKeyFrameId;
 
