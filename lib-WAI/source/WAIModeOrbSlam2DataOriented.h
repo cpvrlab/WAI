@@ -47,6 +47,7 @@ struct KeyFrame
     std::vector<size_t> keyPointIndexGrid[FRAME_GRID_COLS][FRAME_GRID_ROWS];
     cv::Mat             descriptors;
     cv::Mat             cTw;
+    cv::Mat             wTc;
     cv::Mat             worldOrigin;
 
     i32              parentIndex;

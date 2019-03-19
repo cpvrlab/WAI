@@ -155,6 +155,28 @@ static cv::Mat convertEigenVector3DToCvMat(const Eigen::Matrix<r64, 3, 1>& vec3d
     return result;
 }
 
+static void setKeyFramePose(const cv::Mat& cTw,
+                            cv::Mat&       cTwKF,
+                            cv::Mat&       wTcKF,
+                            cv::Mat&       owKF)
+{
+    cTw.copyTo(cTwKF);
+
+    cv::Mat crw = cTw.rowRange(0, 3).colRange(0, 3);
+    cv::Mat ctw = cTw.rowRange(0, 3).col(3);
+    cv::Mat wrc = crw.t();
+
+    owKF = -wrc * ctw;
+
+    wTcKF = cv::Mat::eye(4, 4, cTw.type());
+    wrc.copyTo(wTcKF.rowRange(0, 3).colRange(0, 3));
+    owKF.copyTo(wTcKF.rowRange(0, 3).col(3));
+
+    // TODO(jan): calculate world center, if needed
+    //cv::Mat center = (cv::Mat_<r32>(4, 1) << mHalfBaseline, 0, 0, 1);
+    //Cw             = Twc * center;
+}
+
 static std::vector<i32> getBestCovisibilityKeyFrames(const i32               maxNumberOfKeyFramesToGet,
                                                      const std::vector<i32>& orderedConnectedKeyFrameIndices)
 {
@@ -1526,8 +1548,11 @@ static i32 optimizePose(const std::vector<MapPoint>& mapPoints,
             }
         }
 
-        frame->cTw = pose;
-        result     = initialCorrespondenceCount - badMapPointCount;
+        setKeyFramePose(pose,
+                        frame->cTw,
+                        frame->wTc,
+                        frame->worldOrigin);
+        result = initialCorrespondenceCount - badMapPointCount;
     }
 
     return result;
@@ -1820,14 +1845,19 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                             i32 mapPointIndex = 0;
                             _state.mapPoints.clear();
 
-                            _state.keyFrames[0].cTw = cv::Mat::eye(4, 4, CV_32F);
-                            currentKeyFrame.cTw     = cv::Mat::eye(4, 4, CV_32F);
-                            crw.copyTo(currentKeyFrame.cTw.rowRange(0, 3).colRange(0, 3));
-                            ctw.copyTo(currentKeyFrame.cTw.rowRange(0, 3).col(3));
+                            setKeyFramePose(cv::Mat::eye(4, 4, CV_32F),
+                                            _state.keyFrames[0].cTw,
+                                            _state.keyFrames[0].wTc,
+                                            _state.keyFrames[0].worldOrigin);
 
-                            cv::Mat wrc                     = crw.t();
-                            currentKeyFrame.worldOrigin     = -wrc * ctw;
-                            _state.keyFrames[0].worldOrigin = -_state.keyFrames[0].cTw.rowRange(0, 3).colRange(0, 3).t() * _state.keyFrames[0].cTw.rowRange(0, 3).col(3);
+                            cv::Mat cTw = cv::Mat::eye(4, 4, CV_32F);
+                            crw.copyTo(cTw.rowRange(0, 3).colRange(0, 3));
+                            ctw.copyTo(cTw.rowRange(0, 3).col(3));
+
+                            setKeyFramePose(cTw,
+                                            currentKeyFrame.cTw,
+                                            currentKeyFrame.wTc,
+                                            currentKeyFrame.worldOrigin);
 
                             _state.keyFrameCount++;
                             _state.keyFrames[1] = currentKeyFrame;
@@ -1867,6 +1897,21 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
 
                                 _state.mapPoints.push_back(mapPoint);
                             }
+
+                            updateKeyFrameConnections(_state.mapPoints,
+                                                      _state.keyFrames[0].mapPointIndices,
+                                                      0,
+                                                      _state.keyFrames,
+                                                      _state.keyFrames[0].connectedKeyFrameWeights,
+                                                      _state.keyFrames[0].orderedConnectedKeyFrames,
+                                                      _state.keyFrames[0].orderedWeights);
+                            updateKeyFrameConnections(_state.mapPoints,
+                                                      _state.keyFrames[1].mapPointIndices,
+                                                      1,
+                                                      _state.keyFrames,
+                                                      _state.keyFrames[1].connectedKeyFrameWeights,
+                                                      _state.keyFrames[1].orderedConnectedKeyFrames,
+                                                      _state.keyFrames[1].orderedWeights);
 
                             printf("New Map created with %i points\n", _state.mapPoints.size());
 
@@ -1981,7 +2026,7 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
 
                                 // Recover optimized data
 
-                                for (i32 i = 0; i < _state.keyFrames.size(); i++)
+                                for (i32 i = 0; i < _state.keyFrameCount; i++)
                                 {
                                     KeyFrame* keyFrame = &_state.keyFrames[i];
 
@@ -2545,6 +2590,13 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                     }
                 }
 
+                updateKeyFrameConnections(_state.mapPoints,
+                                          currentFrame.mapPointIndices,
+                                          keyFrameIndex,
+                                          _state.keyFrames,
+                                          currentFrame.connectedKeyFrameWeights,
+                                          currentFrame.orderedConnectedKeyFrames,
+                                          currentFrame.orderedWeights);
                 i32 newMapPointCount = createNewMapPoints(keyFrameIndex,
                                                           currentFrame.orderedConnectedKeyFrames,
                                                           _state.fx,
