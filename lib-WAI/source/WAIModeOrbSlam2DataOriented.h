@@ -31,8 +31,14 @@ struct MapPoint
     cv::Mat            descriptor;
     std::map<i32, i32> observations; // each pair contains the index of the keyframe in _state.keyframes and the index of the keyframes keypoint
 
+    bool32 bad;
+
     r32 maxDistance;
     r32 minDistance;
+
+    i32 firstObservationKeyFrameIndex;
+    i32 foundInKeyFrameCounter;
+    i32 visibleInKeyFrameCounter;
 };
 
 struct KeyFrame
