@@ -62,6 +62,8 @@ struct KeyFrame
     std::vector<i32>   orderedConnectedKeyFrames;
     std::vector<i32>   orderedWeights;
     std::map<i32, i32> connectedKeyFrameWeights;
+
+    i32 referenceKeyFrameIndex;
 };
 
 struct PyramidOctTreeCell
@@ -115,6 +117,7 @@ struct GridConstraints
 struct OrbSlamState
 {
     OrbSlamStatus status;
+    bool32        trackingWasOk;
 
     // pyramid + orb stuff
     i32                    edgeThreshold;
@@ -144,6 +147,8 @@ struct OrbSlamState
     i32 frameCountSinceLastRelocalization;
 
     r32 scaleFactor;
+
+    i32 frameCounter;
 };
 
 namespace WAI
