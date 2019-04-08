@@ -5,6 +5,13 @@
 #include <WAIOrbPattern.h>
 #include <WAISensorCamera.h>
 
+#include <DBoW2/BowVector.h>
+#include <DBoW2/FeatureVector.h>
+#include <DBoW2/FORB.h>
+#include <DBoW2/TemplatedVocabulary.h>
+
+typedef DBoW2::TemplatedVocabulary<DBoW2::FORB::TDescriptor, DBoW2::FORB> ORBVocabulary;
+
 #define FRAME_GRID_ROWS 36 //48
 #define FRAME_GRID_COLS 64
 
@@ -64,6 +71,9 @@ struct KeyFrame
     std::map<i32, i32> connectedKeyFrameWeights;
 
     i32 referenceKeyFrameIndex;
+
+    DBoW2::BowVector     bowVector;
+    DBoW2::FeatureVector featureVector;
 };
 
 struct PyramidOctTreeCell
@@ -119,6 +129,10 @@ struct OrbSlamState
     OrbSlamStatus status;
     bool32        trackingWasOk;
 
+    // local map
+    std::vector<i32> localKeyFrameIndices;
+    std::vector<i32> localMapPointIndices;
+
     // pyramid + orb stuff
     i32                    edgeThreshold;
     i32                    orbOctTreePatchSize;
@@ -149,6 +163,8 @@ struct OrbSlamState
     r32 scaleFactor;
 
     i32 frameCounter;
+
+    ORBVocabulary* orbVocabulary;
 };
 
 namespace WAI
@@ -157,7 +173,7 @@ namespace WAI
 class WAI_API ModeOrbSlam2DataOriented : public Mode
 {
     public:
-    ModeOrbSlam2DataOriented(SensorCamera* camera);
+    ModeOrbSlam2DataOriented(SensorCamera* camera, std::string vocabularyPath);
     void notifyUpdate();
     bool getPose(cv::Mat* pose);
 

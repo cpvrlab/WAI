@@ -47,7 +47,7 @@ WAI::Mode* WAI::WAI::setMode(ModeType modeType)
             }
             else
             {
-                _mode = new ModeOrbSlam2DataOriented((SensorCamera*)_sensors[SensorType_Camera]);
+                _mode = new ModeOrbSlam2DataOriented((SensorCamera*)_sensors[SensorType_Camera], _dataRoot + "/calibrations/ORBvoc.bin");
             }
         }
         break;
