@@ -31,30 +31,40 @@ struct MapPointTrackingInfos
     r32    viewCos;
 };
 
+struct KeyFrame;
+
 struct MapPoint
 {
-    cv::Mat            position;
-    cv::Mat            normalVector;
-    cv::Mat            descriptor;
-    std::map<i32, i32> observations; // each pair contains the index of the keyframe in _state.keyframes and the index of the keyframes keypoint
+    i32 index;
+
+    cv::Mat                  position;
+    cv::Mat                  normalVector;
+    cv::Mat                  descriptor;
+    std::map<KeyFrame*, i32> observations; // key is pointer to a keyframe, value is index into that keyframes keypoint vector
 
     bool32 bad;
 
     r32 maxDistance;
     r32 minDistance;
 
-    i32 firstObservationKeyFrameIndex;
-    i32 foundInKeyFrameCounter;
-    i32 visibleInKeyFrameCounter;
+    KeyFrame* firstObservationKeyFrame;
+    i32       foundInKeyFrameCounter;
+    i32       visibleInKeyFrameCounter;
+
+    i32 trackReferenceForFrame;
+    i32 lastFrameSeen;
+
+    MapPointTrackingInfos trackingInfos; // TODO(jan): this should not be in here
 };
 
 struct KeyFrame
 {
+    i32 index;
     i32 numberOfKeyPoints;
 
     std::vector<cv::KeyPoint> keyPoints; // only used for visualization
     std::vector<cv::KeyPoint> undistortedKeyPoints;
-    std::vector<i32>          mapPointIndices;   // same size as keyPoints, initialized with -1
+    std::vector<MapPoint*>    mapPointMatches;   // same size as keyPoints, initialized with -1
     std::vector<bool32>       mapPointIsOutlier; // same size as keyPoints
 
     std::vector<size_t> keyPointIndexGrid[FRAME_GRID_COLS][FRAME_GRID_ROWS];
@@ -63,14 +73,15 @@ struct KeyFrame
     cv::Mat             wTc;
     cv::Mat             worldOrigin;
 
-    i32              parentIndex;
-    std::vector<i32> childrenIndices; // children in covisibility graph
+    KeyFrame*              parent;
+    std::vector<KeyFrame*> children; // children in covisibility graph
+    i32                    trackReferenceForFrame;
 
-    std::vector<i32>   orderedConnectedKeyFrames;
-    std::vector<i32>   orderedWeights;
-    std::map<i32, i32> connectedKeyFrameWeights;
+    std::vector<KeyFrame*>   orderedConnectedKeyFrames;
+    std::vector<i32>         orderedWeights;
+    std::map<KeyFrame*, i32> connectedKeyFrameWeights;
 
-    i32 referenceKeyFrameIndex;
+    KeyFrame* referenceKeyFrame;
 
     DBoW2::BowVector     bowVector;
     DBoW2::FeatureVector featureVector;
@@ -124,14 +135,19 @@ struct GridConstraints
     r32 invGridElementHeight;
 };
 
+struct LocalMappingState
+{
+    std::list<KeyFrame*> newKeyFrames; // TODO(jan): replace with vector?
+};
+
 struct OrbSlamState
 {
     OrbSlamStatus status;
     bool32        trackingWasOk;
 
     // local map
-    std::vector<i32> localKeyFrameIndices;
-    std::vector<i32> localMapPointIndices;
+    std::vector<KeyFrame*> localKeyFrames;
+    std::vector<MapPoint*> localMapPoints;
 
     // pyramid + orb stuff
     i32                    edgeThreshold;
@@ -142,6 +158,7 @@ struct OrbSlamState
 
     // initialization stuff
     std::vector<cv::Point2f> previouslyMatchedKeyPoints;
+    std::vector<i32>         initializationMatches;
 
     // camera stuff
     r32 fx, fy, cx, cy;
@@ -151,21 +168,45 @@ struct OrbSlamState
     GridConstraints        gridConstraints;
     FastFeatureConstraints fastFeatureConstraints;
 
-    std::vector<KeyFrame> keyFrames;
-    i32                   keyFrameCount;
-    std::vector<MapPoint> mapPoints;
+    std::vector<KeyFrame*> keyFrames;
+    std::vector<MapPoint*> mapPoints;
+    i32                    nextKeyFrameId;
+    i32                    nextMapPointId;
 
-    i32 referenceKeyFrameId;
+    KeyFrame* referenceKeyFrame;
 
-    i32 frameCountSinceLastKeyFrame;
-    i32 frameCountSinceLastRelocalization;
+    i32 lastKeyFrameId;
+    i32 lastRelocalizationKeyFrameId;
 
     r32 scaleFactor;
 
     i32 frameCounter;
 
     ORBVocabulary* orbVocabulary;
+
+    LocalMappingState localMapping;
 };
+
+static inline cv::Mat getKeyFrameRotation(const KeyFrame* keyFrame)
+{
+    cv::Mat result = keyFrame->cTw.rowRange(0, 3).colRange(0, 3).clone();
+
+    return result;
+}
+
+static inline cv::Mat getKeyFrameTranslation(const KeyFrame* keyFrame)
+{
+    cv::Mat result = keyFrame->cTw.rowRange(0, 3).col(3).clone();
+
+    return result;
+}
+
+static inline cv::Mat getKeyFrameCameraCenter(const KeyFrame* keyFrame)
+{
+    cv::Mat result = keyFrame->worldOrigin.clone();
+
+    return result;
+}
 
 namespace WAI
 {
@@ -177,8 +218,8 @@ class WAI_API ModeOrbSlam2DataOriented : public Mode
     void notifyUpdate();
     bool getPose(cv::Mat* pose);
 
-    std::vector<MapPoint> getMapPoints();
-    i32                   getMapPointCount() { return _state.mapPoints.size(); }
+    std::vector<MapPoint*> getMapPoints();
+    i32                    getMapPointCount() { return _state.mapPoints.size(); }
 
     private:
     SensorCamera* _camera;

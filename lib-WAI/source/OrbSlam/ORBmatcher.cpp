@@ -655,10 +655,18 @@ int ORBmatcher::SearchForTriangulation(WAIKeyFrame* pKF1, WAIKeyFrame* pKF2, cv:
     const DBoW2::FeatureVector& vFeatVec2 = pKF2->mFeatVec;
 
     //Compute epipole in second image
-    cv::Mat     Cw   = pKF1->GetCameraCenter();
-    cv::Mat     R2w  = pKF2->GetRotation();
-    cv::Mat     t2w  = pKF2->GetTranslation();
-    cv::Mat     C2   = R2w * Cw + t2w;
+    cv::Mat Cw = pKF1->GetCameraCenter();
+    std::cout << "Cw: " << Cw << std::endl;
+
+    cv::Mat R2w = pKF2->GetRotation();
+    std::cout << "R2w: " << R2w << std::endl;
+
+    cv::Mat t2w = pKF2->GetTranslation();
+    std::cout << "t2w: " << t2w << std::endl;
+
+    cv::Mat C2 = R2w * Cw + t2w;
+    std::cout << "C2: " << C2 << std::endl;
+
     const float invz = 1.0f / C2.at<float>(2);
     const float ex   = pKF2->fx * C2.at<float>(0) * invz + pKF2->cx;
     const float ey   = pKF2->fy * C2.at<float>(1) * invz + pKF2->cy;

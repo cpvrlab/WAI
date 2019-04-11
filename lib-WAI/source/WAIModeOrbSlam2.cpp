@@ -994,6 +994,9 @@ bool WAI::ModeOrbSlam2::createInitialMapMonocular()
     /*_bOK = true;*/
     //_currentState = TRACK_3DPTS;
 
+    std::cout << pKFini->GetPose() << std::endl;
+    std::cout << pKFcur->GetPose() << std::endl;
+
     //ghm1: run local mapping once
     if (_serial)
     {

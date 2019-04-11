@@ -481,11 +481,72 @@ void computeKeyPointsInOctTree(const PyramidOctTree&                   octTree,
 {
     allKeypoints.resize(imagePyramidStats.numberOfScaleLevels);
 
+    const r32 W = 30;
+
     for (i32 level = 0; level < imagePyramidStats.numberOfScaleLevels; level++)
     {
+        const i32 minBorderX = edgeThreshold - 3;
+        const i32 minBorderY = minBorderX;
+        const i32 maxBorderX = imagePyramid[level].cols - edgeThreshold + 3;
+        const i32 maxBorderY = imagePyramid[level].rows - edgeThreshold + 3;
+
         std::vector<cv::KeyPoint> keyPointsToDistribute;
         keyPointsToDistribute.reserve(fastFeatureConstraints.numberOfFeatures * 10);
 
+        const r32 width  = (maxBorderX - minBorderX);
+        const r32 height = (maxBorderY - minBorderY);
+
+        const i32 nCols = width / W;
+        const i32 nRows = height / W;
+        const i32 wCell = ceil(width / nCols);
+        const i32 hCell = ceil(height / nRows);
+
+#if 1
+        for (int i = 0; i < nRows; i++)
+        {
+            const float iniY = minBorderY + i * hCell;
+            float       maxY = iniY + hCell + 6;
+
+            if (iniY >= maxBorderY - 3)
+                continue;
+            if (maxY > maxBorderY)
+                maxY = maxBorderY;
+
+            for (int j = 0; j < nCols; j++)
+            {
+                const float iniX = minBorderX + j * wCell;
+                float       maxX = iniX + wCell + 6;
+                if (iniX >= maxBorderX - 6)
+                    continue;
+                if (maxX > maxBorderX)
+                    maxX = maxBorderX;
+
+                std::vector<cv::KeyPoint> vKeysCell;
+                cv::FAST(imagePyramid[level].rowRange(iniY, maxY).colRange(iniX, maxX),
+                         vKeysCell,
+                         fastFeatureConstraints.initialThreshold,
+                         true);
+
+                if (vKeysCell.empty())
+                {
+                    cv::FAST(imagePyramid[level].rowRange(iniY, maxY).colRange(iniX, maxX),
+                             vKeysCell,
+                             fastFeatureConstraints.initialThreshold,
+                             true);
+                }
+
+                if (!vKeysCell.empty())
+                {
+                    for (std::vector<cv::KeyPoint>::iterator vit = vKeysCell.begin(); vit != vKeysCell.end(); vit++)
+                    {
+                        (*vit).pt.x += j * wCell;
+                        (*vit).pt.y += i * hCell;
+                        keyPointsToDistribute.push_back(*vit);
+                    }
+                }
+            }
+        }
+#else
         for (i32 cellIndex = 0; cellIndex < octTree.levels[level].cells.size(); cellIndex++)
         {
             const PyramidOctTreeCell* cell = &octTree.levels[level].cells[cellIndex];
@@ -516,15 +577,16 @@ void computeKeyPointsInOctTree(const PyramidOctTree&                   octTree,
                 }
             }
         }
+#endif
 
         std::vector<cv::KeyPoint>& keypoints = allKeypoints[level];
         keypoints.reserve(fastFeatureConstraints.numberOfFeatures);
 
         keypoints = distributeOctTree(keyPointsToDistribute,
-                                      octTree.levels[level].minBorderX,
-                                      octTree.levels[level].maxBorderX,
-                                      octTree.levels[level].minBorderY,
-                                      octTree.levels[level].maxBorderY,
+                                      minBorderX,
+                                      maxBorderX,
+                                      minBorderY,
+                                      maxBorderY,
                                       imagePyramidStats.numberOfFeaturesPerScaleLevel[level],
                                       level);
 
@@ -533,13 +595,16 @@ void computeKeyPointsInOctTree(const PyramidOctTree&                   octTree,
         // Add border to coordinates and scale information
         for (i32 i = 0; i < keypoints.size(); i++)
         {
-            keypoints[i].pt.x += octTree.levels[level].minBorderX;
-            keypoints[i].pt.y += octTree.levels[level].minBorderY;
+            keypoints[i].pt.x += minBorderX;
+            keypoints[i].pt.y += minBorderY;
             keypoints[i].octave = level;
             keypoints[i].size   = (r32)scaledPatchSize;
         }
+    }
 
-        std::vector<cv::KeyPoint> keyPoints = allKeypoints[level];
+    for (i32 level = 0; level < imagePyramidStats.numberOfScaleLevels; level++)
+    {
+        std::vector<cv::KeyPoint>& keyPoints = allKeypoints[level];
         for (std::vector<cv::KeyPoint>::iterator keyPoint    = keyPoints.begin(),
                                                  keyPointEnd = keyPoints.end();
              keyPoint != keyPointEnd;

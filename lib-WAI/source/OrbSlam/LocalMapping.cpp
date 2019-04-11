@@ -27,7 +27,7 @@
 #ifndef _WINDOWS
 #    include <unistd.h>
 #else
-# include <windows.h>
+#    include <windows.h>
 #endif
 
 namespace ORB_SLAM2
@@ -253,28 +253,38 @@ void LocalMapping::MapPointCulling()
         nThObs = 3;*/
     const int cnThObs = nThObs;
 
+    int mapPointsCulled = 0;
+
     while (lit != mlpRecentAddedMapPoints.end())
     {
         WAIMapPoint* pMP = *lit;
         if (pMP->isBad())
         {
             lit = mlpRecentAddedMapPoints.erase(lit);
+            mapPointsCulled++;
         }
         else if (pMP->GetFoundRatio() < 0.25f)
         {
             pMP->SetBadFlag();
             lit = mlpRecentAddedMapPoints.erase(lit);
+            mapPointsCulled++;
         }
         else if (((int)nCurrentKFid - (int)pMP->mnFirstKFid) >= 2 && pMP->Observations() <= cnThObs)
         {
             pMP->SetBadFlag();
             lit = mlpRecentAddedMapPoints.erase(lit);
+            mapPointsCulled++;
         }
         else if (((int)nCurrentKFid - (int)pMP->mnFirstKFid) >= 3)
+        {
             lit = mlpRecentAddedMapPoints.erase(lit);
+            mapPointsCulled++;
+        }
         else
             lit++;
     }
+
+    printf("Culled %i map points\n", mapPointsCulled);
 }
 
 void LocalMapping::CreateNewMapPoints()
@@ -295,6 +305,7 @@ void LocalMapping::CreateNewMapPoints()
     Rcw1.copyTo(Tcw1.colRange(0, 3));
     tcw1.copyTo(Tcw1.col(3));
     cv::Mat Ow1 = mpCurrentKeyFrame->GetCameraCenter();
+    std::cout << Ow1 << std::endl;
 
     const float& fx1    = mpCurrentKeyFrame->fx;
     const float& fy1    = mpCurrentKeyFrame->fy;
@@ -316,9 +327,12 @@ void LocalMapping::CreateNewMapPoints()
         WAIKeyFrame* pKF2 = vpNeighKFs[i];
 
         // Check first that baseline is not too short
-        cv::Mat     Ow2       = pKF2->GetCameraCenter();
-        cv::Mat     vBaseline = Ow2 - Ow1;
-        const float baseline  = cv::norm(vBaseline);
+        cv::Mat Ow2       = pKF2->GetCameraCenter();
+        cv::Mat vBaseline = Ow2 - Ow1;
+
+        std::cout << Ow2 << std::endl;
+
+        const float baseline = cv::norm(vBaseline);
 
         //if(!mbMonocular)
         //{
@@ -524,6 +538,8 @@ void LocalMapping::CreateNewMapPoints()
             nnew++;
         }
     }
+
+    printf("Created %i new map points\n", nnew);
 }
 
 void LocalMapping::SearchInNeighbors()
