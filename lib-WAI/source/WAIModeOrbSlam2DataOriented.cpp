@@ -8,40 +8,25 @@
 #include <WAIOrbMatching.cpp>
 #include <WAIOrbSlamInitialization.cpp>
 
-static void calculateNumberOfFeaturesPerScaleLevel(r32                scaleFactor,
-                                                   i32                numberOfFeatures,
-                                                   ImagePyramidStats* imagePyramidStats)
-{
-    r32 inverseScaleFactor            = 1.0f / scaleFactor;
-    r32 numberOfFeaturesPerScaleLevel = numberOfFeatures * (1.0f - inverseScaleFactor) / (1.0f - pow((r64)inverseScaleFactor, (r64)imagePyramidStats->numberOfScaleLevels));
-    i32 sumFeatures                   = 0;
-    for (i32 level = 0; level < imagePyramidStats->numberOfScaleLevels - 1; level++)
-    {
-        imagePyramidStats->numberOfFeaturesPerScaleLevel[level] = cvRound(numberOfFeaturesPerScaleLevel);
-        sumFeatures += imagePyramidStats->numberOfFeaturesPerScaleLevel[level];
-        numberOfFeaturesPerScaleLevel *= inverseScaleFactor;
-    }
-    imagePyramidStats->numberOfFeaturesPerScaleLevel[imagePyramidStats->numberOfScaleLevels - 1] = std::max(numberOfFeatures - sumFeatures, 0);
-}
-
 WAI::ModeOrbSlam2DataOriented::ModeOrbSlam2DataOriented(SensorCamera* camera, std::string vocabularyPath)
   : _camera(camera)
 {
     _pose = cv::Mat::eye(4, 4, CV_32F);
 
-    r32 scaleFactor        = 1.2f;
-    i32 pyramidScaleLevels = 8;
-    i32 numberOfFeatures   = 2000; // TODO(jan): 2000 for initialization, 1000 otherwise
-    i32 orbPatchSize       = 31;
-    i32 orbHalfPatchSize   = 15;
+    r32 scaleFactor          = 1.2f;
+    i32 pyramidScaleLevels   = 8;
+    i32 numberOfFeatures     = 1000;
+    i32 orbPatchSize         = 31;
+    i32 orbHalfPatchSize     = 15;
+    i32 edgeThreshold        = 19;
+    i32 initialFastThreshold = 20;
+    i32 minimalFastThreshold = 7;
 
-    _state                                       = {};
-    _state.status                                = OrbSlamStatus_Initializing;
-    _state.imagePyramidStats.numberOfScaleLevels = pyramidScaleLevels;
-    _state.orbOctTreePatchSize                   = orbPatchSize;
-    _state.orbOctTreeHalfPatchSize               = orbHalfPatchSize;
-    _state.edgeThreshold                         = 19;
-    _state.scaleFactor                           = scaleFactor;
+    _state        = {};
+    _state.status = OrbSlamStatus_Initializing;
+
+    _state.maxFramesBetweenKeyFrames = 30;
+    _state.minFramesBetweenKeyFrames = 0;
 
     _state.orbVocabulary    = new ORBVocabulary();
     bool32 vocabularyLoaded = _state.orbVocabulary->loadFromBinaryFile(vocabularyPath);
@@ -51,59 +36,24 @@ WAI::ModeOrbSlam2DataOriented::ModeOrbSlam2DataOriented(SensorCamera* camera, st
         exit(0);
     }
 
-    _state.fastFeatureConstraints.numberOfFeatures = numberOfFeatures;
-    _state.fastFeatureConstraints.initialThreshold = 20;
-    _state.fastFeatureConstraints.minimalThreshold = 7;
-
-    const i32        npoints  = 512;
-    const cv::Point* pattern0 = (const cv::Point*)bit_pattern_31_;
-    std::copy(pattern0, pattern0 + npoints, std::back_inserter(_state.pattern));
-
-    _state.imagePyramidStats.scaleFactors.resize(pyramidScaleLevels);
-    _state.imagePyramidStats.inverseScaleFactors.resize(pyramidScaleLevels);
-    _state.imagePyramidStats.sigmaSquared.resize(pyramidScaleLevels);
-    _state.imagePyramidStats.inverseSigmaSquared.resize(pyramidScaleLevels);
-    _state.imagePyramidStats.numberOfFeaturesPerScaleLevel.resize(pyramidScaleLevels);
-
-    _state.imagePyramidStats.scaleFactors[0]        = 1.0f;
-    _state.imagePyramidStats.inverseScaleFactors[0] = 1.0f;
-    _state.imagePyramidStats.sigmaSquared[0]        = 1.0f;
-    _state.imagePyramidStats.inverseSigmaSquared[0] = 1.0f;
-
-    for (i32 i = 1; i < pyramidScaleLevels; i++)
-    {
-        r32 sigma                                       = _state.imagePyramidStats.scaleFactors[i - 1] * scaleFactor;
-        _state.imagePyramidStats.scaleFactors[i]        = sigma;
-        _state.imagePyramidStats.sigmaSquared[i]        = sigma * sigma;
-        _state.imagePyramidStats.inverseScaleFactors[i] = 1.0f / _state.imagePyramidStats.scaleFactors[i];
-        _state.imagePyramidStats.inverseSigmaSquared[i] = 1.0f / (sigma * sigma);
-    }
-
-    calculateNumberOfFeaturesPerScaleLevel(scaleFactor, numberOfFeatures, &_state.imagePyramidStats);
-
-    // This is for orientation
-    // pre-compute the end of a row in a circular patch
-    _state.umax.resize(orbHalfPatchSize + 1);
-    i32       v, v0;
-    i32       vmax = cvFloor(orbHalfPatchSize * sqrt(2.f) / 2 + 1);
-    i32       vmin = cvCeil(orbHalfPatchSize * sqrt(2.f) / 2);
-    const r64 hp2  = orbHalfPatchSize * orbHalfPatchSize;
-    for (v = 0; v <= vmax; v++)
-    {
-        _state.umax[v] = cvRound(sqrt(hp2 - v * v));
-    }
-
-    // Make sure we are symmetric
-    for (v = orbHalfPatchSize, v0 = 0; v >= vmin; v--)
-    {
-        while (_state.umax[v0] == _state.umax[v0 + 1])
-        {
-            v0++;
-        }
-
-        _state.umax[v] = v0;
-        v0++;
-    }
+    initializeOrbExtractionParameters(&_state.orbExtractionParameters,
+                                      numberOfFeatures,
+                                      pyramidScaleLevels,
+                                      initialFastThreshold,
+                                      minimalFastThreshold,
+                                      scaleFactor,
+                                      orbPatchSize,
+                                      orbHalfPatchSize,
+                                      edgeThreshold);
+    initializeOrbExtractionParameters(&_state.initializationOrbExtractionParameters,
+                                      2 * numberOfFeatures,
+                                      pyramidScaleLevels,
+                                      initialFastThreshold,
+                                      minimalFastThreshold,
+                                      scaleFactor,
+                                      orbPatchSize,
+                                      orbHalfPatchSize,
+                                      edgeThreshold);
 
     _camera->subscribeToUpdate(this);
 }
@@ -130,10 +80,10 @@ static void computeBoW(const ORBVocabulary* orbVocabulary,
                keyFrame->featureVector);
 }
 
-static void setKeyFramePose(const cv::Mat& cTw,
-                            cv::Mat&       cTwKF,
-                            cv::Mat&       wTcKF,
-                            cv::Mat&       owKF)
+static void updatePoseMatrices(const cv::Mat& cTw,
+                               cv::Mat&       cTwKF,
+                               cv::Mat&       wTcKF,
+                               cv::Mat&       owKF)
 {
     cTw.copyTo(cTwKF);
 
@@ -146,10 +96,6 @@ static void setKeyFramePose(const cv::Mat& cTw,
     wTcKF = cv::Mat::eye(4, 4, cTw.type());
     wrc.copyTo(wTcKF.rowRange(0, 3).colRange(0, 3));
     owKF.copyTo(wTcKF.rowRange(0, 3).col(3));
-
-    // TODO(jan): calculate world center, if needed
-    //cv::Mat center = (cv::Mat_<r32>(4, 1) << mHalfBaseline, 0, 0, 1);
-    //Cw             = Twc * center;
 }
 
 static std::vector<KeyFrame*> getBestCovisibilityKeyFrames(const i32                     maxNumberOfKeyFramesToGet,
@@ -198,9 +144,9 @@ static r32 computeSceneMedianDepthForKeyFrame(const KeyFrame* keyFrame)
     return result;
 }
 
-cv::Mat computeF12(const KeyFrame* keyFrame1,
-                   const KeyFrame* keyFrame2,
-                   const cv::Mat&  cameraMat)
+static cv::Mat computeF12(const KeyFrame* keyFrame1,
+                          const KeyFrame* keyFrame2,
+                          const cv::Mat&  cameraMat)
 {
     cv::Mat wr1 = getKeyFrameRotation(keyFrame1);
     cv::Mat wt1 = getKeyFrameTranslation(keyFrame1);
@@ -219,14 +165,14 @@ cv::Mat computeF12(const KeyFrame* keyFrame1,
     return result;
 }
 
-void calculateMapPointNormalAndDepth(const cv::Mat&            position,
-                                     std::map<KeyFrame*, i32>& observations,
-                                     KeyFrame*                 referenceKeyFrame,
-                                     const std::vector<r32>    scaleFactors,
-                                     const i32                 numberOfScaleLevels,
-                                     r32*                      minDistance,
-                                     r32*                      maxDistance,
-                                     cv::Mat*                  normalVector)
+static void calculateMapPointNormalAndDepth(const cv::Mat&            position,
+                                            std::map<KeyFrame*, i32>& observations,
+                                            KeyFrame*                 referenceKeyFrame,
+                                            const std::vector<r32>    scaleFactors,
+                                            const i32                 numberOfScaleLevels,
+                                            r32*                      minDistance,
+                                            r32*                      maxDistance,
+                                            cv::Mat*                  normalVector)
 {
     if (observations.empty()) return;
 
@@ -468,23 +414,24 @@ static void updateKeyFrameConnections(KeyFrame* keyFrame)
 #endif
 }
 
-static std::vector<MapPoint*> createNewMapPoints(KeyFrame*                     keyFrame,
-                                                 const std::vector<KeyFrame*>& orderedConnectedKeyFrames,
-                                                 const r32                     fx,
-                                                 const r32                     fy,
-                                                 const r32                     cx,
-                                                 const r32                     cy,
-                                                 const r32                     invfx,
-                                                 const r32                     invfy,
-                                                 const i32                     numberOfScaleLevels,
-                                                 const r32                     scaleFactor,
-                                                 const cv::Mat&                cameraMat,
-                                                 const std::vector<r32>&       sigmaSquared,
-                                                 const std::vector<r32>&       scaleFactors,
-                                                 std::vector<MapPoint*>&       mapPoints,
-                                                 i32*                          nextMapPointIndex)
+static i32 createNewMapPoints(KeyFrame*                     keyFrame,
+                              const std::vector<KeyFrame*>& orderedConnectedKeyFrames,
+                              const r32                     fx,
+                              const r32                     fy,
+                              const r32                     cx,
+                              const r32                     cy,
+                              const r32                     invfx,
+                              const r32                     invfy,
+                              const i32                     numberOfScaleLevels,
+                              const r32                     scaleFactor,
+                              const cv::Mat&                cameraMat,
+                              const std::vector<r32>&       sigmaSquared,
+                              const std::vector<r32>&       scaleFactors,
+                              std::set<MapPoint*>&          mapPoints,
+                              i32&                          nextMapPointIndex,
+                              std::list<MapPoint*>&         newMapPoints)
 {
-    std::vector<MapPoint*> result = std::vector<MapPoint*>();
+    i32 result = 0;
 
     const std::vector<KeyFrame*> neighboringKeyFrames = getBestCovisibilityKeyFrames(20,
                                                                                      orderedConnectedKeyFrames);
@@ -497,8 +444,6 @@ static std::vector<MapPoint*> createNewMapPoints(KeyFrame*                     k
     crw1.copyTo(cTw1.colRange(0, 3));
     ctw1.copyTo(cTw1.col(3));
     cv::Mat origin1 = getKeyFrameCameraCenter(keyFrame);
-
-    std::cout << origin1 << std::endl;
 
     const r32& fx1    = fx;
     const r32& fy1    = fy;
@@ -520,8 +465,6 @@ static std::vector<MapPoint*> createNewMapPoints(KeyFrame*                     k
         // Check first that baseline is not too short
         cv::Mat origin2   = getKeyFrameCameraCenter(neighboringKeyFrame);
         cv::Mat vBaseline = origin2 - origin1;
-
-        std::cout << origin2 << std::endl;
 
         const r32 baseline = cv::norm(vBaseline);
 
@@ -647,10 +590,7 @@ static std::vector<MapPoint*> createNewMapPoints(KeyFrame*                     k
 
             // Triangulation is succesful
             MapPoint* mapPoint = new MapPoint();
-            mapPoint->index    = *nextMapPointIndex;
-            (*nextMapPointIndex)++;
-            mapPoint->firstObservationKeyFrame = keyFrame;
-            mapPoint->position                 = x3D;
+            initializeMapPoint(mapPoint, keyFrame, x3D, nextMapPointIndex);
 
             keyFrame->mapPointMatches[keyPointIndex1]            = mapPoint;
             neighboringKeyFrame->mapPointMatches[keyPointIndex2] = mapPoint;
@@ -669,157 +609,216 @@ static std::vector<MapPoint*> createNewMapPoints(KeyFrame*                     k
                                             &mapPoint->maxDistance,
                                             &mapPoint->normalVector);
 
-            mapPoints.push_back(mapPoint);
-            result.push_back(mapPoint);
+            mapPoints.insert(mapPoint);
+            newMapPoints.push_back(mapPoint);
+            result++;
         }
     }
 
     return result;
 }
 
-static void initializeKeyFrame(const ImagePyramidStats&      imagePyramidStats,
-                               const FastFeatureConstraints& fastFeatureConstraints,
-                               const i32                     edgeThreshold,
-                               const cv::Mat&                cameraFrame,
-                               const cv::Mat&                cameraMat,
-                               const cv::Mat&                distortionMat,
-                               const i32                     orbOctTreePatchSize,
-                               const i32                     orbOctTreeHalfPatchSize,
-                               const std::vector<i32>        umax,
-                               const std::vector<cv::Point>  orbPattern,
-                               const GridConstraints         gridConstraints,
-                               KeyFrame*                     keyFrame,
-                               i32                           index)
+static void initializeKeyFrame(KeyFrame*    keyFrame,
+                               const Frame& referenceFrame,
+                               i32&         nextKeyFrameId)
 {
-    keyFrame->numberOfKeyPoints = 0;
-    keyFrame->keyPoints.clear();
-    keyFrame->undistortedKeyPoints.clear();
+    *keyFrame = {};
 
-    keyFrame->index = index;
+    keyFrame->index = nextKeyFrameId++;
+
+    keyFrame->frameId              = referenceFrame.id;
+    keyFrame->numberOfKeyPoints    = referenceFrame.numberOfKeyPoints;
+    keyFrame->keyPoints            = referenceFrame.keyPoints;
+    keyFrame->undistortedKeyPoints = referenceFrame.undistortedKeyPoints;
+    keyFrame->descriptors          = referenceFrame.descriptors.clone();
+    keyFrame->bowVector            = referenceFrame.bowVector;
+    keyFrame->featureVector        = referenceFrame.featureVector;
+    keyFrame->cameraMat            = referenceFrame.cameraMat.clone();
+    keyFrame->mapPointMatches      = referenceFrame.mapPointMatches;
 
     for (i32 i = 0; i < FRAME_GRID_COLS; i++)
     {
         for (i32 j = 0; j < FRAME_GRID_ROWS; j++)
         {
-            keyFrame->keyPointIndexGrid[i][j].clear();
+            keyFrame->keyPointIndexGrid[i][j] = referenceFrame.keyPointIndexGrid[i][j];
         }
     }
 
+    updatePoseMatrices(referenceFrame.cTw,
+                       keyFrame->cTw,
+                       keyFrame->wTc,
+                       keyFrame->worldOrigin);
+}
+
+static void initializeFrame(Frame*                         frame,
+                            i32&                           nextFrameId,
+                            const cv::Mat&                 cameraFrame,
+                            const cv::Mat&                 cameraMat,
+                            const cv::Mat&                 distortionMat,
+                            const OrbExtractionParameters& orbExtractionParameters,
+                            const GridConstraints          gridConstraints)
+{
+    *frame = {};
+
+    frame->id = nextFrameId++;
+
+    frame->cameraMat = cameraMat.clone();
+
     std::vector<cv::Mat> imagePyramid;
-    imagePyramid.resize(imagePyramidStats.numberOfScaleLevels);
+    imagePyramid.resize(orbExtractionParameters.numberOfScaleLevels);
 
     // Compute scaled images according to scale factors
     computeScalePyramid(cameraFrame,
-                        imagePyramidStats,
-                        edgeThreshold,
+                        orbExtractionParameters.numberOfScaleLevels,
+                        orbExtractionParameters.inverseScaleFactors,
+                        orbExtractionParameters.edgeThreshold,
                         imagePyramid);
-
-    PyramidOctTree octTree = {};
-    computePyramidOctTree(imagePyramidStats,
-                          imagePyramid,
-                          edgeThreshold,
-                          &octTree);
 
     // Compute key points, distributed in an evenly spaced grid
     // on every scale level
     std::vector<std::vector<cv::KeyPoint>> allKeyPoints;
-    computeKeyPointsInOctTree(octTree,
-                              imagePyramidStats,
-                              imagePyramid,
-                              fastFeatureConstraints,
-                              edgeThreshold,
-                              orbOctTreePatchSize,
-                              orbOctTreeHalfPatchSize,
-                              umax,
+    computeKeyPointsInOctTree(imagePyramid,
+                              orbExtractionParameters.numberOfScaleLevels,
+                              orbExtractionParameters.scaleFactors,
+                              orbExtractionParameters.edgeThreshold,
+                              orbExtractionParameters.numberOfFeatures,
+                              orbExtractionParameters.numberOfFeaturesPerScaleLevel,
+                              orbExtractionParameters.initialThreshold,
+                              orbExtractionParameters.minimalThreshold,
+                              orbExtractionParameters.orbOctTreePatchSize,
+                              orbExtractionParameters.orbOctTreeHalfPatchSize,
+                              orbExtractionParameters.umax,
                               allKeyPoints);
 
-    for (i32 level = 0; level < imagePyramidStats.numberOfScaleLevels; level++)
+    i32 nkeypoints = 0;
+    for (i32 level = 0; level < orbExtractionParameters.numberOfScaleLevels; ++level)
     {
-        keyFrame->numberOfKeyPoints += (i32)allKeyPoints[level].size();
+        nkeypoints += (i32)allKeyPoints[level].size();
     }
 
-    if (keyFrame->numberOfKeyPoints)
+    cv::Mat descriptors;
+    if (nkeypoints == 0)
     {
-        keyFrame->descriptors.create(keyFrame->numberOfKeyPoints, 32, CV_8U);
+        frame->descriptors.release();
+    }
+    else
+    {
+        frame->descriptors.create(nkeypoints, 32, CV_8U);
+        descriptors = frame->descriptors;
     }
 
-    keyFrame->keyPoints.reserve(keyFrame->numberOfKeyPoints);
-    keyFrame->mapPointMatches   = std::vector<MapPoint*>(keyFrame->numberOfKeyPoints, nullptr);
-    keyFrame->mapPointIsOutlier = std::vector<bool32>(keyFrame->numberOfKeyPoints, false);
+    frame->keyPoints.clear();
+    frame->keyPoints.reserve(nkeypoints);
 
     i32 offset = 0;
-    for (i32 level = 0; level < imagePyramidStats.numberOfScaleLevels;
-         level++)
+    for (i32 level = 0; level < orbExtractionParameters.numberOfScaleLevels; ++level)
     {
-        i32                        tOffset           = level * 3;
-        std::vector<cv::KeyPoint>& keyPointsForLevel = allKeyPoints[level];
-        i32                        nkeypointsLevel   = (i32)keyPointsForLevel.size();
+        std::vector<cv::KeyPoint>& keypoints       = allKeyPoints[level];
+        i32                        nkeypointsLevel = (i32)keypoints.size();
 
         if (nkeypointsLevel == 0) continue;
 
-        // Preprocess the resized image
+        // preprocess the resized image
         cv::Mat workingMat = imagePyramid[level].clone();
         cv::GaussianBlur(workingMat, workingMat, cv::Size(7, 7), 2, 2, cv::BORDER_REFLECT_101);
 
         // Compute the descriptors
-        cv::Mat desc = keyFrame->descriptors.rowRange(offset, offset + nkeypointsLevel);
+        cv::Mat desc = descriptors.rowRange(offset, offset + nkeypointsLevel);
+        desc         = cv::Mat::zeros((int)keypoints.size(), 32, CV_8UC1);
 
-        for (size_t i = 0; i < keyPointsForLevel.size(); i++)
+        for (size_t i = 0; i < keypoints.size(); i++)
         {
-            computeOrbDescriptor(keyPointsForLevel[i], cameraFrame, &orbPattern[0], desc.ptr((i32)i));
+            computeOrbDescriptor(keypoints[i], workingMat, &orbExtractionParameters.orbPattern[0], desc.ptr((i32)i));
         }
+
         offset += nkeypointsLevel;
 
         // Scale keypoint coordinates
         if (level != 0)
         {
-            r32 scale = imagePyramidStats.scaleFactors[level];
-            for (std::vector<cv::KeyPoint>::iterator keypoint    = keyPointsForLevel.begin(),
-                                                     keypointEnd = keyPointsForLevel.end();
+            r32 scale = orbExtractionParameters.scaleFactors[level];
+            for (std::vector<cv::KeyPoint>::iterator keypoint    = keypoints.begin(),
+                                                     keypointEnd = keypoints.end();
                  keypoint != keypointEnd;
-                 keypoint++)
+                 ++keypoint)
             {
                 keypoint->pt *= scale;
             }
         }
-
-        // Add the keypoints to the output
-        keyFrame->keyPoints.insert(keyFrame->keyPoints.end(), keyPointsForLevel.begin(), keyPointsForLevel.end());
+        // And add the keypoints to the output
+        frame->keyPoints.insert(frame->keyPoints.end(), keypoints.begin(), keypoints.end());
     }
 
-    if (!keyFrame->numberOfKeyPoints)
-    {
-        return;
-    }
+    frame->numberOfKeyPoints = frame->keyPoints.size();
 
-    undistortKeyPoints(cameraMat,
-                       distortionMat,
-                       keyFrame->keyPoints,
-                       keyFrame->numberOfKeyPoints,
-                       keyFrame->undistortedKeyPoints);
-
-    i32 nReserve = 0.5f * keyFrame->numberOfKeyPoints / (FRAME_GRID_COLS * FRAME_GRID_ROWS);
-    for (u32 i = 0; i < FRAME_GRID_COLS; i++)
+    if (!frame->keyPoints.empty())
     {
-        for (u32 j = 0; j < FRAME_GRID_ROWS; j++)
+        undistortKeyPoints(cameraMat,
+                           distortionMat,
+                           frame->keyPoints,
+                           frame->numberOfKeyPoints,
+                           frame->undistortedKeyPoints);
+
+        frame->mapPointMatches   = std::vector<MapPoint*>(frame->numberOfKeyPoints, static_cast<MapPoint*>(NULL));
+        frame->mapPointIsOutlier = std::vector<bool32>(frame->numberOfKeyPoints, false);
+
+        i32 nReserve = 0.5f * frame->numberOfKeyPoints / (FRAME_GRID_COLS * FRAME_GRID_ROWS);
+        for (u32 i = 0; i < FRAME_GRID_COLS; i++)
         {
-            keyFrame->keyPointIndexGrid[i][j].reserve(nReserve);
+            for (u32 j = 0; j < FRAME_GRID_ROWS; j++)
+            {
+                frame->keyPointIndexGrid[i][j].reserve(nReserve);
+            }
+        }
+
+        for (i32 i = 0; i < frame->numberOfKeyPoints; i++)
+        {
+            const cv::KeyPoint& kp = frame->undistortedKeyPoints[i];
+
+            i32    xPos, yPos;
+            bool32 keyPointIsInGrid = calculateKeyPointGridCell(kp, gridConstraints, &xPos, &yPos);
+            if (keyPointIsInGrid)
+            {
+                frame->keyPointIndexGrid[xPos][yPos].push_back(i);
+            }
+        }
+
+        // TODO(jan): 'retain image' functionality
+    }
+}
+
+static void initializeFrame(Frame*       frame,
+                            const Frame& referenceFrame)
+{
+    *frame = {};
+
+    frame->id                   = referenceFrame.id;
+    frame->cameraMat            = referenceFrame.cameraMat.clone();
+    frame->numberOfKeyPoints    = referenceFrame.numberOfKeyPoints;
+    frame->keyPoints            = referenceFrame.keyPoints;
+    frame->undistortedKeyPoints = referenceFrame.undistortedKeyPoints;
+    frame->descriptors          = referenceFrame.descriptors.clone();
+    frame->mapPointMatches      = referenceFrame.mapPointMatches;
+    frame->mapPointIsOutlier    = referenceFrame.mapPointIsOutlier;
+    frame->referenceKeyFrame    = referenceFrame.referenceKeyFrame;
+    frame->bowVector            = referenceFrame.bowVector;
+    frame->featureVector        = referenceFrame.featureVector;
+
+    for (i32 i = 0; i < FRAME_GRID_COLS; i++)
+    {
+        for (i32 j = 0; j < FRAME_GRID_ROWS; j++)
+        {
+            frame->keyPointIndexGrid[i][j] = referenceFrame.keyPointIndexGrid[i][j];
         }
     }
 
-    for (i32 i = 0; i < keyFrame->numberOfKeyPoints; i++)
+    if (!referenceFrame.cTw.empty())
     {
-        const cv::KeyPoint& kp = keyFrame->undistortedKeyPoints[i];
-
-        i32    xPos, yPos;
-        bool32 keyPointIsInGrid = calculateKeyPointGridCell(kp, gridConstraints, &xPos, &yPos);
-        if (keyPointIsInGrid)
-        {
-            keyFrame->keyPointIndexGrid[xPos][yPos].push_back(i);
-        }
+        updatePoseMatrices(referenceFrame.cTw,
+                           frame->cTw,
+                           frame->wTc,
+                           frame->worldOrigin);
     }
-
-    // TODO(jan): 'retain image' functionality
 }
 
 void computeGridConstraints(const cv::Mat&   cameraFrame,
@@ -911,22 +910,21 @@ i32 countMapPointsObservedByKeyFrame(const KeyFrame* keyFrame,
     return result;
 }
 
-i32 searchMapPointsByProjection(std::vector<MapPoint*>& mapPoints,
+i32 searchMapPointsByProjection(std::vector<MapPoint*>& localMapPoints,
                                 const std::vector<r32>& scaleFactors,
                                 const GridConstraints&  gridConstraints,
                                 const i32               thresholdHigh,
                                 const r32               bestToSecondBestRatio,
-                                KeyFrame*               keyFrame,
+                                Frame*                  frame,
                                 i32                     threshold)
 {
-    //for every map point
     i32 result = 0;
 
     const bool32 factor = threshold != 1.0;
 
-    for (i32 i = 0; i < mapPoints.size(); i++)
+    for (i32 i = 0; i < localMapPoints.size(); i++)
     {
-        MapPoint*                    mapPoint     = mapPoints[i];
+        MapPoint*                    mapPoint     = localMapPoints[i];
         const MapPointTrackingInfos* trackingInfo = &mapPoint->trackingInfos;
 
         if (!trackingInfo->inView) continue;
@@ -943,15 +941,15 @@ i32 searchMapPointsByProjection(std::vector<MapPoint*>& mapPoints,
         }
 
         std::vector<size_t> indices =
-          getFeatureIndicesForArea(keyFrame->numberOfKeyPoints,
+          getFeatureIndicesForArea(frame->numberOfKeyPoints,
                                    r * scaleFactors[predictedLevel],
                                    trackingInfo->projX,
                                    trackingInfo->projY,
                                    gridConstraints,
                                    predictedLevel - 1,
                                    predictedLevel,
-                                   keyFrame->keyPointIndexGrid,
-                                   keyFrame->undistortedKeyPoints);
+                                   frame->keyPointIndexGrid,
+                                   frame->undistortedKeyPoints);
 
         if (indices.empty()) continue;
 
@@ -969,11 +967,11 @@ i32 searchMapPointsByProjection(std::vector<MapPoint*>& mapPoints,
              vit++)
         {
             const i32 idx      = *vit;
-            MapPoint* mapPoint = keyFrame->mapPointMatches[idx];
+            MapPoint* mapPoint = frame->mapPointMatches[idx];
 
             if (mapPoint && mapPoint->observations.size() > 0) continue;
 
-            const cv::Mat& descriptor2 = keyFrame->descriptors.row(idx);
+            const cv::Mat& descriptor2 = frame->descriptors.row(idx);
 
             const i32 dist = descriptorDistance(descriptor1, descriptor2);
 
@@ -982,12 +980,12 @@ i32 searchMapPointsByProjection(std::vector<MapPoint*>& mapPoints,
                 bestDist2  = bestDist;
                 bestDist   = dist;
                 bestLevel2 = bestLevel;
-                bestLevel  = keyFrame->undistortedKeyPoints[idx].octave;
+                bestLevel  = frame->undistortedKeyPoints[idx].octave;
                 bestIdx    = idx;
             }
             else if (dist < bestDist2)
             {
-                bestLevel2 = keyFrame->undistortedKeyPoints[idx].octave;
+                bestLevel2 = frame->undistortedKeyPoints[idx].octave;
                 bestDist2  = dist;
             }
         }
@@ -997,7 +995,7 @@ i32 searchMapPointsByProjection(std::vector<MapPoint*>& mapPoints,
         {
             if (bestLevel == bestLevel2 && bestDist > bestToSecondBestRatio * bestDist2) continue;
 
-            keyFrame->mapPointMatches[bestIdx] = mapPoint;
+            frame->mapPointMatches[bestIdx] = mapPoint;
             result++;
         }
     }
@@ -1007,7 +1005,7 @@ i32 searchMapPointsByProjection(std::vector<MapPoint*>& mapPoints,
 
 static bool32 needNewKeyFrame(const i32       currentFrameId,
                               const i32       lastKeyFrameId,
-                              const i32       lastRelocalizationKeyFrameId,
+                              const i32       lastRelocalizationFrameId,
                               const i32       minFramesBetweenKeyFrames,
                               const i32       maxFramesBetweenKeyFrames,
                               const i32       mapPointMatchCount,
@@ -1017,7 +1015,7 @@ static bool32 needNewKeyFrame(const i32       currentFrameId,
     // TODO(jan): check if local mapper is stopped
 
     // Do not insert keyframes if not enough frames have passed from last relocalisation
-    if (currentFrameId < lastRelocalizationKeyFrameId + maxFramesBetweenKeyFrames &&
+    if (currentFrameId < lastRelocalizationFrameId + maxFramesBetweenKeyFrames &&
         keyFrameCount > maxFramesBetweenKeyFrames)
     {
         return false;
@@ -1099,7 +1097,7 @@ static i32 predictMapPointScale(const r32& currentDist,
     return result;
 }
 
-static bool32 isMapPointInFrameFrustum(const KeyFrame*        keyFrame,
+static bool32 isMapPointInFrameFrustum(const Frame*           frame,
                                        const r32              fx,
                                        const r32              fy,
                                        const r32              cx,
@@ -1118,8 +1116,8 @@ static bool32 isMapPointInFrameFrustum(const KeyFrame*        keyFrame,
     cv::Mat P = mapPoint->position;
 
     // 3D in camera coordinates
-    cv::Mat       crw = keyFrame->cTw.rowRange(0, 3).colRange(0, 3); // mRcw in WAIFrame
-    cv::Mat       ctw = keyFrame->cTw.rowRange(0, 3).col(3);         // mtcw in WAIFrame
+    cv::Mat       crw = frame->cTw.rowRange(0, 3).colRange(0, 3); // mRcw in WAIFrame
+    cv::Mat       ctw = frame->cTw.rowRange(0, 3).col(3);         // mtcw in WAIFrame
     const cv::Mat Pc  = crw * P + ctw;
     const r32&    PcX = Pc.at<r32>(0);
     const r32&    PcY = Pc.at<r32>(1);
@@ -1172,7 +1170,7 @@ static i32 optimizePose(const std::vector<r32> inverseSigmaSquared,
                         const r32              fy,
                         const r32              cx,
                         const r32              cy,
-                        KeyFrame*              frame)
+                        Frame*                 frame)
 {
     i32 result = 0;
 
@@ -1305,24 +1303,26 @@ static i32 optimizePose(const std::vector<r32> inverseSigmaSquared,
         g2o::SE3Quat          quat   = vertex->estimate();
         cv::Mat               pose   = convertG2OSE3QuatToCvMat(quat);
 
-        setKeyFramePose(pose,
-                        frame->cTw,
-                        frame->wTc,
-                        frame->worldOrigin);
+        updatePoseMatrices(pose,
+                           frame->cTw,
+                           frame->wTc,
+                           frame->worldOrigin);
         result = initialCorrespondenceCount - badMapPointCount;
     }
 
     return result;
 }
 
-bool32 computeGeometricalModel(const KeyFrame*           referenceKeyFrame,
-                               const KeyFrame*           currentKeyFrame,
-                               const std::vector<i32>&   initializationMatches,
-                               const cv::Mat&            cameraMat,
-                               cv::Mat&                  rcw,
-                               cv::Mat&                  tcw,
-                               std::vector<bool32>&      keyPointTriangulatedFlags,
-                               std::vector<cv::Point3f>& initialPoints)
+bool32 computeGeometricalModel(const std::vector<cv::KeyPoint>& undistortedKeyPoints1,
+                               const std::vector<cv::KeyPoint>& undistortedKeyPoints2,
+                               const cv::Mat&                   descriptors1,
+                               const cv::Mat&                   descriptors2,
+                               const std::vector<i32>&          initializationMatches,
+                               const cv::Mat&                   cameraMat,
+                               cv::Mat&                         rcw,
+                               cv::Mat&                         tcw,
+                               std::vector<bool32>&             keyPointTriangulatedFlags,
+                               std::vector<cv::Point3f>&        initialPoints)
 {
     bool32 result = false;
 
@@ -1332,8 +1332,8 @@ bool32 computeGeometricalModel(const KeyFrame*           referenceKeyFrame,
     std::vector<Match>  matches;
     std::vector<bool32> matched;
 
-    matches.reserve(currentKeyFrame->undistortedKeyPoints.size());
-    matched.resize(referenceKeyFrame->undistortedKeyPoints.size());
+    matches.reserve(undistortedKeyPoints2.size());
+    matched.resize(undistortedKeyPoints1.size());
     for (size_t i = 0, iend = initializationMatches.size(); i < iend; i++)
     {
         if (initializationMatches[i] >= 0)
@@ -1362,7 +1362,7 @@ bool32 computeGeometricalModel(const KeyFrame*           referenceKeyFrame,
     // Generate sets of 8 points for each RANSAC iteration
     std::vector<std::vector<size_t>> ransacSets = std::vector<std::vector<size_t>>(maxRansacIterations, std::vector<size_t>(8, 0));
 
-    DUtils::Random::SeedRandOnce(0);
+    DUtils::Random::SeedRandOnce(1337);
 
     for (i32 it = 0; it < maxRansacIterations; it++)
     {
@@ -1388,8 +1388,8 @@ bool32 computeGeometricalModel(const KeyFrame*           referenceKeyFrame,
 
     std::thread threadHomography(&findHomography,
                                  std::ref(matches),
-                                 std::ref(referenceKeyFrame->undistortedKeyPoints),
-                                 std::ref(currentKeyFrame->undistortedKeyPoints),
+                                 std::ref(undistortedKeyPoints1),
+                                 std::ref(undistortedKeyPoints2),
                                  maxRansacIterations,
                                  std::ref(ransacSets),
                                  sigma,
@@ -1398,8 +1398,8 @@ bool32 computeGeometricalModel(const KeyFrame*           referenceKeyFrame,
                                  std ::ref(homography));
     std::thread threadFundamental(&findFundamental,
                                   std::ref(matches),
-                                  std::ref(referenceKeyFrame->undistortedKeyPoints),
-                                  std::ref(currentKeyFrame->undistortedKeyPoints),
+                                  std::ref(undistortedKeyPoints1),
+                                  std::ref(undistortedKeyPoints2),
                                   maxRansacIterations,
                                   std::ref(ransacSets),
                                   sigma,
@@ -1418,10 +1418,10 @@ bool32 computeGeometricalModel(const KeyFrame*           referenceKeyFrame,
     if (ratioHomographyToFundamental > 0.40)
     {
         result = reconstructHomography(matches,
-                                       referenceKeyFrame->undistortedKeyPoints,
-                                       currentKeyFrame->undistortedKeyPoints,
-                                       referenceKeyFrame->descriptors,
-                                       currentKeyFrame->descriptors,
+                                       undistortedKeyPoints1,
+                                       undistortedKeyPoints2,
+                                       descriptors1,
+                                       descriptors2,
                                        sigma,
                                        matched,
                                        homography,
@@ -1432,15 +1432,15 @@ bool32 computeGeometricalModel(const KeyFrame*           referenceKeyFrame,
                                        keyPointTriangulatedFlags,
                                        1.0,
                                        50);
-        printf("Assuming homography (ratio: %f)\n", ratioHomographyToFundamental);
+        printf("Assuming homography (%f)\n", ratioHomographyToFundamental);
     }
     else
     {
         result = reconstructFundamental(matches,
-                                        referenceKeyFrame->undistortedKeyPoints,
-                                        currentKeyFrame->undistortedKeyPoints,
-                                        referenceKeyFrame->descriptors,
-                                        currentKeyFrame->descriptors,
+                                        undistortedKeyPoints1,
+                                        undistortedKeyPoints2,
+                                        descriptors1,
+                                        descriptors2,
                                         sigma,
                                         vbMatchesInliersF,
                                         fundamental,
@@ -1451,7 +1451,7 @@ bool32 computeGeometricalModel(const KeyFrame*           referenceKeyFrame,
                                         keyPointTriangulatedFlags,
                                         1.0,
                                         50);
-        printf("Assuming fundamental (ratio: %f)\n", ratioHomographyToFundamental);
+        printf("Assuming fundamental (%f)\n", ratioHomographyToFundamental);
     }
 
     return result;
@@ -1475,17 +1475,17 @@ static void setMapPointToBad(MapPoint* mapPoint)
 
 static void runLocalMapping(LocalMappingState*       localMapping,
                             i32                      keyFrameCount,
-                            std::vector<MapPoint*>&  mapPoints,
-                            const ImagePyramidStats& imagePyramidStats,
+                            std::set<MapPoint*>&     mapPoints,
+                            std::set<KeyFrame*>&     keyFrames,
+                            OrbExtractionParameters& orbExtractionParameters,
                             r32                      fx,
                             r32                      fy,
                             r32                      cx,
                             r32                      cy,
                             r32                      invfx,
                             r32                      invfy,
-                            r32                      scaleFactor,
                             cv::Mat&                 cameraMat,
-                            i32*                     nextMapPointIndex,
+                            i32&                     nextMapPointIndex,
                             ORBVocabulary*           orbVocabulary)
 {
     if (!localMapping->newKeyFrames.empty())
@@ -1508,8 +1508,8 @@ static void runLocalMapping(LocalMappingState*       localMapping,
                 calculateMapPointNormalAndDepth(mapPoint->position,
                                                 mapPoint->observations,
                                                 keyFrame,
-                                                imagePyramidStats.scaleFactors,
-                                                imagePyramidStats.numberOfScaleLevels,
+                                                orbExtractionParameters.scaleFactors,
+                                                orbExtractionParameters.numberOfScaleLevels,
                                                 &mapPoint->minDistance,
                                                 &mapPoint->maxDistance,
                                                 &mapPoint->normalVector);
@@ -1519,20 +1519,20 @@ static void runLocalMapping(LocalMappingState*       localMapping,
         }
 
         updateKeyFrameConnections(keyFrame);
+        keyFrames.insert(keyFrame);
 
-#if 0
         { // MapPointCulling
-            std::vector<MapPoint*>::iterator newMapPointIterator = newMapPoints.begin();
+            std::list<MapPoint*>::iterator newMapPointIterator = localMapping->newMapPoints.begin();
 
             const i32 observationThreshold = 2;
 
-            while (newMapPointIterator != newMapPoints.end())
+            while (newMapPointIterator != localMapping->newMapPoints.end())
             {
                 MapPoint* mapPoint = *newMapPointIterator;
 
                 if (mapPoint->bad)
                 {
-                    newMapPointIterator = newMapPoints.erase(newMapPointIterator);
+                    newMapPointIterator = localMapping->newMapPoints.erase(newMapPointIterator);
                 }
                 else
                 {
@@ -1540,16 +1540,16 @@ static void runLocalMapping(LocalMappingState*       localMapping,
                     if (foundRatio < 0.25f)
                     {
                         setMapPointToBad(mapPoint);
-                        newMapPointIterator = newMapPoints.erase(newMapPointIterator);
+                        newMapPointIterator = localMapping->newMapPoints.erase(newMapPointIterator);
                     }
-                    else if ((keyFrameCount - mapPoint->firstObservationKeyFrame->index) >= 2 && mapPoint->observations.size() <= observationThreshold)
+                    else if ((keyFrameCount - mapPoint->referenceKeyFrame->index) >= 2 && mapPoint->observations.size() <= observationThreshold)
                     {
                         setMapPointToBad(mapPoint);
-                        newMapPointIterator = newMapPoints.erase(newMapPointIterator);
+                        newMapPointIterator = localMapping->newMapPoints.erase(newMapPointIterator);
                     }
-                    else if ((keyFrameCount - mapPoint->firstObservationKeyFrame->index) >= 3)
+                    else if ((keyFrameCount - mapPoint->referenceKeyFrame->index) >= 3)
                     {
-                        newMapPointIterator = newMapPoints.erase(newMapPointIterator);
+                        newMapPointIterator = localMapping->newMapPoints.erase(newMapPointIterator);
                     }
                     else
                     {
@@ -1558,25 +1558,25 @@ static void runLocalMapping(LocalMappingState*       localMapping,
                 }
             }
         }
-#endif
 
-        std::vector<MapPoint*> newMapPoints = createNewMapPoints(keyFrame,
-                                                                 keyFrame->orderedConnectedKeyFrames,
-                                                                 fx,
-                                                                 fy,
-                                                                 cx,
-                                                                 cy,
-                                                                 invfx,
-                                                                 invfy,
-                                                                 imagePyramidStats.numberOfScaleLevels,
-                                                                 scaleFactor,
-                                                                 cameraMat,
-                                                                 imagePyramidStats.sigmaSquared,
-                                                                 imagePyramidStats.scaleFactors,
-                                                                 mapPoints,
-                                                                 nextMapPointIndex);
+        i32 newMapPointCount = createNewMapPoints(keyFrame,
+                                                  keyFrame->orderedConnectedKeyFrames,
+                                                  fx,
+                                                  fy,
+                                                  cx,
+                                                  cy,
+                                                  invfx,
+                                                  invfy,
+                                                  orbExtractionParameters.numberOfScaleLevels,
+                                                  orbExtractionParameters.scaleFactor,
+                                                  cameraMat,
+                                                  orbExtractionParameters.sigmaSquared,
+                                                  orbExtractionParameters.scaleFactors,
+                                                  mapPoints,
+                                                  nextMapPointIndex,
+                                                  localMapping->newMapPoints);
 
-        printf("Created %i new mapPoints\n", newMapPoints.size());
+        printf("Created %i new mapPoints\n", newMapPointCount);
     }
 }
 
@@ -1596,6 +1596,8 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
 {
     _state.frameCounter++;
 
+    // TODO(jan): check reset
+
     switch (_state.status)
     {
         case OrbSlamStatus_Initializing:
@@ -1604,7 +1606,7 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
             cv::Mat distortionMat = _camera->getDistortionMatrix();
             cv::Mat cameraFrame   = _camera->getImageGray();
 
-            if (!_state.nextKeyFrameId)
+            if (!_state.initialFrameSet)
             {
                 computeGridConstraints(cameraFrame,
                                        cameraMat,
@@ -1617,77 +1619,79 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                 _state.cy    = cameraMat.at<r32>(1, 2);
                 _state.invfx = 1.0f / _state.fx;
                 _state.invfy = 1.0f / _state.fy;
+            }
 
-                KeyFrame* referenceKeyFrame = new KeyFrame();
+            Frame currentFrame;
+            initializeFrame(&currentFrame,
+                            _state.nextFrameId,
+                            cameraFrame,
+                            cameraMat,
+                            distortionMat,
+                            _state.initializationOrbExtractionParameters,
+                            _state.gridConstraints);
 
-                initializeKeyFrame(_state.imagePyramidStats,
-                                   _state.fastFeatureConstraints,
-                                   _state.edgeThreshold,
-                                   cameraFrame,
-                                   cameraMat,
-                                   distortionMat,
-                                   _state.orbOctTreePatchSize,
-                                   _state.orbOctTreeHalfPatchSize,
-                                   _state.umax,
-                                   _state.pattern,
-                                   _state.gridConstraints,
-                                   referenceKeyFrame,
-                                   _state.nextKeyFrameId);
+#if 0
+            if (_state.frameCounter == 20)
+            {
+                cv::Mat showFrame = cameraFrame.clone();
 
-                if (referenceKeyFrame->numberOfKeyPoints > 100)
+                for (i32 i = 0; i < currentFrame.undistortedKeyPoints.size(); i++)
                 {
-                    _state.previouslyMatchedKeyPoints.resize(referenceKeyFrame->numberOfKeyPoints);
-                    for (i32 i = 0; i < referenceKeyFrame->numberOfKeyPoints; i++)
+                    cv::KeyPoint kP = currentFrame.undistortedKeyPoints[i];
+                    cv::rectangle(showFrame,
+                                  cv::Rect((int)kP.pt.x - 3, (int)kP.pt.y - 3, 7, 7),
+                                  cv::Scalar(0, 0, 255));
+                }
+
+                cv::imshow("Frame 20", showFrame);
+                cv::waitKey(0);
+            }
+#endif
+
+            if (!_state.initialFrameSet)
+            {
+                if (currentFrame.keyPoints.size() > 100)
+                {
+                    initializeFrame(&_state.initialFrame, currentFrame);
+                    initializeFrame(&_state.lastFrame, currentFrame);
+
+                    _state.previouslyMatchedKeyPoints.resize(currentFrame.numberOfKeyPoints);
+                    for (i32 i = 0; i < currentFrame.numberOfKeyPoints; i++)
                     {
-                        _state.previouslyMatchedKeyPoints[i] = referenceKeyFrame->undistortedKeyPoints[i].pt;
+                        _state.previouslyMatchedKeyPoints[i] = currentFrame.undistortedKeyPoints[i].pt;
                     }
 
                     std::fill(_state.initializationMatches.begin(), _state.initializationMatches.end(), -1);
 
-                    _state.keyFrames.push_back(referenceKeyFrame);
-                    _state.nextKeyFrameId = 1;
+                    _state.initialFrameSet = true;
 
                     printf("First initialization keyFrame at frame %i\n", _state.frameCounter);
                 }
             }
             else
             {
-                KeyFrame* currentKeyFrame = new KeyFrame();
-
-                initializeKeyFrame(_state.imagePyramidStats,
-                                   _state.fastFeatureConstraints,
-                                   _state.edgeThreshold,
-                                   cameraFrame,
-                                   cameraMat,
-                                   distortionMat,
-                                   _state.orbOctTreePatchSize,
-                                   _state.orbOctTreeHalfPatchSize,
-                                   _state.umax,
-                                   _state.pattern,
-                                   _state.gridConstraints,
-                                   currentKeyFrame,
-                                   _state.nextKeyFrameId);
-
-                if (currentKeyFrame->numberOfKeyPoints > 100)
+                if (currentFrame.keyPoints.size() > 100)
                 {
                     // NOTE(jan): initialization matches contains the index of the matched keypoint
                     // of the current keyframe for every keypoint of the reference keyframe or
                     // -1 if not matched.
                     // currentKeyFrame->keyPoints[initializationMatches[i]] is matched to referenceKeyFrame->keyPoints[i]
-                    _state.initializationMatches                 = std::vector<i32>(_state.keyFrames[0]->numberOfKeyPoints, -1);
                     bool32 checkOrientation                      = true;
                     r32    shortestToSecondShortestDistanceRatio = 0.9f;
 
                     i32 numberOfMatches = 0;
 
-                    findInitializationMatches(_state.keyFrames[0],
-                                              currentKeyFrame,
-                                              _state.previouslyMatchedKeyPoints,
-                                              _state.gridConstraints,
-                                              shortestToSecondShortestDistanceRatio,
-                                              checkOrientation,
-                                              _state.initializationMatches,
-                                              numberOfMatches);
+                    numberOfMatches = findInitializationMatches(_state.initialFrame.undistortedKeyPoints,
+                                                                currentFrame.undistortedKeyPoints,
+                                                                _state.initialFrame.descriptors,
+                                                                currentFrame.descriptors,
+                                                                currentFrame.keyPointIndexGrid,
+                                                                _state.previouslyMatchedKeyPoints,
+                                                                _state.gridConstraints,
+                                                                shortestToSecondShortestDistanceRatio,
+                                                                checkOrientation,
+                                                                100,
+                                                                _state.initializationMatches);
 
                     // update prev matched
                     for (size_t i1 = 0, iend1 = _state.initializationMatches.size();
@@ -1696,7 +1700,7 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                     {
                         if (_state.initializationMatches[i1] >= 0)
                         {
-                            _state.previouslyMatchedKeyPoints[i1] = currentKeyFrame->undistortedKeyPoints[_state.initializationMatches[i1]].pt;
+                            _state.previouslyMatchedKeyPoints[i1] = currentFrame.undistortedKeyPoints[_state.initializationMatches[i1]].pt;
                         }
                     }
 
@@ -1706,8 +1710,8 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                         if (_state.initializationMatches[i] >= 0)
                         {
                             cv::line(_camera->getImageRGB(),
-                                     _state.keyFrames[0]->keyPoints[i].pt,
-                                     currentKeyFrame->keyPoints[_state.initializationMatches[i]].pt,
+                                     _state.initialFrame.keyPoints[i].pt,
+                                     currentFrame.keyPoints[_state.initializationMatches[i]].pt,
                                      cv::Scalar(0, 255, 0));
                         }
                     }
@@ -1720,8 +1724,10 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                         std::vector<bool32>      keyPointTriangulatedFlags; // Triangulated Correspondences (mvIniMatches)
                         std::vector<cv::Point3f> initialPoints;
 
-                        bool32 validModelFound = computeGeometricalModel(_state.keyFrames[0],
-                                                                         currentKeyFrame,
+                        bool32 validModelFound = computeGeometricalModel(_state.initialFrame.undistortedKeyPoints,
+                                                                         currentFrame.undistortedKeyPoints,
+                                                                         _state.initialFrame.descriptors,
+                                                                         currentFrame.descriptors,
                                                                          _state.initializationMatches,
                                                                          cameraMat,
                                                                          crw,
@@ -1740,77 +1746,80 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                                 }
                             }
 
-                            setKeyFramePose(cv::Mat::eye(4, 4, CV_32F),
-                                            _state.keyFrames[0]->cTw,
-                                            _state.keyFrames[0]->wTc,
-                                            _state.keyFrames[0]->worldOrigin);
+                            updatePoseMatrices(cv::Mat::eye(4, 4, CV_32F),
+                                               _state.initialFrame.cTw,
+                                               _state.initialFrame.wTc,
+                                               _state.initialFrame.worldOrigin);
 
                             cv::Mat cTw = cv::Mat::eye(4, 4, CV_32F);
                             crw.copyTo(cTw.rowRange(0, 3).colRange(0, 3));
                             ctw.copyTo(cTw.rowRange(0, 3).col(3));
 
-                            setKeyFramePose(cTw,
-                                            currentKeyFrame->cTw,
-                                            currentKeyFrame->wTc,
-                                            currentKeyFrame->worldOrigin);
+                            updatePoseMatrices(cTw,
+                                               currentFrame.cTw,
+                                               currentFrame.wTc,
+                                               currentFrame.worldOrigin);
 
-                            computeBoW(_state.orbVocabulary,
-                                       _state.keyFrames[0]);
-                            computeBoW(_state.orbVocabulary,
-                                       currentKeyFrame);
+                            // CreateInitialMapMonocular
+                            KeyFrame* initialKeyFrame = new KeyFrame();
+                            KeyFrame* currentKeyFrame = new KeyFrame();
 
-                            i32 mapPointIndex = 0;
-                            _state.mapPoints.clear();
+                            initializeKeyFrame(initialKeyFrame, _state.initialFrame, _state.nextKeyFrameId);
+                            initializeKeyFrame(currentKeyFrame, currentFrame, _state.nextKeyFrameId);
 
-                            _state.nextKeyFrameId = 2;
-                            _state.keyFrames.push_back(currentKeyFrame);
+                            computeBoW(_state.orbVocabulary, initialKeyFrame);
+                            computeBoW(_state.orbVocabulary, currentKeyFrame);
+
+                            _state.keyFrames.insert(initialKeyFrame);
+                            _state.keyFrames.insert(currentKeyFrame);
 
                             for (size_t i = 0, iend = _state.initializationMatches.size(); i < iend; i++)
                             {
                                 if (_state.initializationMatches[i] < 0) continue;
 
-                                MapPoint* mapPoint                 = new MapPoint();
-                                mapPoint->index                    = _state.nextMapPointId;
-                                mapPoint->firstObservationKeyFrame = currentKeyFrame;
-                                mapPoint->normalVector             = cv::Mat::zeros(3, 1, CV_32F);
-
                                 cv::Mat worldPosition(initialPoints[i]);
-                                worldPosition.copyTo(mapPoint->position);
 
-                                _state.nextMapPointId++;
+                                MapPoint* mapPoint = new MapPoint();
 
-                                _state.keyFrames[0]->mapPointMatches[i]                           = mapPoint;
+                                initializeMapPoint(mapPoint, currentKeyFrame, worldPosition, _state.nextMapPointId);
+
+                                initialKeyFrame->mapPointMatches[i]                               = mapPoint;
                                 currentKeyFrame->mapPointMatches[_state.initializationMatches[i]] = mapPoint;
 
-                                addMapPointObservation(mapPoint, _state.keyFrames[0], i);
+                                addMapPointObservation(mapPoint, initialKeyFrame, i);
                                 addMapPointObservation(mapPoint, currentKeyFrame, _state.initializationMatches[i]);
 
                                 computeBestDescriptorFromObservations(mapPoint->observations,
                                                                       &mapPoint->descriptor);
                                 calculateMapPointNormalAndDepth(mapPoint->position,
                                                                 mapPoint->observations,
-                                                                currentKeyFrame,
-                                                                _state.imagePyramidStats.scaleFactors,
-                                                                _state.imagePyramidStats.numberOfScaleLevels,
+                                                                mapPoint->referenceKeyFrame,
+                                                                _state.initializationOrbExtractionParameters.scaleFactors,
+                                                                _state.initializationOrbExtractionParameters.numberOfScaleLevels,
                                                                 &mapPoint->minDistance,
                                                                 &mapPoint->maxDistance,
                                                                 &mapPoint->normalVector);
 
-                                currentKeyFrame->mapPointIsOutlier[_state.initializationMatches[i]] = false;
+                                currentFrame.mapPointMatches[_state.initializationMatches[i]]   = mapPoint;
+                                currentFrame.mapPointIsOutlier[_state.initializationMatches[i]] = false;
 
-                                _state.mapPoints.push_back(mapPoint);
+                                _state.mapPoints.insert(mapPoint);
                             }
 
-                            updateKeyFrameConnections(_state.keyFrames[0]);
+                            updateKeyFrameConnections(initialKeyFrame);
                             updateKeyFrameConnections(currentKeyFrame);
 
                             printf("New Map created with %i points\n", _state.mapPoints.size());
 
                             { // (Global) bundle adjustment
+                                std::vector<KeyFrame*> keyFrames = std::vector<KeyFrame*>(_state.keyFrames.begin(), _state.keyFrames.end());
+                                std::vector<MapPoint*> mapPoints = std::vector<MapPoint*>(_state.mapPoints.begin(), _state.mapPoints.end());
+
                                 const i32 numberOfIterations = 20;
+                                const i32 loopKeyframeCount  = 0;
 
                                 std::vector<bool32> mapPointNotIncludedFlags;
-                                mapPointNotIncludedFlags.resize(_state.mapPoints.size());
+                                mapPointNotIncludedFlags.resize(mapPoints.size());
 
                                 g2o::SparseOptimizer                    optimizer;
                                 g2o::BlockSolver_6_3::LinearSolverType* linearSolver;
@@ -1827,12 +1836,12 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
 
                                 u64 maxKFid = 0;
 
-                                // Set WAIKeyFrame vertices
-                                for (i32 i = 0; i < _state.keyFrames.size(); i++)
+                                // Set KeyFrame vertices
+                                for (i32 i = 0; i < keyFrames.size(); i++)
                                 {
-                                    KeyFrame* keyFrame = _state.keyFrames[i];
+                                    KeyFrame* keyFrame = keyFrames[i];
 
-                                    // TODO(jan): bad check
+                                    if (keyFrame->bad) continue;
 
                                     g2o::SE3Quat quat = convertCvMatToG2OSE3Quat(keyFrame->cTw);
 
@@ -1848,12 +1857,12 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                                     }
                                 }
 
-                                const r32 thHuber2D   = sqrt(5.99);
-                                i32       vertexCount = 0;
+                                const r32 thHuber2D = sqrt(5.99);
+                                const r32 thHuber3D = sqrt(7.815);
 
-                                for (i32 i = 0; i < _state.mapPoints.size(); i++)
+                                for (i32 i = 0; i < mapPoints.size(); i++)
                                 {
-                                    MapPoint* mapPoint = _state.mapPoints[i];
+                                    MapPoint* mapPoint = mapPoints[i];
 
                                     if (mapPoint->bad) continue;
 
@@ -1866,8 +1875,6 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                                     vertex->setMarginalized(true);
                                     optimizer.addVertex(vertex);
 
-                                    vertexCount++;
-
                                     const std::map<KeyFrame*, i32> observations = mapPoint->observations;
 
                                     i32 edgeCount = 0;
@@ -1879,7 +1886,7 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                                     {
                                         KeyFrame* keyFrame = it->first;
 
-                                        //if (pKF->isBad() || pKF->mnId > maxKFid) continue;
+                                        if (keyFrame->bad || keyFrame->index > maxKFid) continue;
 
                                         edgeCount++;
 
@@ -1893,14 +1900,14 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                                         edge->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(id)));
                                         edge->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(keyFrame->index)));
                                         edge->setMeasurement(observationMatrix);
-                                        const r32& invSigmaSquared = _state.imagePyramidStats.inverseSigmaSquared[undistortedKeyPoint.octave];
+                                        const r32& invSigmaSquared = _state.initializationOrbExtractionParameters.inverseSigmaSquared[undistortedKeyPoint.octave];
                                         edge->setInformation(Eigen::Matrix2d::Identity() * invSigmaSquared);
 
                                         //if (bRobust)
                                         //{
                                         g2o::RobustKernelHuber* rk = new g2o::RobustKernelHuber;
                                         edge->setRobustKernel(rk);
-                                        rk->setDelta(thHuber2D);
+                                        rk->setDelta(thHuber3D);
                                         //}
 
                                         edge->fx = _state.fx;
@@ -1915,7 +1922,6 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                                     {
                                         optimizer.removeVertex(vertex);
                                         mapPointNotIncludedFlags[i] = true;
-                                        vertexCount--;
                                     }
                                     else
                                     {
@@ -1924,57 +1930,51 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                                 }
 
                                 // Optimize!
-                                if (vertexCount)
-                                {
-                                    optimizer.initializeOptimization();
-                                    optimizer.optimize(numberOfIterations);
-                                }
+                                optimizer.initializeOptimization();
+                                optimizer.optimize(numberOfIterations);
 
                                 // Recover optimized data
 
-                                for (i32 i = 0; i < _state.keyFrames.size(); i++)
+                                // Keyframes
+                                for (i32 i = 0; i < keyFrames.size(); i++)
                                 {
-                                    KeyFrame* keyFrame = _state.keyFrames[i];
+                                    KeyFrame* keyFrame = keyFrames[i];
 
-                                    //if (pKF->isBad()) continue;
+                                    if (keyFrame->bad) continue;
 
                                     g2o::VertexSE3Expmap* vertex = static_cast<g2o::VertexSE3Expmap*>(optimizer.vertex(i));
                                     g2o::SE3Quat          quat   = vertex->estimate();
 
-                                    setKeyFramePose(convertG2OSE3QuatToCvMat(quat), keyFrame->cTw, keyFrame->wTc, keyFrame->worldOrigin);
+                                    updatePoseMatrices(convertG2OSE3QuatToCvMat(quat), keyFrame->cTw, keyFrame->wTc, keyFrame->worldOrigin);
 
-                                    /*if (nLoopKF == 0)
+#if 0
+                                    if (loopKeyframeCount == 0)
                                     {
-                                    pKF->SetPose(Converter::toCvMat(SE3quat));
+                                        updatePoseMatrices(convertG2OSE3QuatToCvMat(quat), keyFrame->cTw, keyFrame->wTc, keyFrame->worldOrigin);
                                     }
                                     else
                                     {
                                         pKF->mTcwGBA.create(4, 4, CV_32F);
                                         Converter::toCvMat(SE3quat).copyTo(pKF->mTcwGBA);
                                         pKF->mnBAGlobalForKF = nLoopKF;
-                                    }*/
+                                    }
+#else
+                                    updatePoseMatrices(convertG2OSE3QuatToCvMat(quat), keyFrame->cTw, keyFrame->wTc, keyFrame->worldOrigin);
+#endif
                                 }
 
-                                for (size_t i = 0; i < _state.mapPoints.size(); i++)
+                                // Points
+                                for (size_t i = 0; i < mapPoints.size(); i++)
                                 {
                                     if (mapPointNotIncludedFlags[i]) continue;
 
-                                    MapPoint* mapPoint = _state.mapPoints[i];
+                                    MapPoint* mapPoint = mapPoints[i];
 
                                     if (mapPoint->bad) continue;
 
                                     g2o::VertexSBAPointXYZ* vertex = static_cast<g2o::VertexSBAPointXYZ*>(optimizer.vertex(i + _state.nextKeyFrameId));
-                                    mapPoint->position             = convertEigenVector3DToCvMat(vertex->estimate());
-                                    calculateMapPointNormalAndDepth(mapPoint->position,
-                                                                    mapPoint->observations,
-                                                                    _state.keyFrames[0],
-                                                                    _state.imagePyramidStats.scaleFactors,
-                                                                    _state.imagePyramidStats.numberOfScaleLevels,
-                                                                    &mapPoint->minDistance,
-                                                                    &mapPoint->maxDistance,
-                                                                    &mapPoint->normalVector);
-
-                                    /*if (nLoopKF == 0)
+#if 0
+                                    if (nLoopKF == 0)
                                     {
                                         pMP->SetWorldPos(Converter::toCvMat(vPoint->estimate()));
                                         pMP->UpdateNormalAndDepth();
@@ -1984,11 +1984,23 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                                         pMP->mPosGBA.create(3, 1, CV_32F);
                                         Converter::toCvMat(vPoint->estimate()).copyTo(pMP->mPosGBA);
                                         pMP->mnBAGlobalForKF = nLoopKF;
-                                    }*/
+                                    }
+#else
+                                    cv::Mat worldPosition = convertEigenVector3DToCvMat(vertex->estimate());
+                                    worldPosition.copyTo(mapPoint->position);
+                                    calculateMapPointNormalAndDepth(mapPoint->position,
+                                                                    mapPoint->observations,
+                                                                    mapPoint->referenceKeyFrame,
+                                                                    _state.initializationOrbExtractionParameters.scaleFactors,
+                                                                    _state.initializationOrbExtractionParameters.numberOfScaleLevels,
+                                                                    &mapPoint->minDistance,
+                                                                    &mapPoint->maxDistance,
+                                                                    &mapPoint->normalVector);
+#endif
                                 }
                             }
 
-                            r32 medianDepth    = computeSceneMedianDepthForKeyFrame(_state.keyFrames[0]);
+                            r32 medianDepth    = computeSceneMedianDepthForKeyFrame(initialKeyFrame);
                             r32 invMedianDepth = 1.0f / medianDepth;
 
                             // TODO(jan): is the check for tracked map points necessary,
@@ -1996,7 +2008,7 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                             i32 trackedMapPoints;
 
                             { // WAIKeyFrame->TrackedMapPoints
-                                std::vector<MapPoint*> mapPointMatches = _state.keyFrames[0]->mapPointMatches;
+                                std::vector<MapPoint*> mapPointMatches = currentKeyFrame->mapPointMatches;
                                 for (i32 i = 0; i < mapPointMatches.size(); i++)
                                 {
                                     MapPoint* mapPoint = mapPointMatches[i];
@@ -2015,13 +2027,13 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                             {
                                 cv::Mat scaledPose               = currentKeyFrame->cTw;
                                 scaledPose.col(3).rowRange(0, 3) = scaledPose.col(3).rowRange(0, 3) * invMedianDepth;
-                                setKeyFramePose(scaledPose,
-                                                currentKeyFrame->cTw,
-                                                currentKeyFrame->wTc,
-                                                currentKeyFrame->worldOrigin);
+                                updatePoseMatrices(scaledPose,
+                                                   currentKeyFrame->cTw,
+                                                   currentKeyFrame->wTc,
+                                                   currentKeyFrame->worldOrigin);
 
                                 // Scale points
-                                std::vector<MapPoint*> allMapPoints = _state.keyFrames[0]->mapPointMatches;
+                                std::vector<MapPoint*> allMapPoints = initialKeyFrame->mapPointMatches;
                                 for (i32 i = 0; i < allMapPoints.size(); i++)
                                 {
                                     if (allMapPoints[i])
@@ -2033,15 +2045,16 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                                     }
                                 }
 
-                                _state.localMapping.newKeyFrames.push_back(_state.keyFrames[0]);
+                                _state.localMapping.newKeyFrames.push_back(initialKeyFrame);
                                 _state.localMapping.newKeyFrames.push_back(currentKeyFrame);
 
-                                _state.localKeyFrames.push_back(_state.keyFrames[0]);
+                                _state.localKeyFrames.push_back(initialKeyFrame);
                                 _state.localKeyFrames.push_back(currentKeyFrame);
+                                _state.localMapPoints          = std::vector<MapPoint*>(_state.mapPoints.begin(), _state.mapPoints.end());
+                                _state.referenceKeyFrame       = currentKeyFrame;
+                                currentFrame.referenceKeyFrame = currentKeyFrame;
 
-                                i32 numberOfFeatures                           = 1000;
-                                _state.fastFeatureConstraints.numberOfFeatures = numberOfFeatures;
-                                calculateNumberOfFeaturesPerScaleLevel(_state.scaleFactor, numberOfFeatures, &_state.imagePyramidStats);
+                                initializeFrame(&_state.lastFrame, currentFrame);
 
                                 // TODO(jan): save stuff for camera trajectory
                                 // TODO(jan): set reference map points
@@ -2049,69 +2062,73 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                                 runLocalMapping(&_state.localMapping,
                                                 _state.keyFrames.size(),
                                                 _state.mapPoints,
-                                                _state.imagePyramidStats,
+                                                _state.keyFrames,
+                                                _state.initializationOrbExtractionParameters,
                                                 _state.fx,
                                                 _state.fy,
                                                 _state.cx,
                                                 _state.cy,
                                                 _state.invfx,
                                                 _state.invfy,
-                                                _state.scaleFactor,
                                                 cameraMat,
-                                                &_state.nextMapPointId,
+                                                _state.nextMapPointId,
                                                 _state.orbVocabulary);
                                 runLocalMapping(&_state.localMapping,
                                                 _state.keyFrames.size(),
                                                 _state.mapPoints,
-                                                _state.imagePyramidStats,
+                                                _state.keyFrames,
+                                                _state.initializationOrbExtractionParameters,
                                                 _state.fx,
                                                 _state.fy,
                                                 _state.cx,
                                                 _state.cy,
                                                 _state.invfx,
                                                 _state.invfy,
-                                                _state.scaleFactor,
                                                 cameraMat,
-                                                &_state.nextMapPointId,
+                                                _state.nextMapPointId,
                                                 _state.orbVocabulary);
-
-                                _state.referenceKeyFrame = currentKeyFrame;
-                                _state.lastKeyFrameId    = currentKeyFrame->index;
 
                                 _state.status        = OrbSlamStatus_Tracking;
                                 _state.trackingWasOk = true;
 
                                 printf("Second initialization keyFrame at frame %i\n", _state.frameCounter);
 
-                                std::cout << _state.keyFrames[0]->cTw << std::endl;
+                                std::cout << initialKeyFrame->cTw << std::endl;
                                 std::cout << currentKeyFrame->cTw << std::endl;
                             }
                             else
                             {
-                                delete _state.keyFrames[0];
-                                delete currentKeyFrame;
+                                for (std::set<KeyFrame*>::iterator keyFrameIterator = _state.keyFrames.begin(), keyFrameIteratorEnd = _state.keyFrames.end();
+                                     keyFrameIterator != keyFrameIteratorEnd;
+                                     keyFrameIterator++)
+                                {
+                                    delete *keyFrameIterator;
+                                }
+
+                                for (std::set<MapPoint*>::iterator mapPointIterator = _state.mapPoints.begin(), mapPointIteratorEnd = _state.mapPoints.end();
+                                     mapPointIterator != mapPointIteratorEnd;
+                                     mapPointIterator++)
+                                {
+                                    delete *mapPointIterator;
+                                }
+
                                 _state.keyFrames.clear();
+                                _state.mapPoints.clear();
 
                                 _state.nextKeyFrameId = 0;
+                                _state.nextFrameId    = 0;
+                                _state.nextMapPointId = 0;
                             }
                         }
                     }
                     else
                     {
-                        delete _state.keyFrames[0];
-                        delete currentKeyFrame;
-                        _state.keyFrames.clear();
-
-                        _state.nextKeyFrameId = 0;
+                        _state.initialFrameSet = false;
                     }
                 }
                 else
                 {
-                    delete _state.keyFrames[0];
-                    delete currentKeyFrame;
-                    _state.keyFrames.clear();
-
-                    _state.nextKeyFrameId = 0;
+                    _state.initialFrameSet = false;
 
                     std::fill(_state.initializationMatches.begin(), _state.initializationMatches.end(), -1);
                 }
@@ -2125,20 +2142,14 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
             cv::Mat distortionMat = _camera->getDistortionMatrix();
             cv::Mat cameraFrame   = _camera->getImageGray();
 
-            KeyFrame* currentFrame = new KeyFrame();
-            initializeKeyFrame(_state.imagePyramidStats,
-                               _state.fastFeatureConstraints,
-                               _state.edgeThreshold,
-                               cameraFrame,
-                               cameraMat,
-                               distortionMat,
-                               _state.orbOctTreePatchSize,
-                               _state.orbOctTreeHalfPatchSize,
-                               _state.umax,
-                               _state.pattern,
-                               _state.gridConstraints,
-                               currentFrame,
-                               _state.nextKeyFrameId);
+            Frame currentFrame;
+            initializeFrame(&currentFrame,
+                            _state.nextFrameId,
+                            cameraFrame,
+                            cameraMat,
+                            distortionMat,
+                            _state.orbExtractionParameters,
+                            _state.gridConstraints);
             _state.nextKeyFrameId++;
 
             KeyFrame* referenceKeyFrame = _state.referenceKeyFrame;
@@ -2150,38 +2161,50 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                 // TODO(jan): checkReplacedInLastFrame
                 // TODO(jan): velocity model
 
-                computeBoW(_state.orbVocabulary, currentFrame);
+                computeBoW(_state.orbVocabulary,
+                           currentFrame.descriptors,
+                           currentFrame.bowVector,
+                           currentFrame.featureVector);
 
                 std::vector<MapPoint*> mapPointMatches;
-                i32                    matchCount = findMapPointMatchesByBoW(referenceKeyFrame,
-                                                          currentFrame,
+                i32                    matchCount = findMapPointMatchesByBoW(referenceKeyFrame->featureVector,
+                                                          currentFrame.featureVector,
+                                                          referenceKeyFrame->mapPointMatches,
+                                                          referenceKeyFrame->undistortedKeyPoints,
+                                                          currentFrame.keyPoints,
+                                                          referenceKeyFrame->descriptors,
+                                                          currentFrame.descriptors,
+                                                          true,
                                                           mapPointMatches);
 
                 // TODO(jan): magic number
                 if (matchCount > 15)
                 {
-                    currentFrame->mapPointMatches = mapPointMatches;
-                    currentFrame->cTw             = referenceKeyFrame->cTw.clone();
+                    currentFrame.mapPointMatches = mapPointMatches;
+                    updatePoseMatrices(referenceKeyFrame->cTw,
+                                       currentFrame.cTw,
+                                       currentFrame.wTc,
+                                       currentFrame.worldOrigin);
 
-                    optimizePose(_state.imagePyramidStats.inverseSigmaSquared,
+                    optimizePose(_state.orbExtractionParameters.inverseSigmaSquared,
                                  _state.fx,
                                  _state.fy,
                                  _state.cx,
                                  _state.cy,
-                                 currentFrame);
+                                 &currentFrame);
 
                     i32 goodMatchCount = 0;
 
                     // discard outliers
-                    for (i32 i = 0; i < currentFrame->numberOfKeyPoints; i++)
+                    for (i32 i = 0; i < currentFrame.numberOfKeyPoints; i++)
                     {
-                        MapPoint* mapPoint = currentFrame->mapPointMatches[i];
+                        MapPoint* mapPoint = currentFrame.mapPointMatches[i];
                         if (mapPoint)
                         {
-                            if (currentFrame->mapPointIsOutlier[i])
+                            if (currentFrame.mapPointIsOutlier[i])
                             {
-                                currentFrame->mapPointMatches[i]   = nullptr;
-                                currentFrame->mapPointIsOutlier[i] = false;
+                                currentFrame.mapPointMatches[i]   = nullptr;
+                                currentFrame.mapPointIsOutlier[i] = false;
                                 //matchCount--;
                             }
                             else if (!mapPoint->observations.empty())
@@ -2220,9 +2243,9 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                     { // update local keyframes
                         // Each map point votes for the keyframes in which it has been observed
                         std::map<KeyFrame*, i32> keyframeCounter;
-                        for (i32 i = 0; i < currentFrame->numberOfKeyPoints; i++)
+                        for (i32 i = 0; i < currentFrame.numberOfKeyPoints; i++)
                         {
-                            MapPoint* mapPoint = currentFrame->mapPointMatches[i];
+                            MapPoint* mapPoint = currentFrame.mapPointMatches[i];
 
                             if (mapPoint)
                             {
@@ -2239,7 +2262,7 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                                 }
                                 else
                                 {
-                                    currentFrame->mapPointMatches[i] = nullptr;
+                                    currentFrame.mapPointMatches[i] = nullptr;
                                 }
                             }
                         }
@@ -2259,7 +2282,7 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                             {
                                 KeyFrame* keyFrame = it->first;
 
-                                //if (pKF->isBad()) continue;
+                                if (keyFrame->bad) continue;
 
                                 if (it->second > maxObservations)
                                 {
@@ -2268,7 +2291,7 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                                 }
 
                                 _state.localKeyFrames.push_back(it->first);
-                                keyFrame->trackReferenceForFrame = currentFrame->index;
+                                keyFrame->trackReferenceForFrame = currentFrame.id;
                             }
 
                             // Include also some not-already-included keyframes that are neighbors to already-included keyframes
@@ -2282,19 +2305,19 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                                 KeyFrame* keyFrame = *itKF;
 
                                 std::vector<KeyFrame*> neighborKeyFrames = getBestCovisibilityKeyFrames(10,
-                                                                                                        currentFrame->orderedConnectedKeyFrames);
+                                                                                                        keyFrame->orderedConnectedKeyFrames);
 
                                 for (std::vector<KeyFrame*>::const_iterator itNeighKF = neighborKeyFrames.begin(), itEndNeighKF = neighborKeyFrames.end();
                                      itNeighKF != itEndNeighKF;
                                      itNeighKF++)
                                 {
                                     KeyFrame* neighborKeyFrame = *itNeighKF;
-                                    //if (!pNeighKF->isBad())
+                                    if (!neighborKeyFrame->bad)
                                     {
-                                        if (neighborKeyFrame->trackReferenceForFrame != currentFrame->index)
+                                        if (neighborKeyFrame->trackReferenceForFrame != currentFrame.id)
                                         {
                                             _state.localKeyFrames.push_back(neighborKeyFrame);
-                                            neighborKeyFrame->trackReferenceForFrame = currentFrame->index;
+                                            neighborKeyFrame->trackReferenceForFrame = currentFrame.id;
                                             break;
                                         }
                                     }
@@ -2306,12 +2329,12 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                                      sit++)
                                 {
                                     KeyFrame* childKeyFrame = *sit;
-                                    //if (!pChildKF->isBad())
+                                    if (!childKeyFrame->bad)
                                     {
-                                        if (childKeyFrame->trackReferenceForFrame != currentFrame->index)
+                                        if (childKeyFrame->trackReferenceForFrame != currentFrame.id)
                                         {
                                             _state.localKeyFrames.push_back(childKeyFrame);
-                                            childKeyFrame->trackReferenceForFrame = currentFrame->index;
+                                            childKeyFrame->trackReferenceForFrame = currentFrame.id;
                                             break;
                                         }
                                     }
@@ -2320,10 +2343,10 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                                 KeyFrame* parentKeyFrame = keyFrame->parent;
                                 if (parentKeyFrame)
                                 {
-                                    if (parentKeyFrame->trackReferenceForFrame != currentFrame->index)
+                                    if (parentKeyFrame->trackReferenceForFrame != currentFrame.id)
                                     {
                                         _state.localKeyFrames.push_back(parentKeyFrame);
-                                        parentKeyFrame->trackReferenceForFrame = currentFrame->index;
+                                        parentKeyFrame->trackReferenceForFrame = currentFrame.id;
                                         break;
                                     }
                                 }
@@ -2331,8 +2354,8 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
 
                             if (keyFrameWithMaxObservations)
                             {
-                                _state.referenceKeyFrame        = keyFrameWithMaxObservations;
-                                currentFrame->referenceKeyFrame = keyFrameWithMaxObservations;
+                                _state.referenceKeyFrame       = keyFrameWithMaxObservations;
+                                currentFrame.referenceKeyFrame = keyFrameWithMaxObservations;
                             }
                         }
                     }
@@ -2355,12 +2378,12 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                                 MapPoint* mapPoint = *itMP;
 
                                 if (!mapPoint) continue;
-                                if (mapPoint->trackReferenceForFrame == currentFrame->index) continue;
+                                if (mapPoint->trackReferenceForFrame == currentFrame.id) continue;
 
                                 if (!mapPoint->bad)
                                 {
                                     _state.localMapPoints.push_back(mapPoint);
-                                    mapPoint->trackReferenceForFrame = currentFrame->index;
+                                    mapPoint->trackReferenceForFrame = currentFrame.id;
                                 }
                             }
                         }
@@ -2370,7 +2393,7 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                         std::vector<bool32> mapPointAlreadyMatched = std::vector<bool32>(_state.mapPoints.size(), false);
 
                         // Do not search map points already matched
-                        for (std::vector<MapPoint*>::iterator vit = currentFrame->mapPointMatches.begin(), vend = currentFrame->mapPointMatches.end();
+                        for (std::vector<MapPoint*>::iterator vit = currentFrame.mapPointMatches.begin(), vend = currentFrame.mapPointMatches.end();
                              vit != vend;
                              vit++)
                         {
@@ -2385,11 +2408,9 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                                 else
                                 {
                                     mapPoint->visibleInKeyFrameCounter++;
-                                    mapPoint->lastFrameSeen = currentFrame->index;
+                                    mapPoint->lastFrameSeen = currentFrame.id;
 
                                     /*
-                                    pMP->IncreaseVisible();
-                                    pMP->mnLastFrameSeen = mCurrentFrame.mnId;
                                     pMP->mbTrackInView   = false;
                                     */
                                 }
@@ -2407,11 +2428,11 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
 
                             if (mapPoint)
                             {
-                                if (mapPoint->lastFrameSeen == currentFrame->index) continue;
+                                if (mapPoint->lastFrameSeen == currentFrame.id) continue;
                                 if (mapPoint->bad) continue;
 
-                                // Project (this fills WAIMapPoint variables for matching)
-                                if (isMapPointInFrameFrustum(currentFrame,
+                                // Project (this fills MapPoint variables for matching)
+                                if (isMapPointInFrameFrustum(&currentFrame,
                                                              _state.fx,
                                                              _state.fy,
                                                              _state.cx,
@@ -2434,38 +2455,37 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                         {
                             i32 threshold = 1;
 
-                            // TODO(jan): reactivate this
                             // If the camera has been relocalised recently, perform a coarser search
-                            /*if (mCurrentFrame.mnId < mnLastRelocFrameId + 2)
-                        {
-                            threshold = 5;
-                        }*/
+                            if (currentFrame.id < _state.lastRelocalizationFrameId + 2)
+                            {
+                                threshold = 5;
+                            }
 
                             i32 localMatches = searchMapPointsByProjection(_state.localMapPoints,
-                                                                           _state.imagePyramidStats.scaleFactors,
+                                                                           _state.orbExtractionParameters.scaleFactors,
                                                                            _state.gridConstraints,
                                                                            MATCHER_DISTANCE_THRESHOLD_HIGH,
                                                                            0.8f,
-                                                                           currentFrame,
+                                                                           &currentFrame,
                                                                            threshold);
                             printf("Found %i mapPoints by projection of local map\n", localMatches);
                         }
                     }
 
                     // TODO(jan): we call this function twice... is this necessary?
-                    optimizePose(_state.imagePyramidStats.inverseSigmaSquared,
+                    optimizePose(_state.orbExtractionParameters.inverseSigmaSquared,
                                  _state.fx,
                                  _state.fy,
                                  _state.cx,
                                  _state.cy,
-                                 currentFrame);
+                                 &currentFrame);
 
-                    for (i32 i = 0; i < currentFrame->numberOfKeyPoints; i++)
+                    for (i32 i = 0; i < currentFrame.numberOfKeyPoints; i++)
                     {
-                        MapPoint* mapPoint = currentFrame->mapPointMatches[i];
+                        MapPoint* mapPoint = currentFrame.mapPointMatches[i];
                         if (mapPoint)
                         {
-                            if (!currentFrame->mapPointIsOutlier[i])
+                            if (!currentFrame.mapPointIsOutlier[i])
                             {
                                 mapPoint->foundInKeyFrameCounter++;
 
@@ -2480,15 +2500,17 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
                     // TODO(jan): reactivate this
                     // Decide if the tracking was succesful
                     // More restrictive if there was a relocalization recently
-                    /*if (mCurrentFrame.mnId < mnLastRelocFrameId + mMaxFrames && mnMatchesInliers < 50)
-                    {
-                        //cout << "mnMatchesInliers: " << mnMatchesInliers << endl;
-                        return false;
-                    }*/
-
-                    if (inlierMatches < 30)
+                    if (currentFrame.id < _state.lastRelocalizationFrameId + _state.maxFramesBetweenKeyFrames && inlierMatches < 50)
                     {
                         trackingIsOk = false;
+                    }
+                    else if (inlierMatches < 30)
+                    {
+                        trackingIsOk = false;
+                    }
+                    else
+                    {
+                        trackingIsOk = true;
                     }
                 }
             }
@@ -2499,57 +2521,59 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
             {
                 // TODO(jan): update motion model
 
-                _pose = currentFrame->cTw.clone();
+                _pose = currentFrame.cTw.clone();
 
                 // Clean VO matches
-                for (int i = 0; i < currentFrame->numberOfKeyPoints; i++)
+                for (int i = 0; i < currentFrame.numberOfKeyPoints; i++)
                 {
-                    MapPoint* mapPoint = currentFrame->mapPointMatches[i];
+                    MapPoint* mapPoint = currentFrame.mapPointMatches[i];
                     if (mapPoint)
                     {
                         if (mapPoint->observations.size() < 1)
                         {
-                            currentFrame->mapPointMatches[i]   = nullptr;
-                            currentFrame->mapPointIsOutlier[i] = false;
+                            currentFrame.mapPointMatches[i]   = nullptr;
+                            currentFrame.mapPointIsOutlier[i] = false;
                         }
                     }
                 }
 
                 // TODO(jan): delete temporal map points (needed in motion model)
 
-                // TODO(jan): magic numbers
-                bool32 addNewKeyFrame = needNewKeyFrame(currentFrame->index,
+                bool32 addNewKeyFrame = needNewKeyFrame(currentFrame.id,
                                                         _state.lastKeyFrameId,
-                                                        _state.lastRelocalizationKeyFrameId,
-                                                        0,
-                                                        30,
+                                                        _state.lastRelocalizationFrameId,
+                                                        _state.minFramesBetweenKeyFrames,
+                                                        _state.maxFramesBetweenKeyFrames,
                                                         inlierMatches,
                                                         _state.referenceKeyFrame,
                                                         _state.keyFrames.size());
 
                 if (addNewKeyFrame)
                 {
-                    _state.keyFrames.push_back(currentFrame);
-                    _state.referenceKeyFrame = currentFrame;
+                    KeyFrame* keyFrame = new KeyFrame();
+                    initializeKeyFrame(keyFrame, currentFrame, _state.nextKeyFrameId);
 
-                    _state.localMapping.newKeyFrames.push_back(currentFrame);
+                    _state.referenceKeyFrame       = keyFrame;
+                    currentFrame.referenceKeyFrame = keyFrame;
+
+                    _state.localMapping.newKeyFrames.push_back(keyFrame);
+
+                    _state.lastKeyFrameId = keyFrame->index;
 
                     runLocalMapping(&_state.localMapping,
                                     _state.keyFrames.size(),
                                     _state.mapPoints,
-                                    _state.imagePyramidStats,
+                                    _state.keyFrames,
+                                    _state.orbExtractionParameters,
                                     _state.fx,
                                     _state.fy,
                                     _state.cx,
                                     _state.cy,
                                     _state.invfx,
                                     _state.invfy,
-                                    _state.scaleFactor,
                                     cameraMat,
-                                    &_state.nextMapPointId,
+                                    _state.nextMapPointId,
                                     _state.orbVocabulary);
-
-                    _state.lastKeyFrameId = currentFrame->index;
 
                     // TODO(jan): camera trajectory stuff
                 }
@@ -2559,9 +2583,16 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
     }
 }
 
+std::vector<KeyFrame*> WAI::ModeOrbSlam2DataOriented::getKeyFrames()
+{
+    std::vector<KeyFrame*> result = std::vector<KeyFrame*>(_state.keyFrames.begin(), _state.keyFrames.end());
+
+    return result;
+}
+
 std::vector<MapPoint*> WAI::ModeOrbSlam2DataOriented::getMapPoints()
 {
-    std::vector<MapPoint*> result = _state.mapPoints;
+    std::vector<MapPoint*> result = std::vector<MapPoint*>(_state.mapPoints.begin(), _state.mapPoints.end());
 
     return result;
 }

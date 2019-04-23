@@ -4,6 +4,7 @@
 #include <WAIPlatform.h>
 #include <WAIOrbPattern.h>
 #include <WAISensorCamera.h>
+#include <WAIOrbExtraction.h>
 
 #include <DBoW2/BowVector.h>
 #include <DBoW2/FeatureVector.h>
@@ -47,7 +48,8 @@ struct MapPoint
     r32 maxDistance;
     r32 minDistance;
 
-    KeyFrame* firstObservationKeyFrame;
+    KeyFrame* referenceKeyFrame;
+    i32       firstObservationFrameId;
     i32       foundInKeyFrameCounter;
     i32       visibleInKeyFrameCounter;
 
@@ -59,13 +61,16 @@ struct MapPoint
 
 struct KeyFrame
 {
-    i32 index;
-    i32 numberOfKeyPoints;
+    i32    index;
+    i32    frameId;
+    i32    numberOfKeyPoints;
+    bool32 bad;
+
+    cv::Mat cameraMat;
 
     std::vector<cv::KeyPoint> keyPoints; // only used for visualization
     std::vector<cv::KeyPoint> undistortedKeyPoints;
-    std::vector<MapPoint*>    mapPointMatches;   // same size as keyPoints, initialized with -1
-    std::vector<bool32>       mapPointIsOutlier; // same size as keyPoints
+    std::vector<MapPoint*>    mapPointMatches; // same size as keyPoints, initialized with -1
 
     std::vector<size_t> keyPointIndexGrid[FRAME_GRID_COLS][FRAME_GRID_ROWS];
     cv::Mat             descriptors;
@@ -87,42 +92,30 @@ struct KeyFrame
     DBoW2::FeatureVector featureVector;
 };
 
-struct PyramidOctTreeCell
+struct Frame
 {
-    r32 minX, maxX, minY, maxY;
-    i32 imagePyramidLevel;
-    i32 xOffset, yOffset;
-};
+    i32     id;
+    cv::Mat cameraMat;
+    i32     numberOfKeyPoints;
 
-struct PyramidOctTreeLevel
-{
-    i32                             minBorderX;
-    i32                             minBorderY;
-    i32                             maxBorderX;
-    i32                             maxBorderY;
-    std::vector<PyramidOctTreeCell> cells;
-};
+    // Pose matrices
+    cv::Mat cTw;
+    cv::Mat wTc;
+    cv::Mat worldOrigin;
 
-struct PyramidOctTree
-{
-    std::vector<PyramidOctTreeLevel> levels;
-};
+    // Keypoints, descriptors and mapPoints
+    cv::Mat                   descriptors;
+    std::vector<cv::KeyPoint> keyPoints;
+    std::vector<cv::KeyPoint> undistortedKeyPoints;
+    std::vector<MapPoint*>    mapPointMatches;
+    std::vector<bool32>       mapPointIsOutlier;
 
-struct ImagePyramidStats
-{
-    i32              numberOfScaleLevels;
-    std::vector<r32> scaleFactors;
-    std::vector<r32> inverseScaleFactors;
-    std::vector<r32> sigmaSquared;
-    std::vector<r32> inverseSigmaSquared;
-    std::vector<i32> numberOfFeaturesPerScaleLevel;
-};
+    std::vector<size_t> keyPointIndexGrid[FRAME_GRID_COLS][FRAME_GRID_ROWS];
 
-struct FastFeatureConstraints
-{
-    i32 initialThreshold;
-    i32 minimalThreshold;
-    i32 numberOfFeatures;
+    KeyFrame* referenceKeyFrame;
+
+    DBoW2::BowVector     bowVector;
+    DBoW2::FeatureVector featureVector;
 };
 
 struct GridConstraints
@@ -138,6 +131,7 @@ struct GridConstraints
 struct LocalMappingState
 {
     std::list<KeyFrame*> newKeyFrames; // TODO(jan): replace with vector?
+    std::list<MapPoint*> newMapPoints;
 };
 
 struct OrbSlamState
@@ -145,40 +139,40 @@ struct OrbSlamState
     OrbSlamStatus status;
     bool32        trackingWasOk;
 
+    i32 maxFramesBetweenKeyFrames;
+    i32 minFramesBetweenKeyFrames;
+
     // local map
     std::vector<KeyFrame*> localKeyFrames;
     std::vector<MapPoint*> localMapPoints;
 
-    // pyramid + orb stuff
-    i32                    edgeThreshold;
-    i32                    orbOctTreePatchSize;
-    i32                    orbOctTreeHalfPatchSize;
-    std::vector<i32>       umax;
-    std::vector<cv::Point> pattern;
-
     // initialization stuff
+    Frame                    initialFrame;
     std::vector<cv::Point2f> previouslyMatchedKeyPoints;
     std::vector<i32>         initializationMatches;
+    bool32                   initialFrameSet;
+    OrbExtractionParameters  initializationOrbExtractionParameters;
 
     // camera stuff
     r32 fx, fy, cx, cy;
     r32 invfx, invfy;
 
-    ImagePyramidStats      imagePyramidStats;
-    GridConstraints        gridConstraints;
-    FastFeatureConstraints fastFeatureConstraints;
+    GridConstraints gridConstraints;
 
-    std::vector<KeyFrame*> keyFrames;
-    std::vector<MapPoint*> mapPoints;
-    i32                    nextKeyFrameId;
-    i32                    nextMapPointId;
+    OrbExtractionParameters orbExtractionParameters;
+
+    std::set<KeyFrame*> keyFrames;
+    std::set<MapPoint*> mapPoints;
+    i32                 nextFrameId;
+    i32                 nextKeyFrameId;
+    i32                 nextMapPointId;
 
     KeyFrame* referenceKeyFrame;
 
-    i32 lastKeyFrameId;
-    i32 lastRelocalizationKeyFrameId;
+    Frame lastFrame;
 
-    r32 scaleFactor;
+    i32 lastKeyFrameId;
+    i32 lastRelocalizationFrameId;
 
     i32 frameCounter;
 
@@ -208,6 +202,22 @@ static inline cv::Mat getKeyFrameCameraCenter(const KeyFrame* keyFrame)
     return result;
 }
 
+// TODO(jan): move this somewhere smarter
+static void initializeMapPoint(MapPoint*      mapPoint,
+                               KeyFrame*      referenceKeyFrame,
+                               const cv::Mat& worldPosition,
+                               i32&           nextMapPointId)
+{
+    mapPoint->index                    = nextMapPointId++;
+    mapPoint->referenceKeyFrame        = referenceKeyFrame;
+    mapPoint->firstObservationFrameId  = referenceKeyFrame->frameId;
+    mapPoint->visibleInKeyFrameCounter = 1;
+    mapPoint->foundInKeyFrameCounter   = 1;
+
+    worldPosition.copyTo(mapPoint->position);
+    mapPoint->normalVector = cv::Mat::zeros(3, 1, CV_32F);
+}
+
 namespace WAI
 {
 
@@ -219,6 +229,7 @@ class WAI_API ModeOrbSlam2DataOriented : public Mode
     bool getPose(cv::Mat* pose);
 
     std::vector<MapPoint*> getMapPoints();
+    std::vector<KeyFrame*> getKeyFrames();
     i32                    getMapPointCount() { return _state.mapPoints.size(); }
 
     private:

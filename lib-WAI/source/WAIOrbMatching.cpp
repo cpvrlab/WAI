@@ -127,49 +127,6 @@ void undistortKeyPoints(const cv::Mat                   cameraMat,
     }
 }
 
-void computeScalePyramid(const cv::Mat            image,
-                         const ImagePyramidStats& imagePyramidStats,
-                         const i32                edgeThreshold,
-                         std::vector<cv::Mat>&    imagePyramid)
-{
-    for (i32 level = 0; level < imagePyramidStats.numberOfScaleLevels; level++)
-    {
-        r32      scale = imagePyramidStats.inverseScaleFactors[level];
-        cv::Size sz(cvRound((r32)image.cols * scale), cvRound((r32)image.rows * scale));
-        cv::Size wholeSize(sz.width + edgeThreshold * 2, sz.height + edgeThreshold * 2);
-        cv::Mat  temp(wholeSize, image.type()), masktemp;
-        imagePyramid[level] = temp(cv::Rect(edgeThreshold, edgeThreshold, sz.width, sz.height));
-
-        if (level)
-        {
-            resize(imagePyramid[level - 1],
-                   imagePyramid[level],
-                   sz,
-                   0,
-                   0,
-                   CV_INTER_LINEAR);
-
-            copyMakeBorder(imagePyramid[level],
-                           temp,
-                           edgeThreshold,
-                           edgeThreshold,
-                           edgeThreshold,
-                           edgeThreshold,
-                           cv::BORDER_REFLECT_101 + cv::BORDER_ISOLATED);
-        }
-        else
-        {
-            copyMakeBorder(image,
-                           temp,
-                           edgeThreshold,
-                           edgeThreshold,
-                           edgeThreshold,
-                           edgeThreshold,
-                           cv::BORDER_REFLECT_101);
-        }
-    }
-}
-
 static std::vector<size_t> getFeatureIndicesForArea(const i32                       numberOfKeyPoints,
                                                     const r32                       searchWindowSize,
                                                     const r32                       x,
@@ -233,15 +190,21 @@ static std::vector<size_t> getFeatureIndicesForArea(const i32                   
     return result;
 }
 
-static void findInitializationMatches(const KeyFrame*                 keyFrame1,
-                                      const KeyFrame*                 keyFrame2,
-                                      const std::vector<cv::Point2f>& previouslyMatchedKeyPoints,
-                                      const GridConstraints&          gridConstraints,
-                                      const r32                       shortestToSecondShortestDistanceRatio,
-                                      const bool32                    checkOrientation,
-                                      std::vector<i32>&               initializationMatches,
-                                      i32&                            numberOfMatches)
+static i32 findInitializationMatches(const std::vector<cv::KeyPoint>& undistortedKeyPoints1,
+                                     const std::vector<cv::KeyPoint>& undistortedKeyPoints2,
+                                     const cv::Mat&                   descriptors1,
+                                     const cv::Mat&                   descriptors2,
+                                     const std::vector<size_t>        keyPointIndexGrid2[FRAME_GRID_COLS][FRAME_GRID_ROWS],
+                                     const std::vector<cv::Point2f>&  previouslyMatchedKeyPoints,
+                                     const GridConstraints&           gridConstraints,
+                                     const r32                        shortestToSecondShortestDistanceRatio,
+                                     const bool32                     checkOrientation,
+                                     const i32                        searchWindowSize,
+                                     std::vector<i32>&                matches12)
 {
+    i32 result = 0;
+    matches12  = std::vector<i32>(undistortedKeyPoints1.size(), -1);
+
     std::vector<i32> rotHist[ROTATION_HISTORY_LENGTH];
     for (i32 i = 0; i < ROTATION_HISTORY_LENGTH; i++)
     {
@@ -250,33 +213,32 @@ static void findInitializationMatches(const KeyFrame*                 keyFrame1,
 
     const r32 factor = 1.0f / ROTATION_HISTORY_LENGTH;
 
-    std::vector<i32> matchesDistances(keyFrame2->numberOfKeyPoints, INT_MAX);
-    std::vector<i32> matchesKeyPointIndices(keyFrame2->numberOfKeyPoints, -1);
+    std::vector<i32> matchesDistances(undistortedKeyPoints2.size(), INT_MAX);
+    std::vector<i32> matches21(undistortedKeyPoints2.size(), -1);
 
-    for (size_t i1 = 0, iend1 = keyFrame1->undistortedKeyPoints.size();
+    for (size_t i1 = 0, iend1 = undistortedKeyPoints1.size();
          i1 < iend1;
          i1++)
     {
-        cv::KeyPoint keyPoint1 = keyFrame1->undistortedKeyPoints[i1];
+        cv::KeyPoint keyPoint1 = undistortedKeyPoints1[i1];
 
         i32 level1 = keyPoint1.octave;
         if (level1 > 0) continue;
 
-        // TODO(jan): magic number
         std::vector<size_t> keyPointIndicesCurrentFrame =
-          getFeatureIndicesForArea(keyFrame2->numberOfKeyPoints,
-                                   100,
+          getFeatureIndicesForArea(undistortedKeyPoints2.size(),
+                                   searchWindowSize,
                                    previouslyMatchedKeyPoints[i1].x,
                                    previouslyMatchedKeyPoints[i1].y,
                                    gridConstraints,
                                    level1,
                                    level1,
-                                   keyFrame2->keyPointIndexGrid,
-                                   keyFrame2->undistortedKeyPoints);
+                                   keyPointIndexGrid2,
+                                   undistortedKeyPoints2);
 
         if (keyPointIndicesCurrentFrame.empty()) continue;
 
-        cv::Mat d1 = keyFrame1->descriptors.row(i1);
+        cv::Mat d1 = descriptors1.row(i1);
 
         // smaller is better
         i32 shortestDist       = INT_MAX;
@@ -289,7 +251,7 @@ static void findInitializationMatches(const KeyFrame*                 keyFrame1,
         {
             size_t i2 = *vit;
 
-            cv::Mat d2 = keyFrame2->descriptors.row(i2);
+            cv::Mat d2 = descriptors2.row(i2);
 
             i32 dist = descriptorDistance(d1, d2);
 
@@ -310,24 +272,24 @@ static void findInitializationMatches(const KeyFrame*                 keyFrame1,
         if (shortestDist <= MATCHER_DISTANCE_THRESHOLD_LOW)
         {
             // test that shortest distance is unambiguous
-            if (shortestDist < shortestToSecondShortestDistanceRatio * (r32)secondShortestDist)
+            if (shortestDist < (r32)secondShortestDist * shortestToSecondShortestDistanceRatio)
             {
                 // delete previous match, if it exists
-                if (matchesKeyPointIndices[shortestDistId] >= 0)
+                if (matches21[shortestDistId] >= 0)
                 {
-                    i32 previouslyMatchedKeyPointId                    = matchesKeyPointIndices[shortestDistId];
-                    initializationMatches[previouslyMatchedKeyPointId] = -1;
-                    numberOfMatches--;
+                    i32 previouslyMatchedKeyPointId        = matches21[shortestDistId];
+                    matches12[previouslyMatchedKeyPointId] = -1;
+                    result--;
                 }
 
-                initializationMatches[i1]              = shortestDistId;
-                matchesKeyPointIndices[shortestDistId] = i1;
-                matchesDistances[shortestDistId]       = shortestDist;
-                numberOfMatches++;
+                matches12[i1]                    = shortestDistId;
+                matches21[shortestDistId]        = i1;
+                matchesDistances[shortestDistId] = shortestDist;
+                result++;
 
                 if (checkOrientation)
                 {
-                    r32 rot = keyFrame1->undistortedKeyPoints[i1].angle - keyFrame2->undistortedKeyPoints[shortestDistId].angle;
+                    r32 rot = undistortedKeyPoints1[i1].angle - undistortedKeyPoints2[shortestDistId].angle;
                     if (rot < 0.0) rot += 360.0f;
 
                     i32 bin = round(rot * factor);
@@ -356,29 +318,34 @@ static void findInitializationMatches(const KeyFrame*                 keyFrame1,
             for (size_t j = 0, jend = rotHist[i].size(); j < jend; j++)
             {
                 i32 idx1 = rotHist[i][j];
-                if (initializationMatches[idx1] >= 0)
+                if (matches12[idx1] >= 0)
                 {
-                    initializationMatches[idx1] = -1;
-                    numberOfMatches--;
+                    matches12[idx1] = -1;
+                    result--;
                 }
             }
         }
     }
+
+    return result;
 }
 
-static i32 findMapPointMatchesByBoW(const KeyFrame*         referenceKeyFrame,
-                                    const KeyFrame*         currentFrame,
-                                    std::vector<MapPoint*>& mapPoints)
+static i32 findMapPointMatchesByBoW(const DBoW2::FeatureVector&      featureVectorReferenceFrame,
+                                    const DBoW2::FeatureVector&      featureVectorCurrentFrame,
+                                    const std::vector<MapPoint*>&    mapPointMatchesReferenceFrame,
+                                    const std::vector<cv::KeyPoint>& undistortedKeyPointsReferenceFrame,
+                                    const std::vector<cv::KeyPoint>& keyPointsCurrentFrame,
+                                    const cv::Mat&                   descriptorsReferenceFrame,
+                                    const cv::Mat&                   descriptorsCurrentFrame,
+                                    const bool32                     checkOrientation,
+                                    std::vector<MapPoint*>&          matches)
 {
     i32 result = 0;
 
     const r32 bestToSecondBestRatio = 0.7f;
 
-    const std::vector<MapPoint*> referenceKeyFrameMapPoints = referenceKeyFrame->mapPointMatches;
-    mapPoints                                               = std::vector<MapPoint*>(currentFrame->numberOfKeyPoints, nullptr);
-
-    const DBoW2::FeatureVector& featureVectorRefKeyFrame  = referenceKeyFrame->featureVector;
-    const DBoW2::FeatureVector& featureVectorCurrentFrame = currentFrame->featureVector;
+    const std::vector<MapPoint*> referenceKeyFrameMapPoints = mapPointMatchesReferenceFrame;
+    matches                                                 = std::vector<MapPoint*>(keyPointsCurrentFrame.size(), nullptr);
 
     std::vector<i32> rotHist[ROTATION_HISTORY_LENGTH];
     for (i32 i = 0; i < ROTATION_HISTORY_LENGTH; i++)
@@ -388,9 +355,9 @@ static i32 findMapPointMatchesByBoW(const KeyFrame*         referenceKeyFrame,
     const r32 factor = 1.0f / ROTATION_HISTORY_LENGTH;
 
     // We perform the matching over ORB that belong to the same vocabulary node (at a certain level)
-    DBoW2::FeatureVector::const_iterator KFit  = featureVectorRefKeyFrame.begin();
+    DBoW2::FeatureVector::const_iterator KFit  = featureVectorReferenceFrame.begin();
     DBoW2::FeatureVector::const_iterator Fit   = featureVectorCurrentFrame.begin();
-    DBoW2::FeatureVector::const_iterator KFend = featureVectorRefKeyFrame.end();
+    DBoW2::FeatureVector::const_iterator KFend = featureVectorReferenceFrame.end();
     DBoW2::FeatureVector::const_iterator Fend  = featureVectorCurrentFrame.end();
 
     while (KFit != KFend && Fit != Fend)
@@ -409,7 +376,7 @@ static i32 findMapPointMatchesByBoW(const KeyFrame*         referenceKeyFrame,
                 if (!pMP) continue;
                 if (pMP->bad) continue;
 
-                const cv::Mat& dKF = referenceKeyFrame->descriptors.row(realIdxKF);
+                const cv::Mat& dKF = descriptorsReferenceFrame.row(realIdxKF);
 
                 i32 bestDist1 = 256;
                 i32 bestIdxF  = -1;
@@ -419,9 +386,9 @@ static i32 findMapPointMatchesByBoW(const KeyFrame*         referenceKeyFrame,
                 {
                     const u32 realIdxF = vIndicesF[iF];
 
-                    if (mapPoints[realIdxF]) continue;
+                    if (matches[realIdxF]) continue;
 
-                    const cv::Mat& dF = currentFrame->descriptors.row(realIdxF);
+                    const cv::Mat& dF = descriptorsCurrentFrame.row(realIdxF);
 
                     const i32 dist = descriptorDistance(dKF, dF);
 
@@ -441,22 +408,22 @@ static i32 findMapPointMatchesByBoW(const KeyFrame*         referenceKeyFrame,
                 {
                     if (static_cast<r32>(bestDist1) < bestToSecondBestRatio * static_cast<r32>(bestDist2))
                     {
-                        mapPoints[bestIdxF] = pMP;
+                        matches[bestIdxF] = pMP;
 
-                        const cv::KeyPoint& kp = referenceKeyFrame->undistortedKeyPoints[realIdxKF];
+                        const cv::KeyPoint& kp = undistortedKeyPointsReferenceFrame[realIdxKF];
 
-                        //if (mbCheckOrientation)
-                        //{
-                        // TODO(jan): are we sure that we should not use undistorted keypoints here?
-                        r32 rot = kp.angle - currentFrame->keyPoints[bestIdxF].angle;
-                        if (rot < 0.0)
-                            rot += 360.0f;
-                        i32 bin = round(rot * factor);
-                        if (bin == ROTATION_HISTORY_LENGTH)
-                            bin = 0;
-                        assert(bin >= 0 && bin < ROTATION_HISTORY_LENGTH);
-                        rotHist[bin].push_back(bestIdxF);
-                        //}
+                        if (checkOrientation)
+                        {
+                            // TODO(jan): are we sure that we should not use undistorted keypoints here?
+                            r32 rot = kp.angle - keyPointsCurrentFrame[bestIdxF].angle;
+                            if (rot < 0.0)
+                                rot += 360.0f;
+                            i32 bin = round(rot * factor);
+                            if (bin == ROTATION_HISTORY_LENGTH)
+                                bin = 0;
+                            assert(bin >= 0 && bin < ROTATION_HISTORY_LENGTH);
+                            rotHist[bin].push_back(bestIdxF);
+                        }
                         result++;
                     }
                 }
@@ -467,7 +434,7 @@ static i32 findMapPointMatchesByBoW(const KeyFrame*         referenceKeyFrame,
         }
         else if (KFit->first < Fit->first)
         {
-            KFit = featureVectorRefKeyFrame.lower_bound(Fit->first);
+            KFit = featureVectorReferenceFrame.lower_bound(Fit->first);
         }
         else
         {
@@ -475,25 +442,25 @@ static i32 findMapPointMatchesByBoW(const KeyFrame*         referenceKeyFrame,
         }
     }
 
-    //if (mbCheckOrientation)
-    //{
-    int ind1 = -1;
-    int ind2 = -1;
-    int ind3 = -1;
-
-    computeThreeMaxima(rotHist, ROTATION_HISTORY_LENGTH, ind1, ind2, ind3);
-
-    for (int i = 0; i < ROTATION_HISTORY_LENGTH; i++)
+    if (checkOrientation)
     {
-        if (i == ind1 || i == ind2 || i == ind3) continue;
+        i32 ind1 = -1;
+        i32 ind2 = -1;
+        i32 ind3 = -1;
 
-        for (size_t j = 0, jend = rotHist[i].size(); j < jend; j++)
+        computeThreeMaxima(rotHist, ROTATION_HISTORY_LENGTH, ind1, ind2, ind3);
+
+        for (i32 i = 0; i < ROTATION_HISTORY_LENGTH; i++)
         {
-            mapPoints[rotHist[i][j]] = nullptr;
-            result--;
+            if (i == ind1 || i == ind2 || i == ind3) continue;
+
+            for (size_t j = 0, jend = rotHist[i].size(); j < jend; j++)
+            {
+                matches[rotHist[i][j]] = nullptr;
+                result--;
+            }
         }
     }
-    //}
 
     return result;
 }
@@ -537,17 +504,10 @@ static i32 searchMapPointMatchesForTriangulation(KeyFrame*                      
     const DBoW2::FeatureVector& vFeatVec2 = keyFrame2->featureVector;
 
     //Compute epipole in second image
-    cv::Mat Cw = getKeyFrameCameraCenter(keyFrame1);
-    std::cout << "Cw: " << Cw << std::endl;
-
+    cv::Mat Cw  = getKeyFrameCameraCenter(keyFrame1);
     cv::Mat R2w = getKeyFrameRotation(keyFrame2);
-    std::cout << "R2w: " << R2w << std::endl;
-
     cv::Mat t2w = getKeyFrameTranslation(keyFrame2);
-    std::cout << "t2w: " << t2w << std::endl;
-
-    cv::Mat C2 = R2w * Cw + t2w;
-    std::cout << "C2: " << C2 << std::endl;
+    cv::Mat C2  = R2w * Cw + t2w;
 
     const r32 invz = 1.0f / C2.at<r32>(2);
     const r32 ex   = fx * C2.at<r32>(0) * invz + cx;

@@ -506,6 +506,22 @@ int ORBmatcher::SearchForInitialization(WAIFrame& F1, WAIFrame& F2, vector<cv::P
         }
     }
 
+#if 0
+    for (int i = 0; i < vnMatches12.size(); i++)
+    {
+        if (vnMatches12[i] >= 0)
+        {
+            cv::Point2f p1    = vbPrevMatched[i];
+            cv::Point2f p2    = F2.mvKeysUn[vnMatches12[i]].pt;
+            cv::Scalar  color = cv::Scalar(0, 0, 255);
+            cv::line(showFrame, p1, p2, color);
+        }
+    }
+
+    cv::imshow("Features in area", showFrame);
+    cv::waitKey(0);
+#endif
+
     //Update prev matched
     for (size_t i1 = 0, iend1 = vnMatches12.size(); i1 < iend1; i1++)
         if (vnMatches12[i1] >= 0)
@@ -655,17 +671,10 @@ int ORBmatcher::SearchForTriangulation(WAIKeyFrame* pKF1, WAIKeyFrame* pKF2, cv:
     const DBoW2::FeatureVector& vFeatVec2 = pKF2->mFeatVec;
 
     //Compute epipole in second image
-    cv::Mat Cw = pKF1->GetCameraCenter();
-    std::cout << "Cw: " << Cw << std::endl;
-
+    cv::Mat Cw  = pKF1->GetCameraCenter();
     cv::Mat R2w = pKF2->GetRotation();
-    std::cout << "R2w: " << R2w << std::endl;
-
     cv::Mat t2w = pKF2->GetTranslation();
-    std::cout << "t2w: " << t2w << std::endl;
-
-    cv::Mat C2 = R2w * Cw + t2w;
-    std::cout << "C2: " << C2 << std::endl;
+    cv::Mat C2  = R2w * Cw + t2w;
 
     const float invz = 1.0f / C2.at<float>(2);
     const float ex   = pKF2->fx * C2.at<float>(0) * invz + pKF2->cx;
