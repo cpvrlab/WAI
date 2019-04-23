@@ -172,21 +172,21 @@ void WAISceneView::update()
                 _mapPC->deleteMesh(_mappointsMesh);
             }
 
-            std::vector<MapPoint> mapPoints = _mode->getMapPoints();
+            std::vector<MapPoint*> mapPoints = _mode->getMapPoints();
 
             //instantiate and add new mesh
             if (mapPoints.size())
             {
                 //get points as Vec3f
                 std::vector<SLVec3f> points, normals;
-                for (MapPoint mapPoint : mapPoints)
+                for (MapPoint* mapPoint : mapPoints)
                 {
-                    points.push_back(SLVec3f(mapPoint.position.at<float>(0, 0),
-                                             mapPoint.position.at<float>(1, 0),
-                                             mapPoint.position.at<float>(2, 0)));
-                    normals.push_back(SLVec3f(mapPoint.normalVector.at<float>(0, 0),
-                                              mapPoint.normalVector.at<float>(1, 0),
-                                              mapPoint.normalVector.at<float>(2, 0)));
+                    points.push_back(SLVec3f(mapPoint->position.at<float>(0, 0),
+                                             mapPoint->position.at<float>(1, 0),
+                                             mapPoint->position.at<float>(2, 0)));
+                    normals.push_back(SLVec3f(mapPoint->normalVector.at<float>(0, 0),
+                                              mapPoint->normalVector.at<float>(1, 0),
+                                              mapPoint->normalVector.at<float>(2, 0)));
                 }
 
                 _mappointsMesh = new SLPoints(points, normals, "MapPoints", _redMat);
@@ -310,7 +310,46 @@ void WAISceneView::renderMapPoints(std::string                      name,
 //-----------------------------------------------------------------------------
 void WAISceneView::renderKeyFrames()
 {
-#ifndef DATA_ORIENTED
+#if DATA_ORIENTED
+    std::vector<KeyFrame*> keyframes = _mode->getKeyFrames();
+
+    // TODO(jan): delete keyframe textures
+    for (KeyFrame* kf : keyframes)
+    {
+        SLCVCamera* cam = new SLCVCamera("KeyFrame " + std::to_string(kf->index));
+
+        cv::Mat Twc = kf->wTc.clone();
+        SLMat4f om;
+        om.setMatrix(Twc.at<float>(0, 0),
+                     -Twc.at<float>(0, 1),
+                     -Twc.at<float>(0, 2),
+                     Twc.at<float>(0, 3),
+                     Twc.at<float>(1, 0),
+                     -Twc.at<float>(1, 1),
+                     -Twc.at<float>(1, 2),
+                     Twc.at<float>(1, 3),
+                     Twc.at<float>(2, 0),
+                     -Twc.at<float>(2, 1),
+                     -Twc.at<float>(2, 2),
+                     Twc.at<float>(2, 3),
+                     Twc.at<float>(3, 0),
+                     -Twc.at<float>(3, 1),
+                     -Twc.at<float>(3, 2),
+                     Twc.at<float>(3, 3));
+
+        cam->om(om);
+
+        //calculate vertical field of view
+        SLfloat fy     = SLApplication::activeCalib->fx();
+        SLfloat cy     = SLApplication::activeCalib->cy();
+        SLfloat fovDeg = 2 * (SLfloat)atan2(cy, fy) * SL_RAD2DEG;
+        cam->fov(fovDeg);
+        cam->focalDist(0.11);
+        cam->clipNear(0.1);
+        cam->clipFar(1000.0);
+        _keyFrameNode->addChild(cam);
+    }
+#else
     std::vector<WAIKeyFrame*> keyframes = _mode->getKeyFrames();
 
     // TODO(jan): delete keyframe textures

@@ -3,10 +3,10 @@
 #include <DUtils/Random.h>
 
 #include <WAIModeOrbSlam2DataOriented.h>
-#include <WAIConverter.cpp>
-#include <WAIOrbExtraction.cpp>
-#include <WAIOrbMatching.cpp>
-#include <WAIOrbSlamInitialization.cpp>
+#include "OrbSlamDataOriented/WAIConverter.cpp"
+#include "OrbSlamDataOriented/WAIOrbExtraction.cpp"
+#include "OrbSlamDataOriented/WAIOrbMatching.cpp"
+#include "OrbSlamDataOriented/WAIOrbSlamInitialization.cpp"
 
 WAI::ModeOrbSlam2DataOriented::ModeOrbSlam2DataOriented(SensorCamera* camera, std::string vocabularyPath)
   : _camera(camera)
@@ -1473,6 +1473,60 @@ static void setMapPointToBad(MapPoint* mapPoint)
     }
 }
 
+static void addMapPointObservation(MapPoint* mapPoint,
+                                   KeyFrame* observingKeyFrame,
+                                   i32       keyPointIndex)
+{
+    if (mapPoint->observations.count(observingKeyFrame))
+    {
+        return;
+    }
+
+    mapPoint->observations[observingKeyFrame] = keyPointIndex;
+}
+
+static void eraseMapPointObservation(MapPoint* mapPoint,
+                                     KeyFrame* observingKeyFrame)
+{
+    bool32 bad = false;
+    {
+        //unique_lock<mutex> lock(mMutexFeatures);
+        if (mapPoint->observations.count(observingKeyFrame))
+        {
+            int idx = mapPoint->observations[observingKeyFrame];
+
+            mapPoint->observations.erase(observingKeyFrame);
+
+            if (mapPoint->referenceKeyFrame == observingKeyFrame)
+            {
+                mapPoint->referenceKeyFrame = mapPoint->observations.begin()->first;
+            }
+
+            // If only 2 observations or less, discard point
+            if (mapPoint->observations.size() <= 2)
+            {
+                bad = true;
+            }
+        }
+    }
+
+    if (bad)
+    {
+        //SetBadFlag();
+        setMapPointToBad(mapPoint);
+    }
+}
+
+static void eraseKeyFrameMapPointMatch(KeyFrame* keyFrame,
+                                       MapPoint* mapPoint)
+{
+    if (mapPoint->observations.count(keyFrame))
+    {
+        i32 keyPointIndex                        = mapPoint->observations[keyFrame];
+        keyFrame->mapPointMatches[keyPointIndex] = static_cast<MapPoint*>(NULL);
+    }
+}
+
 static void runLocalMapping(LocalMappingState*       localMapping,
                             i32                      keyFrameCount,
                             std::set<MapPoint*>&     mapPoints,
@@ -1577,19 +1631,353 @@ static void runLocalMapping(LocalMappingState*       localMapping,
                                                   localMapping->newMapPoints);
 
         printf("Created %i new mapPoints\n", newMapPointCount);
-    }
-}
 
-static void addMapPointObservation(MapPoint* mapPoint,
-                                   KeyFrame* observingKeyFrame,
-                                   i32       keyPointIndex)
-{
-    if (mapPoint->observations.count(observingKeyFrame))
-    {
-        return;
-    }
+        bool abortBA = false;
 
-    mapPoint->observations[observingKeyFrame] = keyPointIndex;
+        // TODO(jan): check if stop was requested
+        if (localMapping->newKeyFrames.empty())
+        {
+            if (keyFrames.size() > 2)
+            {
+                { // Local Bundle Adjustment
+                    bool* stopFlag = &abortBA;
+
+                    // Local KeyFrames: First Breath Search from Current Keyframe
+                    std::list<KeyFrame*> localKeyFrames;
+
+                    localKeyFrames.push_back(keyFrame);
+                    keyFrame->localBundleAdjustmentKeyFrameIndex = keyFrame->index;
+
+                    const std::vector<KeyFrame*> neighborKeyFrames = keyFrame->orderedConnectedKeyFrames;
+                    for (int i = 0, iend = neighborKeyFrames.size(); i < iend; i++)
+                    {
+                        KeyFrame* neighborKeyFrame                           = neighborKeyFrames[i];
+                        neighborKeyFrame->localBundleAdjustmentKeyFrameIndex = keyFrame->index;
+                        if (!neighborKeyFrame->bad)
+                        {
+                            localKeyFrames.push_back(neighborKeyFrame);
+                        }
+                    }
+
+                    // Local MapPoints seen in Local KeyFrames
+                    std::list<MapPoint*> localMapPoints;
+                    for (list<KeyFrame*>::iterator keyFrameIterator = localKeyFrames.begin(), keyFrameIteratorEnd = localKeyFrames.end();
+                         keyFrameIterator != keyFrameIteratorEnd;
+                         keyFrameIterator++)
+                    {
+                        std::vector<MapPoint*> mapPoints = (*keyFrameIterator)->mapPointMatches;
+                        for (std::vector<MapPoint*>::iterator mapPointIterator = mapPoints.begin(), mapPointIteratorEnd = mapPoints.end();
+                             mapPointIterator != mapPointIteratorEnd;
+                             mapPointIterator++)
+                        {
+                            MapPoint* mapPoint = *mapPointIterator;
+                            if (mapPoint)
+                            {
+                                if (!mapPoint->bad)
+                                    if (mapPoint->localBundleAdjustmentKeyFrameIndex != keyFrame->index)
+                                    {
+                                        localMapPoints.push_back(mapPoint);
+                                        mapPoint->localBundleAdjustmentKeyFrameIndex = keyFrame->index;
+                                    }
+                            }
+                        }
+                    }
+
+                    // Fixed Keyframes. Keyframes that see Local MapPoints but that are not Local Keyframes
+                    std::list<KeyFrame*> fixedKeyFrames;
+                    for (std::list<MapPoint*>::iterator mapPointIterator = localMapPoints.begin(), mapPointIteratorEnd = localMapPoints.end();
+                         mapPointIterator != mapPointIteratorEnd;
+                         mapPointIterator++)
+                    {
+                        std::map<KeyFrame*, i32> observations = (*mapPointIterator)->observations;
+                        for (std::map<KeyFrame*, i32>::iterator observationIterator = observations.begin(), observationIteratorEnd = observations.end();
+                             observationIterator != observationIteratorEnd;
+                             observationIterator++)
+                        {
+                            KeyFrame* fixedKeyFrame = observationIterator->first;
+
+                            if (fixedKeyFrame->localBundleAdjustmentKeyFrameIndex != keyFrame->index && fixedKeyFrame->localBundleAdjustmentFixedKeyFrameIndex != keyFrame->index)
+                            {
+                                fixedKeyFrame->localBundleAdjustmentFixedKeyFrameIndex = keyFrame->index;
+                                if (!fixedKeyFrame->bad)
+                                {
+                                    fixedKeyFrames.push_back(fixedKeyFrame);
+                                }
+                            }
+                        }
+                    }
+
+                    // Setup optimizer
+                    g2o::SparseOptimizer                    optimizer;
+                    g2o::BlockSolver_6_3::LinearSolverType* linearSolver;
+
+                    linearSolver = new g2o::LinearSolverEigen<g2o::BlockSolver_6_3::PoseMatrixType>();
+
+                    g2o::BlockSolver_6_3* solver_ptr = new g2o::BlockSolver_6_3(linearSolver);
+
+                    g2o::OptimizationAlgorithmLevenberg* solver = new g2o::OptimizationAlgorithmLevenberg(solver_ptr);
+                    optimizer.setAlgorithm(solver);
+
+                    if (stopFlag)
+                        optimizer.setForceStopFlag(stopFlag);
+
+                    unsigned long maxKFid = 0;
+
+                    // Set Local KeyFrame vertices
+                    for (std::list<KeyFrame*>::iterator keyFrameIterator = localKeyFrames.begin(), keyFrameIteratorEnd = localKeyFrames.end();
+                         keyFrameIterator != keyFrameIteratorEnd;
+                         keyFrameIterator++)
+                    {
+                        KeyFrame*             localKeyFrame = *keyFrameIterator;
+                        g2o::VertexSE3Expmap* vertex        = new g2o::VertexSE3Expmap();
+                        g2o::SE3Quat          quat          = convertCvMatToG2OSE3Quat(localKeyFrame->cTw);
+                        vertex->setEstimate(quat);
+                        vertex->setId(localKeyFrame->index);
+                        vertex->setFixed(localKeyFrame->index == 0);
+                        optimizer.addVertex(vertex);
+                        if (localKeyFrame->index > maxKFid)
+                        {
+                            maxKFid = localKeyFrame->index;
+                        }
+                    }
+
+                    // Set Fixed KeyFrame vertices
+                    for (list<KeyFrame*>::iterator keyFrameIterator = fixedKeyFrames.begin(), lend = fixedKeyFrames.end();
+                         keyFrameIterator != lend;
+                         keyFrameIterator++)
+                    {
+                        KeyFrame*             fixedKeyFrame = *keyFrameIterator;
+                        g2o::VertexSE3Expmap* vertex        = new g2o::VertexSE3Expmap();
+                        g2o::SE3Quat          quat          = convertCvMatToG2OSE3Quat(fixedKeyFrame->cTw);
+                        vertex->setEstimate(quat);
+                        vertex->setId(fixedKeyFrame->index);
+                        vertex->setFixed(true);
+                        optimizer.addVertex(vertex);
+                        if (fixedKeyFrame->index > maxKFid)
+                        {
+                            maxKFid = fixedKeyFrame->index;
+                        }
+                    }
+
+                    // Set MapPoint vertices
+                    const int nExpectedSize = (localKeyFrames.size() + fixedKeyFrames.size()) * localMapPoints.size();
+
+                    vector<g2o::EdgeSE3ProjectXYZ*> vpEdgesMono;
+                    vpEdgesMono.reserve(nExpectedSize);
+
+                    vector<KeyFrame*> vpEdgeKFMono;
+                    vpEdgeKFMono.reserve(nExpectedSize);
+
+                    vector<MapPoint*> vpMapPointEdgeMono;
+                    vpMapPointEdgeMono.reserve(nExpectedSize);
+
+                    vector<g2o::EdgeStereoSE3ProjectXYZ*> vpEdgesStereo;
+                    vpEdgesStereo.reserve(nExpectedSize);
+
+                    vector<KeyFrame*> vpEdgeKFStereo;
+                    vpEdgeKFStereo.reserve(nExpectedSize);
+
+                    vector<MapPoint*> vpMapPointEdgeStereo;
+                    vpMapPointEdgeStereo.reserve(nExpectedSize);
+
+                    const float thHuberMono   = sqrt(5.991);
+                    const float thHuberStereo = sqrt(7.815);
+
+                    for (list<MapPoint*>::iterator mapPointIterator = localMapPoints.begin(), mapPointIteratorEnd = localMapPoints.end();
+                         mapPointIterator != mapPointIteratorEnd;
+                         mapPointIterator++)
+                    {
+                        MapPoint*               localMapPoint = *mapPointIterator;
+                        g2o::VertexSBAPointXYZ* vertex        = new g2o::VertexSBAPointXYZ();
+                        Eigen::Vector3d         vector3d      = convertCvMatToEigenVector3D(localMapPoint->position);
+                        vertex->setEstimate(vector3d);
+                        int id = localMapPoint->index + maxKFid + 1;
+                        vertex->setId(id);
+                        vertex->setMarginalized(true);
+                        optimizer.addVertex(vertex);
+
+                        const map<KeyFrame*, i32> observations = localMapPoint->observations;
+
+                        //Set edges
+                        for (map<KeyFrame*, i32>::const_iterator mit = observations.begin(), mend = observations.end(); mit != mend; mit++)
+                        {
+                            KeyFrame* pKFi = mit->first;
+
+                            if (!pKFi->bad)
+                            {
+                                const cv::KeyPoint& kpUn = pKFi->undistortedKeyPoints[mit->second];
+
+                                Eigen::Matrix<double, 2, 1> obs;
+                                obs << kpUn.pt.x, kpUn.pt.y;
+
+                                g2o::EdgeSE3ProjectXYZ* e = new g2o::EdgeSE3ProjectXYZ();
+
+                                e->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(id)));
+                                e->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(pKFi->index)));
+                                e->setMeasurement(obs);
+                                const float& invSigma2 = orbExtractionParameters.inverseSigmaSquared[kpUn.octave];
+                                e->setInformation(Eigen::Matrix2d::Identity() * invSigma2);
+
+                                g2o::RobustKernelHuber* rk = new g2o::RobustKernelHuber;
+                                e->setRobustKernel(rk);
+                                rk->setDelta(thHuberMono);
+
+                                e->fx = fx;
+                                e->fy = fy;
+                                e->cx = cx;
+                                e->cy = cy;
+
+                                optimizer.addEdge(e);
+                                vpEdgesMono.push_back(e);
+                                vpEdgeKFMono.push_back(pKFi);
+                                vpMapPointEdgeMono.push_back(localMapPoint);
+                            }
+                        }
+                    }
+
+                    if (stopFlag)
+                    {
+                        if (*stopFlag)
+                        {
+                            return;
+                        }
+                    }
+
+                    optimizer.initializeOptimization();
+                    optimizer.optimize(5);
+
+                    bool doMore = true;
+
+                    if (stopFlag)
+                    {
+                        if (*stopFlag)
+                        {
+                            doMore = false;
+                        }
+                    }
+
+                    if (doMore)
+                    {
+
+                        // Check inlier observations
+                        for (size_t i = 0, iend = vpEdgesMono.size(); i < iend; i++)
+                        {
+                            g2o::EdgeSE3ProjectXYZ* e   = vpEdgesMono[i];
+                            MapPoint*               pMP = vpMapPointEdgeMono[i];
+
+                            if (pMP->bad)
+                                continue;
+
+                            if (e->chi2() > 5.991 || !e->isDepthPositive())
+                            {
+                                e->setLevel(1);
+                            }
+
+                            e->setRobustKernel(0);
+                        }
+
+                        for (size_t i = 0, iend = vpEdgesStereo.size(); i < iend; i++)
+                        {
+                            g2o::EdgeStereoSE3ProjectXYZ* e   = vpEdgesStereo[i];
+                            MapPoint*                     pMP = vpMapPointEdgeStereo[i];
+
+                            if (pMP->bad)
+                                continue;
+
+                            if (e->chi2() > 7.815 || !e->isDepthPositive())
+                            {
+                                e->setLevel(1);
+                            }
+
+                            e->setRobustKernel(0);
+                        }
+
+                        // Optimize again without the outliers
+
+                        optimizer.initializeOptimization(0);
+                        optimizer.optimize(10);
+                    }
+
+                    vector<pair<KeyFrame*, MapPoint*>> vToErase;
+                    vToErase.reserve(vpEdgesMono.size() + vpEdgesStereo.size());
+
+                    // Check inlier observations
+                    for (size_t i = 0, iend = vpEdgesMono.size(); i < iend; i++)
+                    {
+                        g2o::EdgeSE3ProjectXYZ* e   = vpEdgesMono[i];
+                        MapPoint*               pMP = vpMapPointEdgeMono[i];
+
+                        if (pMP->bad)
+                            continue;
+
+                        if (e->chi2() > 5.991 || !e->isDepthPositive())
+                        {
+                            KeyFrame* pKFi = vpEdgeKFMono[i];
+                            vToErase.push_back(make_pair(pKFi, pMP));
+                        }
+                    }
+
+                    for (size_t i = 0, iend = vpEdgesStereo.size(); i < iend; i++)
+                    {
+                        g2o::EdgeStereoSE3ProjectXYZ* e   = vpEdgesStereo[i];
+                        MapPoint*                     pMP = vpMapPointEdgeStereo[i];
+
+                        if (pMP->bad)
+                            continue;
+
+                        if (e->chi2() > 7.815 || !e->isDepthPositive())
+                        {
+                            KeyFrame* pKFi = vpEdgeKFStereo[i];
+                            vToErase.push_back(make_pair(pKFi, pMP));
+                        }
+                    }
+
+                    // Get Map Mutex
+                    //unique_lock<mutex> lock(pMap->mMutexMapUpdate);
+
+                    if (!vToErase.empty())
+                    {
+                        for (size_t i = 0; i < vToErase.size(); i++)
+                        {
+                            KeyFrame* pKFi = vToErase[i].first;
+                            MapPoint* pMPi = vToErase[i].second;
+
+                            eraseKeyFrameMapPointMatch(pKFi, pMPi);
+                            eraseMapPointObservation(pMPi, pKFi);
+                        }
+                    }
+
+                    // Recover optimized data
+
+                    //Keyframes
+                    for (list<KeyFrame*>::iterator lit = localKeyFrames.begin(), lend = localKeyFrames.end(); lit != lend; lit++)
+                    {
+                        KeyFrame*             pKF     = *lit;
+                        g2o::VertexSE3Expmap* vSE3    = static_cast<g2o::VertexSE3Expmap*>(optimizer.vertex(pKF->index));
+                        g2o::SE3Quat          SE3quat = vSE3->estimate();
+                        updatePoseMatrices(convertG2OSE3QuatToCvMat(SE3quat), pKF->cTw, pKF->wTc, pKF->worldOrigin);
+                    }
+
+                    //Points
+                    for (list<MapPoint*>::iterator lit = localMapPoints.begin(), lend = localMapPoints.end(); lit != lend; lit++)
+                    {
+                        MapPoint*               pMP              = *lit;
+                        g2o::VertexSBAPointXYZ* vPoint           = static_cast<g2o::VertexSBAPointXYZ*>(optimizer.vertex(pMP->index + maxKFid + 1));
+                        cv::Mat                 mapPointPosition = convertEigenVector3DToCvMat(vPoint->estimate());
+                        mapPointPosition.copyTo(pMP->position);
+                        calculateMapPointNormalAndDepth(pMP->position,
+                                                        pMP->observations,
+                                                        pMP->referenceKeyFrame,
+                                                        orbExtractionParameters.scaleFactors,
+                                                        orbExtractionParameters.numberOfScaleLevels,
+                                                        &pMP->minDistance,
+                                                        &pMP->maxDistance,
+                                                        &pMP->normalVector);
+                    }
+                }
+            }
+        }
+    }
 }
 
 void WAI::ModeOrbSlam2DataOriented::notifyUpdate()

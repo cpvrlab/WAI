@@ -1,4 +1,4 @@
-#include <WAIOrbMatching.h>
+#include "WAIOrbMatching.h"
 
 void computeThreeMaxima(std::vector<i32>* rotationHistory,
                         const i32         historyLength,

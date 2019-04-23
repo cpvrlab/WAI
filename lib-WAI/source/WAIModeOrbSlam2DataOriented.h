@@ -2,9 +2,9 @@
 #define WAI_MODE_ORB_SLAM_2_DATA_ORIENTED
 
 #include <WAIPlatform.h>
-#include <WAIOrbPattern.h>
+#include <OrbSlamDataOriented/WAIOrbPattern.h>
 #include <WAISensorCamera.h>
-#include <WAIOrbExtraction.h>
+#include <OrbSlamDataOriented/WAIOrbExtraction.h>
 
 #include <DBoW2/BowVector.h>
 #include <DBoW2/FeatureVector.h>
@@ -55,6 +55,7 @@ struct MapPoint
 
     i32 trackReferenceForFrame;
     i32 lastFrameSeen;
+    i32 localBundleAdjustmentKeyFrameIndex; // used only during local BA
 
     MapPointTrackingInfos trackingInfos; // TODO(jan): this should not be in here
 };
@@ -81,6 +82,8 @@ struct KeyFrame
     KeyFrame*              parent;
     std::vector<KeyFrame*> children; // children in covisibility graph
     i32                    trackReferenceForFrame;
+    i32                    localBundleAdjustmentKeyFrameIndex; // used only during local BA
+    i32                    localBundleAdjustmentFixedKeyFrameIndex;
 
     std::vector<KeyFrame*>   orderedConnectedKeyFrames;
     std::vector<i32>         orderedWeights;

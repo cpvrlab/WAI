@@ -1,4 +1,4 @@
-#include <WAIConverter.h>
+#include "WAIConverter.h"
 
 static g2o::SE3Quat convertCvMatToG2OSE3Quat(const cv::Mat& mat)
 {
