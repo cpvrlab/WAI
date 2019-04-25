@@ -104,8 +104,14 @@ cd ../.. # back to opencv
 rm -rf $ZIPFOLDER
 mkdir $ZIPFOLDER
 cp -R $BUILD_R/install/include   $ZIPFOLDER/include
-cp -R $BUILD_R/install/lib64     $ZIPFOLDER/Release
-cp -R $BUILD_D/install/lib64     $ZIPFOLDER/Debug
+cp -R $BUILD_R/install/lib       $ZIPFOLDER/Release
+cp -R $BUILD_D/install/lib       $ZIPFOLDER/Debug
+
+if [ -d  $BUILD_D/install/lib64 ]; then
+    cp -R $BUILD_R/install/lib64 $ZIPFOLDER/Release
+    cp -R $BUILD_D/install/lib64 $ZIPFOLDER/Debug
+fi
+
 cp LICENSE $ZIPFOLDER
 cp README.md $ZIPFOLDER
 
