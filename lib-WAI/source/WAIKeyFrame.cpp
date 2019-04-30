@@ -819,3 +819,12 @@ bool WAIKeyFrame::hasMapPoint(WAIMapPoint* mp)
 
     return result;
 }
+
+void WAIKeyFrame::printPose()
+{
+    std::ostringstream s;
+
+    s << setprecision(2) << _Tcw;
+
+    WAI_LOG("Keyframe %i:\n%s", mnId, s.str().c_str());
+}

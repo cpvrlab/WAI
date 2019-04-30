@@ -506,22 +506,6 @@ int ORBmatcher::SearchForInitialization(WAIFrame& F1, WAIFrame& F2, vector<cv::P
         }
     }
 
-#if 0
-    for (int i = 0; i < vnMatches12.size(); i++)
-    {
-        if (vnMatches12[i] >= 0)
-        {
-            cv::Point2f p1    = vbPrevMatched[i];
-            cv::Point2f p2    = F2.mvKeysUn[vnMatches12[i]].pt;
-            cv::Scalar  color = cv::Scalar(0, 0, 255);
-            cv::line(showFrame, p1, p2, color);
-        }
-    }
-
-    cv::imshow("Features in area", showFrame);
-    cv::waitKey(0);
-#endif
-
     //Update prev matched
     for (size_t i1 = 0, iend1 = vnMatches12.size(); i1 < iend1; i1++)
         if (vnMatches12[i1] >= 0)

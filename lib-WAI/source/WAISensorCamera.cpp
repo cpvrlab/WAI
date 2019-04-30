@@ -1,6 +1,6 @@
 #include <WAISensorCamera.h>
 
-WAI::SensorCamera::SensorCamera(CameraCalibration* cameraCalibration)
+WAI::SensorCamera::SensorCamera(CameraCalibration* cameraCalibration) : _knownPoseProvided(false)
 {
     _cameraCalibration = *cameraCalibration;
 
@@ -24,10 +24,17 @@ WAI::SensorCamera::SensorCamera(CameraCalibration* cameraCalibration)
             cameraCalibration->cy);
 }
 
-void WAI::SensorCamera::update(void* cameraData)
+void WAI::SensorCamera::update(void* cameraDataPointer)
 {
-    _imageGray = *((CameraData*)cameraData)->imageGray;
-    _imageRGB  = *((CameraData*)cameraData)->imageRGB;
+    CameraData* cameraData = (CameraData*)cameraDataPointer;
+    _imageGray             = *cameraData->imageGray;
+    _imageRGB              = *cameraData->imageRGB;
+
+    if (cameraData->knownPoseProvided)
+    {
+        _knownPoseProvided = true;
+        _knownFramePose    = *cameraData->knownPose;
+    }
 
     if (_mode)
     {

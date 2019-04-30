@@ -383,3 +383,12 @@ void WAIFrame::ComputeImageBounds(const cv::Mat& imLeft)
         mnMaxY = imLeft.rows;
     }
 }
+
+void WAIFrame::printPose()
+{
+    std::ostringstream s;
+
+    s << setprecision(2) << mTcw;
+
+    WAI_LOG(s.str().c_str());
+}

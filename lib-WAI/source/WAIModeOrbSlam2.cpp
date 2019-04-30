@@ -19,7 +19,8 @@ WAI::ModeOrbSlam2::ModeOrbSlam2(SensorCamera* camera,
     //instantiate and load slam map
     mpKeyFrameDatabase = new WAIKeyFrameDB(*mpVocabulary);
 
-    _map = new WAIMap("Map");
+    _map              = new WAIMap("Map");
+    _initialFramePose = cv::Mat::eye(4, 4, CV_32F);
 
     //setup file system and check for existing files
     //WAIMapStorage::init();
@@ -104,14 +105,20 @@ bool WAI::ModeOrbSlam2::getPose(cv::Mat* pose)
 
 void WAI::ModeOrbSlam2::notifyUpdate()
 {
-    //__android_log_print(ANDROID_LOG_INFO, "lib-WAI", "update notified");
     stateTransition();
 
     switch (_state)
     {
         case TrackingState_Initializing:
         {
-            initialize();
+            if (_camera->knownPoseProvided())
+            {
+                initializeWithKnownPose();
+            }
+            else
+            {
+                initialize();
+            }
         }
         break;
 
@@ -265,6 +272,8 @@ std::vector<WAIMapPoint*> WAI::ModeOrbSlam2::getMapPoints()
 
     std::vector<WAIMapPoint*> result = _map->GetAllMapPoints();
 
+    WAI_LOG("getMapPoints: %i", result.size());
+
     return result;
 }
 
@@ -385,6 +394,448 @@ void WAI::ModeOrbSlam2::stateTransition()
     }
 }
 
+void WAI::ModeOrbSlam2::initializeWithKnownPose()
+{
+    // Get Map Mutex -> Map cannot be changed
+    std::unique_lock<std::mutex> lock(_map->mMutexMapUpdate, std::defer_lock);
+    if (!_serial)
+    {
+        lock.lock();
+    }
+
+    cv::Mat cameraMat     = _camera->getCameraMatrix();
+    cv::Mat distortionMat = _camera->getDistortionMatrix();
+    mCurrentFrame         = WAIFrame(_camera->getImageGray(),
+                             0.0,
+                             mpIniORBextractor,
+                             cameraMat,
+                             distortionMat,
+                             mpVocabulary,
+                             _retainImg);
+    mCurrentFrame.SetPose(_camera->knownPose());
+
+    if (!mpInitializer)
+    {
+        // Set Reference Frame
+        if (mCurrentFrame.mvKeys.size() > 100)
+        {
+            mInitialFrame = WAIFrame(mCurrentFrame);
+            mLastFrame    = WAIFrame(mCurrentFrame);
+            mvbPrevMatched.resize(mCurrentFrame.mvKeysUn.size());
+
+            for (size_t i = 0; i < mCurrentFrame.mvKeysUn.size(); i++)
+                mvbPrevMatched[i] = mCurrentFrame.mvKeysUn[i].pt;
+
+            mpInitializer = new ORB_SLAM2::Initializer(mCurrentFrame, 1.0, 200);
+            //ghm1: clear mvIniMatches. it contains the index of the matched keypoint in the current frame
+            fill(mvIniMatches.begin(), mvIniMatches.end(), -1);
+
+            return;
+        }
+    }
+    else
+    {
+        // Try to initialize
+        if ((int)mCurrentFrame.mvKeys.size() <= 100)
+        {
+            delete mpInitializer;
+            mpInitializer = static_cast<Initializer*>(NULL);
+            fill(mvIniMatches.begin(), mvIniMatches.end(), -1);
+            return;
+        }
+
+        // Find correspondences
+        ORBmatcher matcher(0.9, true);
+        int        nmatches = matcher.SearchForInitialization(mInitialFrame, mCurrentFrame, mvbPrevMatched, mvIniMatches, 100);
+
+        // Check if there are enough correspondences
+        if (nmatches < 100)
+        {
+            delete mpInitializer;
+            mpInitializer = static_cast<Initializer*>(NULL);
+            return;
+        }
+
+#if 0
+        // ghm1: decorate image with tracked matches
+        // mvIniMatches is same size as number of keypoints in mInitialFrame and
+        // contains the index of the matched keypoint of mCurrentFrame
+        for (unsigned int i = 0; i < mvIniMatches.size(); i++)
+        {
+            if (mvIniMatches[i] >= 0)
+            {
+                cv::line(_camera->getImageRGB(),
+                         mInitialFrame.mvKeys[i].pt,
+                         mCurrentFrame.mvKeys[mvIniMatches[i]].pt,
+                         cv::Scalar(0, 255, 0));
+            }
+        }
+#endif
+
+        // Create KeyFrames
+        WAIKeyFrame* pKFini = new WAIKeyFrame(mInitialFrame, _map, mpKeyFrameDatabase);
+        WAIKeyFrame* pKFcur = new WAIKeyFrame(mCurrentFrame, _map, mpKeyFrameDatabase);
+
+        pKFini->ComputeBoW(mpVocabulary);
+        pKFcur->ComputeBoW(mpVocabulary);
+
+        // Insert KFs in the map
+        _map->AddKeyFrame(pKFini);
+        _map->AddKeyFrame(pKFcur);
+
+        // Triangulate each match
+        cv::Mat Rcw1 = pKFini->GetRotation();
+        cv::Mat Rwc1 = Rcw1.t();
+        cv::Mat tcw1 = pKFini->GetTranslation();
+        cv::Mat Tcw1(3, 4, CV_32F);
+        Rcw1.copyTo(Tcw1.colRange(0, 3));
+        tcw1.copyTo(Tcw1.col(3));
+        cv::Mat Ow1 = pKFini->GetCameraCenter();
+
+        const float& fx1    = pKFini->fx;
+        const float& fy1    = pKFini->fy;
+        const float& cx1    = pKFini->cx;
+        const float& cy1    = pKFini->cy;
+        const float& invfx1 = pKFini->invfx;
+        const float& invfy1 = pKFini->invfy;
+
+        const float ratioFactor = 1.5f * pKFini->mfScaleFactor;
+
+        cv::Mat Ow2       = pKFcur->GetCameraCenter();
+        cv::Mat vBaseline = Ow2 - Ow1;
+
+        const float baseline = cv::norm(vBaseline);
+
+        const float medianDepthKF2     = pKFcur->ComputeSceneMedianDepth(2);
+        const float ratioBaselineDepth = baseline / medianDepthKF2;
+
+#if 0 // TODO(jan): do we need this?
+        if (ratioBaselineDepth < 0.01)
+        {
+            WAI_LOG("Wrong initialization (baseline), reseting...");
+            reset();
+        }
+#endif
+
+        cv::Mat Rcw2 = pKFcur->GetRotation();
+        cv::Mat Rwc2 = Rcw2.t();
+        cv::Mat tcw2 = pKFcur->GetTranslation();
+        cv::Mat Tcw2(3, 4, CV_32F);
+        Rcw2.copyTo(Tcw2.colRange(0, 3));
+        tcw2.copyTo(Tcw2.col(3));
+
+        const float& fx2    = pKFcur->fx;
+        const float& fy2    = pKFcur->fy;
+        const float& cx2    = pKFcur->cx;
+        const float& cy2    = pKFcur->cy;
+        const float& invfx2 = pKFcur->invfx;
+        const float& invfy2 = pKFcur->invfy;
+
+        int behindKF1            = 0;
+        int behindKF2            = 0;
+        int noDepth              = 0;
+        int lowParallax          = 0;
+        int reprojection1TooHigh = 0;
+        int reprojection2TooHigh = 0;
+        int scaleInconsistent    = 0;
+
+        pKFini->printPose();
+        pKFcur->printPose();
+
+        cv::Mat imgInitialFrame, imgCurrentFrame;
+        cv::cvtColor(mInitialFrame.imgGray, imgInitialFrame, CV_GRAY2BGR);
+        cv::cvtColor(mCurrentFrame.imgGray, imgCurrentFrame, CV_GRAY2BGR);
+
+        for (int ikp = 0; ikp < mvIniMatches.size(); ikp++)
+        {
+            const int& idx1 = ikp;
+            const int& idx2 = mvIniMatches[ikp];
+
+            if (idx2 < 0) continue;
+
+            const cv::KeyPoint& kp1 = pKFini->mvKeysUn[idx1];
+            const cv::KeyPoint& kp2 = pKFcur->mvKeysUn[idx2];
+
+            // Check parallax between rays
+            cv::Mat xn1 = (cv::Mat_<float>(3, 1) << (kp1.pt.x - cx1) * invfx1, (kp1.pt.y - cy1) * invfy1, 1.0);
+            cv::Mat xn2 = (cv::Mat_<float>(3, 1) << (kp2.pt.x - cx2) * invfx2, (kp2.pt.y - cy2) * invfy2, 1.0);
+
+            cv::Mat     ray1            = Rwc1 * xn1;
+            cv::Mat     ray2            = Rwc2 * xn2;
+            const float cosParallaxRays = ray1.dot(ray2) / (cv::norm(ray1) * cv::norm(ray2));
+
+            float cosParallaxStereo = cosParallaxRays + 1;
+
+            cv::Mat x3D;
+            if (cosParallaxRays < cosParallaxStereo && cosParallaxRays > 0 && (cosParallaxRays < 0.9998))
+            {
+                // Linear Triangulation Method
+                cv::Mat A(4, 4, CV_32F);
+                A.row(0) = xn1.at<float>(0) * Tcw1.row(2) - Tcw1.row(0);
+                A.row(1) = xn1.at<float>(1) * Tcw1.row(2) - Tcw1.row(1);
+                A.row(2) = xn2.at<float>(0) * Tcw2.row(2) - Tcw2.row(0);
+                A.row(3) = xn2.at<float>(1) * Tcw2.row(2) - Tcw2.row(1);
+
+                cv::Mat w, u, vt;
+                cv::SVD::compute(A, w, u, vt, cv::SVD::MODIFY_A | cv::SVD::FULL_UV);
+
+                x3D = vt.row(3).t();
+
+                if (x3D.at<float>(3) == 0)
+                {
+                    noDepth++;
+                    continue;
+                }
+
+                // Euclidean coordinates
+                x3D = x3D.rowRange(0, 3) / x3D.at<float>(3);
+            }
+            else
+            {
+                lowParallax++;
+                continue; //No stereo and very low parallax
+            }
+
+            cv::Mat x3Dt = x3D.t();
+
+            //Check triangulation in front of cameras
+            float z1 = Rcw1.row(2).dot(x3Dt) + tcw1.at<float>(2);
+            if (z1 <= 0)
+            {
+                behindKF1++;
+                continue;
+            }
+
+            float z2 = Rcw2.row(2).dot(x3Dt) + tcw2.at<float>(2);
+            if (z2 <= 0)
+            {
+                behindKF2++;
+                continue;
+            }
+
+            //Check reprojection error in first keyframe
+            const float& sigmaSquare1 = pKFini->mvLevelSigma2[kp1.octave];
+            const float  x1           = Rcw1.row(0).dot(x3Dt) + tcw1.at<float>(0);
+            const float  y1           = Rcw1.row(1).dot(x3Dt) + tcw1.at<float>(1);
+            const float  invz1        = 1.0 / z1;
+
+            float u1    = fx1 * x1 * invz1 + cx1;
+            float v1    = fy1 * y1 * invz1 + cy1;
+            float errX1 = u1 - kp1.pt.x;
+            float errY1 = v1 - kp1.pt.y;
+            if ((errX1 * errX1 + errY1 * errY1) > 5.991 * sigmaSquare1)
+            {
+                reprojection1TooHigh++;
+
+#if 0 // TODO(jan): REMOVE THIS AGAIN!!!!! Only here for debugging
+                cv::rectangle(imgInitialFrame,
+                              cv::Point2d(kp1.pt.x - 3, kp1.pt.y - 3),
+                              cv::Point2d(kp1.pt.x + 3, kp1.pt.y + 3),
+                              cv::Scalar(0, 255, 0));
+                cv::rectangle(imgInitialFrame,
+                              cv::Point2d(u1 - 3, v1 - 3),
+                              cv::Point2d(u1 + 3, v1 + 3),
+                              cv::Scalar(0, 0, 255));
+                cv::line(imgInitialFrame,
+                         cv::Point2d(kp1.pt.x, kp1.pt.y),
+                         cv::Point2d(u1, v1),
+                         cv::Scalar(255, 0, 0));
+
+                { 
+                    WAIMapPoint* pMP = new WAIMapPoint(x3D, pKFini, _map);
+                    _map->AddMapPoint(pMP);
+                }
+#else
+                continue;
+#endif
+            }
+
+            //Check reprojection error in second keyframe
+            const float sigmaSquare2 = pKFcur->mvLevelSigma2[kp2.octave];
+            const float x2           = Rcw2.row(0).dot(x3Dt) + tcw2.at<float>(0);
+            const float y2           = Rcw2.row(1).dot(x3Dt) + tcw2.at<float>(1);
+            const float invz2        = 1.0 / z2;
+
+            float u2    = fx2 * x2 * invz2 + cx2;
+            float v2    = fy2 * y2 * invz2 + cy2;
+            float errX2 = u2 - kp2.pt.x;
+            float errY2 = v2 - kp2.pt.y;
+
+            if ((errX2 * errX2 + errY2 * errY2) > 5.991 * sigmaSquare2)
+            {
+                cv::rectangle(imgCurrentFrame,
+                              cv::Point2d(kp2.pt.x - 3, kp2.pt.y - 3),
+                              cv::Point2d(kp2.pt.x + 3, kp2.pt.y + 3),
+                              cv::Scalar(0, 255, 0));
+                cv::rectangle(imgCurrentFrame,
+                              cv::Point2d(u2 - 3, v2 - 3),
+                              cv::Point2d(u2 + 3, v2 + 3),
+                              cv::Scalar(0, 0, 255));
+                cv::line(imgCurrentFrame,
+                         cv::Point2d(kp2.pt.x, kp2.pt.y),
+                         cv::Point2d(u2, v2),
+                         cv::Scalar(255, 0, 0));
+                reprojection2TooHigh++;
+                continue;
+            }
+
+            //Check scale consistency
+            cv::Mat normal1 = x3D - Ow1;
+            float   dist1   = cv::norm(normal1);
+
+            cv::Mat normal2 = x3D - Ow2;
+            float   dist2   = cv::norm(normal2);
+
+            if (dist1 == 0 || dist2 == 0)
+            {
+                scaleInconsistent++;
+                continue;
+            }
+
+            const float ratioDist   = dist2 / dist1;
+            const float ratioOctave = pKFini->mvScaleFactors[kp1.octave] / pKFcur->mvScaleFactors[kp2.octave];
+
+            if (ratioDist * ratioFactor < ratioOctave || ratioDist > ratioOctave * ratioFactor) continue;
+
+            // Triangulation is succesfull
+            WAIMapPoint* pMP = new WAIMapPoint(x3D, pKFini, _map);
+
+            pKFini->AddMapPoint(pMP, idx1);
+            pKFcur->AddMapPoint(pMP, idx2);
+
+            pMP->AddObservation(pKFini, idx1);
+            pMP->AddObservation(pKFcur, idx2);
+
+            pMP->ComputeDistinctiveDescriptors();
+            pMP->UpdateNormalAndDepth();
+
+            //Fill Current Frame structure
+            mCurrentFrame.mvpMapPoints[idx2] = pMP;
+            mCurrentFrame.mvbOutlier[idx2]   = false;
+
+            _map->AddMapPoint(pMP);
+        }
+
+        WAI_LOG("%i matches found, %i mapPoints created\n%i behindKF1\n%i behindKF2\n%i noDepth\n%i lowParallax\n%i reprojection1TooHigh\n%i reprojection2TooHigh\n%i scaleInconsistent",
+                nmatches,
+                _map->MapPointsInMap(),
+                behindKF1,
+                behindKF2,
+                noDepth,
+                lowParallax,
+                reprojection1TooHigh,
+                reprojection2TooHigh,
+                scaleInconsistent);
+
+#if 0
+        { // TODO(jan): REMOVE THIS AGAIN!!!!! Only here for debugging
+            if (reprojection1TooHigh > 100)
+            {
+                cv::imwrite("/home/jdellsperger/initialFrame.png", imgInitialFrame);
+                cv::imwrite("/home/jdellsperger/currentFrame.png", imgCurrentFrame);
+
+                mvpLocalKeyFrames.push_back(pKFini);
+                mvpLocalKeyFrames.push_back(pKFcur);
+
+                _state = TrackingState_None;
+                return;
+            }
+        }
+#endif
+
+        // Update Connections
+        pKFini->UpdateConnections();
+        pKFcur->UpdateConnections();
+
+        // Bundle Adjustment
+        WAI_LOG("New Map created with: %i ", _map->MapPointsInMap());
+        Optimizer::GlobalBundleAdjustemnt(_map, 20);
+
+        // Set median depth to 1
+        float medianDepth    = pKFini->ComputeSceneMedianDepth(2);
+        float invMedianDepth = 1.0f / medianDepth;
+
+        if (medianDepth < 0 || pKFcur->TrackedMapPoints(1) < 100)
+        {
+            WAI_LOG("Wrong initialization, reseting...");
+            reset();
+        }
+        else
+        {
+#if 0 // TODO(jan): do we need this if we know the pose? \
+      // Scale initial baseline
+            cv::Mat Tc2w               = pKFcur->GetPose();
+            Tc2w.col(3).rowRange(0, 3) = Tc2w.col(3).rowRange(0, 3) * invMedianDepth;
+            pKFcur->SetPose(Tc2w);
+
+            // Scale points
+            vector<WAIMapPoint*> vpAllMapPoints = pKFini->GetMapPointMatches();
+            for (size_t iMP = 0; iMP < vpAllMapPoints.size(); iMP++)
+            {
+                if (vpAllMapPoints[iMP])
+                {
+                    WAIMapPoint* pMP = vpAllMapPoints[iMP];
+                    pMP->SetWorldPos(pMP->GetWorldPos() * invMedianDepth);
+                }
+            }
+#endif
+
+            mpLocalMapper->InsertKeyFrame(pKFini);
+            mpLocalMapper->InsertKeyFrame(pKFcur);
+
+            mCurrentFrame.SetPose(pKFcur->GetPose());
+            mnLastKeyFrameId = mCurrentFrame.mnId;
+            mpLastKeyFrame   = pKFcur;
+
+            mvpLocalKeyFrames.push_back(pKFcur);
+            mvpLocalKeyFrames.push_back(pKFini);
+            mvpLocalMapPoints = _map->GetAllMapPoints();
+
+            mpReferenceKF               = pKFcur;
+            mCurrentFrame.mpReferenceKF = pKFcur;
+
+            mLastFrame = WAIFrame(mCurrentFrame);
+
+            _map->SetReferenceMapPoints(mvpLocalMapPoints);
+
+            _map->mvpKeyFrameOrigins.push_back(pKFini);
+
+            //ghm1: run local mapping for each keyframe
+            if (_serial)
+            {
+                mpLocalMapper->RunOnce();
+                mpLocalMapper->RunOnce();
+            }
+
+            WAI_LOG("Number of Map points after local mapping: %i", _map->MapPointsInMap());
+
+            //ghm1: add keyframe to scene graph. this position is wrong after bundle adjustment!
+            //set map dirty, the map will be updated in next decoration
+            _initialized = true;
+            _bOK         = true;
+        }
+
+        //ghm1: in the original implementation the initialization is defined in the track() function and this part is always called at the end!
+        // Store frame pose information to retrieve the complete camera trajectory afterwards.
+        if (!mCurrentFrame.mTcw.empty() && mCurrentFrame.mpReferenceKF)
+        {
+            cv::Mat Tcr = mCurrentFrame.mTcw * mCurrentFrame.mpReferenceKF->GetPoseInverse();
+            mlRelativeFramePoses.push_back(Tcr);
+            mlpReferences.push_back(mpReferenceKF);
+            mlFrameTimes.push_back(mCurrentFrame.mTimeStamp);
+            mlbLost.push_back(_state == TrackingState_TrackingLost);
+        }
+        else if (mlRelativeFramePoses.size())
+        {
+            // This can happen if tracking is lost
+            mlRelativeFramePoses.push_back(mlRelativeFramePoses.back());
+            mlpReferences.push_back(mlpReferences.back());
+            mlFrameTimes.push_back(mlFrameTimes.back());
+            mlbLost.push_back(_state == TrackingState_TrackingLost);
+        }
+    }
+}
+
 void WAI::ModeOrbSlam2::initialize()
 {
     //1. if there are more than 100 keypoints in the current frame, the Initializer is instantiated
@@ -486,14 +937,6 @@ void WAI::ModeOrbSlam2::initialize()
             delete mpInitializer;
             mpInitializer = static_cast<Initializer*>(NULL);
             return;
-        }
-
-        for (unsigned int i = 0; i < mInitialFrame.mvKeys.size(); i++)
-        {
-            cv::rectangle(_camera->getImageRGB(),
-                          mInitialFrame.mvKeys[i].pt,
-                          cv::Point(mInitialFrame.mvKeys[i].pt.x + 3, mInitialFrame.mvKeys[i].pt.y + 3),
-                          cv::Scalar(0, 0, 255));
         }
 
         //ghm1: decorate image with tracked matches
@@ -894,9 +1337,6 @@ bool WAI::ModeOrbSlam2::createInitialMapMonocular()
     WAIKeyFrame* pKFini = new WAIKeyFrame(mInitialFrame, _map, mpKeyFrameDatabase);
     WAIKeyFrame* pKFcur = new WAIKeyFrame(mCurrentFrame, _map, mpKeyFrameDatabase);
 
-    cout << "pKFini num keypoints: " << mInitialFrame.N << endl;
-    cout << "pKFcur num keypoints: " << mCurrentFrame.N << endl;
-
     pKFini->ComputeBoW(mpVocabulary);
     pKFcur->ComputeBoW(mpVocabulary);
 
@@ -913,9 +1353,15 @@ bool WAI::ModeOrbSlam2::createInitialMapMonocular()
             continue;
 
         //Create MapPoint.
-        cv::Mat worldPos(mvIniP3D[i]);
+        //cv::Mat worldPos(mvIniP3D[i]);
+        cv::Mat worldPos         = cv::Mat(4, 1, CV_32F);
+        worldPos.at<float>(0, 0) = mvIniP3D[i].x;
+        worldPos.at<float>(1, 0) = mvIniP3D[i].y;
+        worldPos.at<float>(2, 0) = mvIniP3D[i].z;
+        worldPos.at<float>(3, 0) = 1.0f;
+        worldPos                 = _initialFramePose * worldPos;
 
-        WAIMapPoint* pMP = new WAIMapPoint(worldPos, pKFcur, _map);
+        WAIMapPoint* pMP = new WAIMapPoint(worldPos.rowRange(0, 3), pKFcur, _map);
 
         pKFini->AddMapPoint(pMP, i);
         pKFcur->AddMapPoint(pMP, mvIniMatches[i]);
@@ -939,7 +1385,7 @@ bool WAI::ModeOrbSlam2::createInitialMapMonocular()
     pKFcur->UpdateConnections();
 
     // Bundle Adjustment
-    cout << "New Map created with " << _map->MapPointsInMap() << " points" << endl;
+    WAI_LOG("New Map created with: %i ", _map->MapPointsInMap());
     Optimizer::GlobalBundleAdjustemnt(_map, 20);
 
     // Set median depth to 1
@@ -994,9 +1440,6 @@ bool WAI::ModeOrbSlam2::createInitialMapMonocular()
     /*_bOK = true;*/
     //_currentState = TRACK_3DPTS;
 
-    std::cout << pKFini->GetPose() << std::endl;
-    std::cout << pKFcur->GetPose() << std::endl;
-
     //ghm1: run local mapping once
     if (_serial)
     {
@@ -1004,8 +1447,7 @@ bool WAI::ModeOrbSlam2::createInitialMapMonocular()
         mpLocalMapper->RunOnce();
     }
 
-    // Bundle Adjustment
-    cout << "Number of Map points after local mapping: " << _map->MapPointsInMap() << endl;
+    WAI_LOG("Number of Map points after local mapping: %i", _map->MapPointsInMap());
 
     //ghm1: add keyframe to scene graph. this position is wrong after bundle adjustment!
     //set map dirty, the map will be updated in next decoration

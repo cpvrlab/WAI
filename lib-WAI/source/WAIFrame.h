@@ -98,6 +98,8 @@ class WAIFrame
 
     vector<size_t> GetFeaturesInArea(const float& x, const float& y, const float& r, const int minLevel = -1, const int maxLevel = -1) const;
 
+    void printPose();
+
     public:
     // Vocabulary used for relocalization.
     ORBVocabulary* mpORBvocabulary = NULL;

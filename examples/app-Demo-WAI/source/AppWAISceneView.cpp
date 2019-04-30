@@ -52,6 +52,7 @@ void WAISceneView::setMapNode(SLNode* mapNode)
 void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
 {
     WAISceneView* waiSceneView = (WAISceneView*)sv;
+
     // Set scene name and info string
     s->name("Track Keyframe based Features");
     s->info("Example for loading an existing pose graph with map points.");

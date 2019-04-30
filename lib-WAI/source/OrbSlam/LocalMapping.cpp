@@ -305,7 +305,6 @@ void LocalMapping::CreateNewMapPoints()
     Rcw1.copyTo(Tcw1.colRange(0, 3));
     tcw1.copyTo(Tcw1.col(3));
     cv::Mat Ow1 = mpCurrentKeyFrame->GetCameraCenter();
-    std::cout << Ow1 << std::endl;
 
     const float& fx1    = mpCurrentKeyFrame->fx;
     const float& fy1    = mpCurrentKeyFrame->fy;
@@ -330,23 +329,12 @@ void LocalMapping::CreateNewMapPoints()
         cv::Mat Ow2       = pKF2->GetCameraCenter();
         cv::Mat vBaseline = Ow2 - Ow1;
 
-        std::cout << Ow2 << std::endl;
-
         const float baseline = cv::norm(vBaseline);
 
-        //if(!mbMonocular)
-        //{
-        //    if(baseline<pKF2->mb)
-        //    continue;
-        //}
-        //else
-        //{
         const float medianDepthKF2     = pKF2->ComputeSceneMedianDepth(2);
         const float ratioBaselineDepth = baseline / medianDepthKF2;
 
-        if (ratioBaselineDepth < 0.01)
-            continue;
-        //}
+        if (ratioBaselineDepth < 0.01) continue;
 
         // Compute Fundamental Matrix
         cv::Mat F12 = ComputeF12(mpCurrentKeyFrame, pKF2);

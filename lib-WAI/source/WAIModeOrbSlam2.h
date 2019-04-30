@@ -81,6 +81,8 @@ class WAI_API ModeOrbSlam2 : public Mode
 
     void loadMapData(std::vector<WAIKeyFrame*> keyFrames, std::vector<WAIMapPoint*> mapPoints, int numLoopClosings);
 
+    cv::Mat initialFramePose() { return _initialFramePose.clone(); }
+
     private:
     enum TrackingState
     {
@@ -100,6 +102,7 @@ class WAI_API ModeOrbSlam2 : public Mode
     };
 
     void initialize();
+    void initializeWithKnownPose();
     bool createInitialMapMonocular();
     void track3DPts();
 
@@ -230,6 +233,9 @@ class WAI_API ModeOrbSlam2 : public Mode
     bool   _showLoopEdges         = true;
     bool   _renderKfBackground    = false;
     bool   _allowKfsAsActiveCam   = false;
+
+    // Known pose stuff for drone project
+    cv::Mat _initialFramePose;
 };
 }
 

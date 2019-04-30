@@ -44,8 +44,7 @@ WAI_API void wai_getMapPoints(WAIMapPointCoordinate** mapPointCoordinatePtr,
             *mapPointCoordinate = {
               mapPoint->worldPosVec().x,
               mapPoint->worldPosVec().y,
-              mapPoint->worldPosVec().z,
-            };
+              mapPoint->worldPosVec().z};
 
             mapPointCoordinate++;
             count++;
@@ -55,9 +54,48 @@ WAI_API void wai_getMapPoints(WAIMapPointCoordinate** mapPointCoordinatePtr,
     *mapPointCount = count;
 }
 
+WAI_API void wai_getKeyFrames(WAIMapPointCoordinate** keyFrameCoordinatePtr,
+                              int*                    keyFrameCount)
+{
+    if (!mode)
+    {
+        WAI_LOG("mode not set. Call wai_setMode first.");
+        return;
+    }
+
+    std::vector<WAIKeyFrame*> keyFrames       = mode->getKeyFrames();
+    *keyFrameCoordinatePtr                    = (WAIMapPointCoordinate*)malloc(keyFrames.size() * sizeof(WAIMapPointCoordinate));
+    WAIMapPointCoordinate* keyFrameCoordinate = *keyFrameCoordinatePtr;
+
+    int count = 0;
+
+    for (WAIKeyFrame* keyFrame : keyFrames)
+    {
+        if (!keyFrame->isBad())
+        {
+            cv::Mat worldPos = keyFrame->GetCameraCenter();
+
+            *keyFrameCoordinate = {
+              worldPos.at<float>(0, 0),
+              worldPos.at<float>(1, 0),
+              worldPos.at<float>(2, 0)};
+
+            keyFrameCoordinate++;
+            count++;
+        }
+    }
+
+    *keyFrameCount = count;
+}
+
 WAI_API void wai_releaseMapPoints(WAIMapPointCoordinate** mapPointCoordinatePtr)
 {
     delete *mapPointCoordinatePtr;
+}
+
+WAI_API void wai_releaseKeyFrames(WAIMapPointCoordinate** keyFrameCoordinatePtr)
+{
+    delete *keyFrameCoordinatePtr;
 }
 
 WAI_API void wai_activateSensor(WAI::SensorType sensorType, void* sensorInfo)
@@ -66,7 +104,41 @@ WAI_API void wai_activateSensor(WAI::SensorType sensorType, void* sensorInfo)
     wai.activateSensor(sensorType, sensorInfo);
 }
 
-WAI_API void wai_updateCamera(WAI::CameraFrame* frameRGB, WAI::CameraFrame* frameGray)
+WAI_API void wai_updateCameraWithKnownPose(WAI::CameraFrame* frameRGB,
+                                           WAI::CameraFrame* frameGray,
+                                           WAI::M4x4         knownPose)
+{
+    WAI_LOG("updateCameraWithKnownPose called");
+    cv::Mat cvFrameRGB  = cv::Mat(frameRGB->height,
+                                 frameRGB->width,
+                                 CV_8UC3,
+                                 frameRGB->memory,
+                                 frameRGB->pitch);
+    cv::Mat cvFrameGray = cv::Mat(frameGray->height,
+                                  frameGray->width,
+                                  CV_8UC1,
+                                  frameGray->memory,
+                                  frameGray->pitch);
+
+    cv::Mat cvKnownPose = cv::Mat(4, 4, CV_32F);
+    for (int y = 0; y < 4; y++)
+    {
+        for (int x = 0; x < 4; x++)
+        {
+            cvKnownPose.at<float>(x, y) = knownPose.e[y][x];
+        }
+    }
+
+    WAI::CameraData sensorData = {&cvFrameGray,
+                                  &cvFrameRGB,
+                                  true,
+                                  &cvKnownPose};
+
+    wai.updateSensor(WAI::SensorType_Camera, &sensorData);
+}
+
+WAI_API void wai_updateCamera(WAI::CameraFrame* frameRGB,
+                              WAI::CameraFrame* frameGray)
 {
     WAI_LOG("updateCamera called");
     cv::Mat cvFrameRGB  = cv::Mat(frameRGB->height,
@@ -80,7 +152,9 @@ WAI_API void wai_updateCamera(WAI::CameraFrame* frameRGB, WAI::CameraFrame* fram
                                   frameGray->memory,
                                   frameGray->pitch);
 
-    WAI::CameraData sensorData = {&cvFrameGray, &cvFrameRGB};
+    WAI::CameraData sensorData = {&cvFrameGray,
+                                  &cvFrameRGB,
+                                  false};
 
     wai.updateSensor(WAI::SensorType_Camera, &sensorData);
 }
