@@ -4,6 +4,7 @@
 #include <SLCoordAxis.h>
 #include <SLPoints.h>
 
+#include <SLCVTrackedChessboard.h>
 #include <SLCVCamera.h>
 #include <SLCVCapture.h>
 #include <SLFileSystem.h>
@@ -49,24 +50,59 @@ void WAISceneView::setMapNode(SLNode* mapNode)
     _mapNode->addChild(_loopEdges);
 }
 //-----------------------------------------------------------------------------
-void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
+static void calibration(SLScene* s, SLSceneView* sv, SLSceneID sid)
+{
+    s->videoType(VT_MAIN);
+    SLApplication::activeCalib->clear();
+    // Material
+    SLMaterial* yellow = new SLMaterial("mY", SLCol4f(1, 1, 0, 0.5f));
+
+    // set the edge length of a chessboard square
+    SLfloat e1 = 0.028f;
+    SLfloat e3 = e1 * 3.0f;
+    SLfloat e9 = e3 * 3.0f;
+
+    // Create a scene group node
+    SLNode* scene = new SLNode("scene node");
+
+    // Create a camera node
+    SLCamera* cam1 = new SLCamera();
+    cam1->name("camera node");
+    cam1->translation(0, 0, 5);
+    cam1->lookAt(0, 0, 0);
+    cam1->focalDist(5);
+    cam1->clipFar(10);
+    cam1->fov(SLApplication::activeCalib->cameraFovDeg());
+    cam1->background().texture(s->videoTexture());
+    cam1->setInitialState();
+    scene->addChild(cam1);
+
+    // Create a light source node
+    SLLightSpot* light1 = new SLLightSpot(e1 * 0.5f);
+    light1->translate(e9, e9, e9);
+    light1->name("light node");
+    scene->addChild(light1);
+
+    // Create OpenCV Tracker for the box node
+    s->trackers().push_back(new SLCVTrackedChessboard(cam1));
+
+    // pass the scene group as root node
+    s->root3D(scene);
+
+    // Set active camera
+    sv->camera(cam1);
+    sv->doWaitOnIdle(false);
+
+    sv->onInitialize();
+    s->onAfterLoad();
+}
+//-----------------------------------------------------------------------------
+static void pose_estimation(SLScene* s, SLSceneView* sv, SLSceneID sid)
 {
     WAISceneView* waiSceneView = (WAISceneView*)sv;
     // Set scene name and info string
     s->name("Track Keyframe based Features");
     s->info("Example for loading an existing pose graph with map points.");
-
-#if LIVE_VIDEO
-    s->videoType(VT_MAIN);
-#else
-    SLstring calibFileName = "cam_calibration_main_huawei_p10_640_360.xml";
-    SLApplication::calibVideoFile.load(SLFileSystem::externalDir() + "calibrations/", calibFileName, false, false);
-    SLApplication::calibVideoFile.loadCalibParams();
-
-    s->videoType(VT_FILE);
-    SLCVCapture::videoFilename = "street3.mp4";
-    SLCVCapture::videoLoops    = true;
-#endif
 
     //make some light
     SLLightSpot* light1 = new SLLightSpot(1, 1, 1, 0.3f);
@@ -150,9 +186,43 @@ void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
     AppDemoGui::addInfoDialog(trackingInfos);
 #endif
 }
+
+//-----------------------------------------------------------------------------
+void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
+{
+    SLApplication::sceneID = sid;
+    s->init();
+
+#if LIVE_VIDEO
+
+    s->videoType(VT_MAIN);
+
+    if (sid == SID_VideoCalibrateMain)
+    {
+        calibration(s, sv, sid);
+    }
+    else
+    {
+        pose_estimation(s, sv, sid);
+    }
+#else
+    SLstring calibFileName = "cam_calibration_main_huawei_p10_640_360.xml";
+    SLApplication::calibVideoFile.load(SLFileSystem::externalDir() + "calibrations/", calibFileName, false, false);
+    SLApplication::calibVideoFile.loadCalibParams();
+
+    s->videoType(VT_FILE);
+    SLCVCapture::videoFilename = "street3.mp4";
+    SLCVCapture::videoLoops    = true;
+
+    pose_estimation(s, sv, sid);
+#endif
+}
 //-----------------------------------------------------------------------------
 void WAISceneView::update()
 {
+    if (SLApplication::sceneID == SID_VideoCalibrateMain)
+        return;
+
     cv::Mat pose          = cv::Mat(4, 4, CV_32F);
     bool    iKnowWhereIAm = wai.whereAmI(&pose);
 
@@ -271,6 +341,8 @@ void WAISceneView::update()
 //-----------------------------------------------------------------------------
 void WAISceneView::updateCamera(WAI::CameraData* cameraData)
 {
+    if (SLApplication::sceneID == SID_VideoCalibrateMain)
+        return;
     wai.updateSensor(WAI::SensorType_Camera, cameraData);
 }
 //-----------------------------------------------------------------------------
@@ -285,6 +357,8 @@ void WAISceneView::renderMapPoints(std::string                      name,
                                    SLPoints*&                       mesh,
                                    SLMaterial*&                     material)
 {
+    if (SLApplication::sceneID == SID_VideoCalibrateMain)
+        return;
     //remove old mesh, if it exists
     if (mesh)
         node->deleteMesh(mesh);
@@ -310,6 +384,8 @@ void WAISceneView::renderMapPoints(std::string                      name,
 //-----------------------------------------------------------------------------
 void WAISceneView::renderKeyFrames()
 {
+    if (SLApplication::sceneID == SID_VideoCalibrateMain)
+        return;
 #if DATA_ORIENTED
     std::vector<KeyFrame*> keyframes = _mode->getKeyFrames();
 
@@ -464,6 +540,7 @@ void WAISceneView::renderGraphs()
         _spanningTree->deleteMesh(_spanningTreeMesh);
 
     if (spanningTreePts.size())
+        ;
     {
         _spanningTreeMesh = new SLPolyline(spanningTreePts, false, "SpanningTree", _spanningTreeMat);
         _spanningTree->addMesh(_spanningTreeMesh);
