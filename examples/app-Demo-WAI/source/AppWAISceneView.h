@@ -48,7 +48,7 @@ class WAISceneView : public SLSceneView
     void updateMinNumOfCovisibles(int n);
 
     void setCameraNode(SLCamera* cameraNode) { _cameraNode = cameraNode; }
-    void setMapNode(SLNode* mapNode);
+    void setMapNode();
 
 #if DATA_ORIENTED
     WAI::ModeOrbSlam2DataOriented* getMode()

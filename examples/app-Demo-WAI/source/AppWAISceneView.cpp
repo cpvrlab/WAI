@@ -20,6 +20,7 @@
 
 WAISceneView::WAISceneView(SLCVCalibration* calib, std::string externalDir, std::string dataRoot)
   : wai(dataRoot),
+    _mapNode(new SLNode("map")),
     _mapPC(new SLNode("MapPC")),
     _mapMatchedPC(new SLNode("MapMatchedPC")),
     _mapLocalPC(new SLNode("MapLocalPC")),
@@ -36,11 +37,11 @@ WAISceneView::WAISceneView(SLCVCalibration* calib, std::string externalDir, std:
     _externalDir(externalDir)
 {
     WAIMapStorage::init(externalDir);
+    setMapNode();
 }
 //-----------------------------------------------------------------------------
-void WAISceneView::setMapNode(SLNode* mapNode)
+void WAISceneView::setMapNode()
 {
-    _mapNode = mapNode;
     _mapNode->addChild(_mapPC);
     _mapNode->addChild(_mapMatchedPC);
     _mapNode->addChild(_mapLocalPC);
@@ -138,7 +139,6 @@ static void pose_estimation(SLScene* s, SLSceneView* sv, SLSceneID sid)
     //boxNode->translation(0.0f, 0.0f, -2.0f);
 
     SLNode* mapNode = new SLNode("map");
-    waiSceneView->setMapNode(mapNode);
 
     mapNode->rotate(180, 1, 0, 0);
     mapNode->addChild(cameraNode);
