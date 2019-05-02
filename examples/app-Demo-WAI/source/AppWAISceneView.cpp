@@ -11,6 +11,7 @@
 
 #include <WAIMapStorage.h>
 
+#include <AppWAIScene.h>
 #include <AppDemoGui.h>
 #include <AppDemoGuiTrackedMapping.h>
 #include <AppDemoGuiMapStorage.h>
@@ -19,42 +20,22 @@
 #include <AppWAISceneView.h>
 
 WAISceneView::WAISceneView(SLCVCalibration* calib, std::string externalDir, std::string dataRoot)
-  : wai(dataRoot),
-    _mapNode(new SLNode("map")),
-    _mapPC(new SLNode("MapPC")),
-    _mapMatchedPC(new SLNode("MapMatchedPC")),
-    _mapLocalPC(new SLNode("MapLocalPC")),
-    _keyFrameNode(new SLNode("KeyFrames")),
-    _covisibilityGraph(new SLNode("CovisibilityGraph")),
-    _spanningTree(new SLNode("SpanningTree")),
-    _loopEdges(new SLNode("LoopEdges")),
-    _redMat(new SLMaterial(SLCol4f::RED, "Red")),
-    _greenMat(new SLMaterial(SLCol4f::GREEN, "Green")),
-    _blueMat(new SLMaterial(SLCol4f::BLUE, "Blue")),
-    _covisibilityGraphMat(new SLMaterial("YellowLines", SLCol4f::YELLOW)),
-    _spanningTreeMat(new SLMaterial("GreenLines", SLCol4f::GREEN)),
-    _loopEdgesMat(new SLMaterial("RedLines", SLCol4f::RED)),
-    _externalDir(externalDir)
+  : wai(dataRoot), _externalDir(externalDir)
 {
     WAIMapStorage::init(externalDir);
-    setMapNode();
 }
-//-----------------------------------------------------------------------------
-void WAISceneView::setMapNode()
+
+void WAISceneView::setAppWAIScene(AppWAIScene * appWaiScene)
 {
-    _mapNode->addChild(_mapPC);
-    _mapNode->addChild(_mapMatchedPC);
-    _mapNode->addChild(_mapLocalPC);
-    _mapNode->addChild(_keyFrameNode);
-    _mapNode->addChild(_covisibilityGraph);
-    _mapNode->addChild(_spanningTree);
-    _mapNode->addChild(_loopEdges);
+    _appWaiScene = appWaiScene;
 }
+
 //-----------------------------------------------------------------------------
-static void calibration(SLScene* s, SLSceneView* sv, SLSceneID sid)
+static void onLoadCalibration(SLScene* s, SLSceneView* sv)
 {
-    s->videoType(VT_MAIN);
+    s->name("Calibrate Main Cam.");
     SLApplication::activeCalib->clear();
+
     // Material
     SLMaterial* yellow = new SLMaterial("mY", SLCol4f(1, 1, 0, 0.5f));
 
@@ -97,10 +78,67 @@ static void calibration(SLScene* s, SLSceneView* sv, SLSceneID sid)
     sv->onInitialize();
     s->onAfterLoad();
 }
+
+static void onLoadTrackChessboard(SLScene* s, SLSceneView* sv)
+{
+    s->name("Track Chessboard (main cam.)");
+    // Material
+    SLMaterial* yellow = new SLMaterial("mY", SLCol4f(1, 1, 0, 0.5f));
+
+    // set the edge length of a chessboard square
+    SLfloat e1 = 0.028f;
+    SLfloat e3 = e1 * 3.0f;
+    SLfloat e9 = e3 * 3.0f;
+
+    // Create a scene group node
+    SLNode* scene = new SLNode("scene node");
+
+    // Create a camera node
+    SLCamera* cam1 = new SLCamera();
+    cam1->name("camera node");
+    cam1->translation(0, 0, 5);
+    cam1->lookAt(0, 0, 0);
+    cam1->focalDist(5);
+    cam1->clipFar(10);
+    cam1->fov(SLApplication::activeCalib->cameraFovDeg());
+    cam1->background().texture(s->videoTexture());
+    cam1->setInitialState();
+    scene->addChild(cam1);
+
+    // Create a light source node
+    SLLightSpot* light1 = new SLLightSpot(e1 * 0.5f);
+    light1->translate(e9, e9, e9);
+    light1->name("light node");
+    scene->addChild(light1);
+
+    // Build mesh & node
+    SLBox*  box     = new SLBox(0.0f, 0.0f, 0.0f, e3, e3, e3, "Box", yellow);
+    SLNode* boxNode = new SLNode(box, "Box Node");
+    boxNode->setDrawBitsRec(SL_DB_CULLOFF, true);
+    SLNode* axisNode = new SLNode(new SLCoordAxis(), "Axis Node");
+    axisNode->setDrawBitsRec(SL_DB_WIREMESH, false);
+    axisNode->scale(e3);
+    boxNode->addChild(axisNode);
+    scene->addChild(boxNode);
+
+    s->trackers().push_back(new SLCVTrackedChessboard(cam1));
+    s->root3D(scene);
+
+    // Set active camera
+    sv->camera(cam1);
+    sv->doWaitOnIdle(false);
+
+    sv->onInitialize();
+    s->onAfterLoad();
+}
+
 //-----------------------------------------------------------------------------
-static void pose_estimation(SLScene* s, SLSceneView* sv, SLSceneID sid)
+static void onLoadScenePoseEstimation(SLScene* s, SLSceneView* sv)
 {
     WAISceneView* waiSceneView = (WAISceneView*)sv;
+    AppWAIScene* appWaiScene = new AppWAIScene();
+    waiSceneView->setAppWAIScene(appWaiScene);
+
     // Set scene name and info string
     s->name("Track Keyframe based Features");
     s->info("Example for loading an existing pose graph with map points.");
@@ -114,20 +152,19 @@ static void pose_estimation(SLScene* s, SLSceneView* sv, SLSceneID sid)
 
     //always equal for tracking
     //setup tracking camera
-    SLCamera* cameraNode = new SLCamera("Camera 1");
-    cameraNode->translation(0, 0, 0.1f);
-    cameraNode->lookAt(0, 0, 0);
+    appWaiScene->cameraNode = new SLCamera("Camera 1");
+    appWaiScene->cameraNode->translation(0, 0, 0.1f);
+    appWaiScene->cameraNode->lookAt(0, 0, 0);
     //for tracking we have to use the field of view from calibration
-    cameraNode->fov(SLApplication::activeCalib->cameraFovDeg());
-    cameraNode->clipNear(0.001f);
-    cameraNode->clipFar(1000000.0f); // Increase to infinity?
-    cameraNode->setInitialState();
-    cameraNode->background().texture(s->videoTexture());
+    appWaiScene->cameraNode->fov(SLApplication::activeCalib->cameraFovDeg());
+    appWaiScene->cameraNode->clipNear(0.001f);
+    appWaiScene->cameraNode->clipFar(1000000.0f); // Increase to infinity?
+    appWaiScene->cameraNode->setInitialState();
+    appWaiScene->cameraNode->background().texture(s->videoTexture());
 
     // Save no energy
     sv->doWaitOnIdle(false); //for constant video feed
-    sv->camera(cameraNode);
-    waiSceneView->setCameraNode(cameraNode);
+    sv->camera(appWaiScene->cameraNode);
 
     //add yellow box and axis for augmentation
     SLMaterial* yellow = new SLMaterial("mY", SLCol4f(1, 1, 0, 0.5f));
@@ -137,17 +174,14 @@ static void pose_estimation(SLScene* s, SLSceneView* sv, SLSceneID sid)
     SLNode*     axisNode = new SLNode(new SLCoordAxis(), "axis node");
     boxNode->addChild(axisNode);
     //boxNode->translation(0.0f, 0.0f, -2.0f);
-
-    SLNode* mapNode = new SLNode("map");
-
-    mapNode->rotate(180, 1, 0, 0);
-    mapNode->addChild(cameraNode);
+    appWaiScene->mapNode->rotate(180, 1, 0, 0);
+    appWaiScene->mapNode->addChild(appWaiScene->cameraNode);
 
     //setup scene
     SLNode* scene = new SLNode("scene");
     scene->addChild(light1);
     scene->addChild(boxNode);
-    scene->addChild(mapNode);
+    scene->addChild(appWaiScene->mapNode);
 
     s->root3D(scene);
 
@@ -162,6 +196,7 @@ static void pose_estimation(SLScene* s, SLSceneView* sv, SLSceneID sid)
                                           SLApplication::activeCalib->k2(),
                                           SLApplication::activeCalib->p1(),
                                           SLApplication::activeCalib->p2()};
+
     waiSceneView->wai.activateSensor(WAI::SensorType_Camera, &calibration);
 
 #if DATA_ORIENTED
@@ -172,11 +207,11 @@ static void pose_estimation(SLScene* s, SLSceneView* sv, SLSceneID sid)
     AppDemoGui::addInfoDialog(trackedMapping);
     auto mapStorage = std::make_shared<AppDemoGuiMapStorage>("Map Storage",
                                                              waiSceneView->getMode(),
-                                                             mapNode,
+                                                             appWaiScene->mapNode,
                                                              waiSceneView->getExternalDir() + "slam-maps");
     AppDemoGui::addInfoDialog(mapStorage);
     auto mapTransform = std::make_shared<AppDemoGuiInfosMapNodeTransform>("Map transform",
-                                                                          mapNode,
+                                                                          appWaiScene->mapNode,
                                                                           waiSceneView->getMode(),
                                                                           waiSceneView->getExternalDir());
     AppDemoGui::addInfoDialog(mapTransform);
@@ -199,11 +234,15 @@ void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
 
     if (sid == SID_VideoCalibrateMain)
     {
-        calibration(s, sv, sid);
+        onLoadCalibration(s, sv);
+    }
+    else if (SLApplication::sceneID == SID_VideoTrackChessMain)
+    {
+        onLoadTrackChessboard(s, sv);
     }
     else
     {
-        pose_estimation(s, sv, sid);
+        onLoadScenePoseEstimation(s, sv);
     }
 #else
     SLstring calibFileName = "cam_calibration_main_huawei_p10_640_360.xml";
@@ -214,13 +253,14 @@ void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
     SLCVCapture::videoFilename = "street3.mp4";
     SLCVCapture::videoLoops    = true;
 
-    pose_estimation(s, sv, sid);
+    onLoadScenePoseEstimation(s, sv);
 #endif
 }
 //-----------------------------------------------------------------------------
 void WAISceneView::update()
 {
-    if (SLApplication::sceneID == SID_VideoCalibrateMain)
+    if (SLApplication::sceneID == SID_VideoCalibrateMain ||
+        SLApplication::sceneID == SID_VideoTrackChessMain)
         return;
 
     cv::Mat pose          = cv::Mat(4, 4, CV_32F);
@@ -229,17 +269,17 @@ void WAISceneView::update()
     if (iKnowWhereIAm)
     {
         // update map node
-        if (_mappointsMesh)
+        if (_appWaiScene->mappointsMesh)
         {
-            _mapPC->deleteMesh(_mappointsMesh);
+            _appWaiScene->mapPC->deleteMesh(_appWaiScene->mappointsMesh);
         }
         if (_showKeyPoints)
         {
 #if DATA_ORIENTED
             //remove old mesh, if it exists
-            if (_mappointsMesh)
+            if (_appWaiScene->mappointsMesh)
             {
-                _mapPC->deleteMesh(_mappointsMesh);
+                _appWaiScene->mapPC->deleteMesh(_appWaiScene->mappointsMesh);
             }
 
             std::vector<MapPoint*> mapPoints = _mode->getMapPoints();
@@ -259,50 +299,50 @@ void WAISceneView::update()
                                               mapPoint->normalVector.at<float>(2, 0)));
                 }
 
-                _mappointsMesh = new SLPoints(points, normals, "MapPoints", _redMat);
-                _mapPC->addMesh(_mappointsMesh);
-                _mapPC->updateAABBRec();
+                _appWaiScene->mappointsMesh = new SLPoints(points, normals, "MapPoints", _redMat);
+                _appWaiScene->mapPC->addMesh(_appWaiScene->mappointsMesh);
+                _appWaiScene->mapPC->updateAABBRec();
             }
 #else
             renderMapPoints("MapPoints",
                             _mode->getMapPoints(),
-                            _mapPC,
-                            _mappointsMesh,
-                            _redMat);
+                            _appWaiScene->mapPC,
+                            _appWaiScene->mappointsMesh,
+                            _appWaiScene->redMat);
 #endif
         }
 
-        if (_mappointsMatchedMesh)
+        if (_appWaiScene->mappointsMatchedMesh)
         {
-            _mapMatchedPC->deleteMesh(_mappointsMatchedMesh);
+            _appWaiScene->mapMatchedPC->deleteMesh(_appWaiScene->mappointsMatchedMesh);
         }
         if (_showKeyPointsMatched)
         {
 #ifndef DATA_ORIENTED
             renderMapPoints("MatchedMapPoints",
                             _mode->getMatchedMapPoints(),
-                            _mapMatchedPC,
-                            _mappointsMatchedMesh,
-                            _greenMat);
+                            _appWaiScene->mapMatchedPC,
+                            _appWaiScene->mappointsMatchedMesh,
+                            _appWaiScene->greenMat);
 #endif
         }
 
-        if (_mappointsLocalMesh)
+        if (_appWaiScene->mappointsLocalMesh)
         {
-            _mapLocalPC->deleteMesh(_mappointsLocalMesh);
+            _appWaiScene->mapLocalPC->deleteMesh(_appWaiScene->mappointsLocalMesh);
         }
         if (_showLocalMapPC)
         {
 #ifndef DATA_ORIENTED
             renderMapPoints("LocalMapPoints",
                             _mode->getLocalMapPoints(),
-                            _mapLocalPC,
-                            _mappointsLocalMesh,
-                            _blueMat);
+                            _appWaiScene->mapLocalPC,
+                            _appWaiScene->mappointsLocalMesh,
+                            _appWaiScene->blueMat);
 #endif
         }
 
-        _keyFrameNode->deleteChildren();
+        _appWaiScene->keyFrameNode->deleteChildren();
         if (_showKeyFrames)
         {
             renderKeyFrames();
@@ -335,13 +375,14 @@ void WAISceneView::update()
                        1.0f);
         slPose.rotate(180, 1, 0, 0);
 
-        _cameraNode->om(slPose);
+        _appWaiScene->cameraNode->om(slPose);
     }
 }
 //-----------------------------------------------------------------------------
 void WAISceneView::updateCamera(WAI::CameraData* cameraData)
 {
-    if (SLApplication::sceneID == SID_VideoCalibrateMain)
+    if (SLApplication::sceneID == SID_VideoCalibrateMain ||
+        SLApplication::sceneID == SID_VideoTrackChessMain)
         return;
     wai.updateSensor(WAI::SensorType_Camera, cameraData);
 }
@@ -357,7 +398,8 @@ void WAISceneView::renderMapPoints(std::string                      name,
                                    SLPoints*&                       mesh,
                                    SLMaterial*&                     material)
 {
-    if (SLApplication::sceneID == SID_VideoCalibrateMain)
+    if (SLApplication::sceneID == SID_VideoCalibrateMain ||
+        SLApplication::sceneID == SID_VideoTrackChessMain)
         return;
     //remove old mesh, if it exists
     if (mesh)
@@ -384,7 +426,8 @@ void WAISceneView::renderMapPoints(std::string                      name,
 //-----------------------------------------------------------------------------
 void WAISceneView::renderKeyFrames()
 {
-    if (SLApplication::sceneID == SID_VideoCalibrateMain)
+    if (SLApplication::sceneID == SID_VideoCalibrateMain ||
+        SLApplication::sceneID == SID_VideoTrackChessMain)
         return;
 #if DATA_ORIENTED
     std::vector<KeyFrame*> keyframes = _mode->getKeyFrames();
@@ -473,7 +516,7 @@ void WAISceneView::renderKeyFrames()
         cam->focalDist(0.11);
         cam->clipNear(0.1);
         cam->clipFar(1000.0);
-        _keyFrameNode->addChild(cam);
+        _appWaiScene->keyFrameNode->addChild(cam);
     }
 #endif
 }
@@ -526,35 +569,35 @@ void WAISceneView::renderGraphs()
         }
     }
 
-    if (_covisibilityGraphMesh)
-        _covisibilityGraph->deleteMesh(_covisibilityGraphMesh);
+    if (_appSceneView->covisibilityGraphMesh)
+        _appSceneView->covisibilityGraph->deleteMesh(_appSceneView->covisibilityGraphMesh);
 
     if (covisGraphPts.size())
     {
-        _covisibilityGraphMesh = new SLPolyline(covisGraphPts, false, "CovisibilityGraph", _covisibilityGraphMat);
-        _covisibilityGraph->addMesh(_covisibilityGraphMesh);
-        _covisibilityGraph->updateAABBRec();
+        _appSceneView->covisibilityGraphMesh = new SLPolyline(covisGraphPts, false, "CovisibilityGraph", _appSceneView->covisibilityGraphMat);
+        _appSceneView->covisibilityGraph->addMesh(_appSceneView->covisibilityGraphMesh);
+        _appSceneView->covisibilityGraph->updateAABBRec();
     }
 
-    if (_spanningTreeMesh)
-        _spanningTree->deleteMesh(_spanningTreeMesh);
+    if (_appSceneView->spanningTreeMesh)
+        _appSceneView->spanningTree->deleteMesh(_appSceneView->spanningTreeMesh);
 
     if (spanningTreePts.size())
         ;
     {
-        _spanningTreeMesh = new SLPolyline(spanningTreePts, false, "SpanningTree", _spanningTreeMat);
-        _spanningTree->addMesh(_spanningTreeMesh);
-        _spanningTree->updateAABBRec();
+        _appSceneView->spanningTreeMesh = new SLPolyline(spanningTreePts, false, "SpanningTree", _appSceneView->spanningTreeMat);
+        _appSceneView->spanningTree->addMesh(_appSceneView->spanningTreeMesh);
+        _appSceneView->spanningTree->updateAABBRec();
     }
 
-    if (_loopEdgesMesh)
-        _loopEdges->deleteMesh(_loopEdgesMesh);
+    if (_appSceneView->loopEdgesMesh)
+        _appSceneView->loopEdges->deleteMesh(_appSceneView->loopEdgesMesh);
 
     if (loopEdgesPts.size())
     {
-        _loopEdgesMesh = new SLPolyline(loopEdgesPts, false, "LoopEdges", _loopEdgesMat);
-        _loopEdges->addMesh(_loopEdgesMesh);
-        _loopEdges->updateAABBRec();
+        _appSceneView->loopEdgesMesh = new SLPolyline(loopEdgesPts, false, "LoopEdges", _appSceneView->loopEdgesMat);
+        _appSceneView->loopEdges->addMesh(_appSceneView->loopEdgesMesh);
+        _appSceneView->loopEdges->updateAABBRec();
     }
 #endif
 }

@@ -13,6 +13,7 @@
 #ifndef APP_WAI_SCENE_VIEW
 #define APP_WAI_SCENE_VIEW
 
+#include "AppWAIScene.h"
 #include <SLSceneView.h>
 #include <SLPoints.h>
 #include <SLPolyline.h>
@@ -47,8 +48,7 @@ class WAISceneView : public SLSceneView
     void updateCamera(WAI::CameraData* cameraData);
     void updateMinNumOfCovisibles(int n);
 
-    void setCameraNode(SLCamera* cameraNode) { _cameraNode = cameraNode; }
-    void setMapNode();
+    void setAppWAIScene(AppWAIScene * appWaiScene);
 
 #if DATA_ORIENTED
     WAI::ModeOrbSlam2DataOriented* getMode()
@@ -109,30 +109,6 @@ class WAISceneView : public SLSceneView
 #else
     WAI::ModeOrbSlam2* _mode;
 #endif
-    SLCamera* _cameraNode        = nullptr;
-    SLNode*   _mapNode           = nullptr;
-    SLNode*   _mapPC             = nullptr;
-    SLNode*   _mapMatchedPC      = nullptr;
-    SLNode*   _mapLocalPC        = nullptr;
-    SLNode*   _keyFrameNode      = nullptr;
-    SLNode*   _covisibilityGraph = nullptr;
-    SLNode*   _spanningTree      = nullptr;
-    SLNode*   _loopEdges         = nullptr;
-
-    SLMaterial* _redMat               = nullptr;
-    SLMaterial* _greenMat             = nullptr;
-    SLMaterial* _blueMat              = nullptr;
-    SLMaterial* _covisibilityGraphMat = nullptr;
-    SLMaterial* _spanningTreeMat      = nullptr;
-    SLMaterial* _loopEdgesMat         = nullptr;
-
-    SLPoints*   _mappointsMesh         = nullptr;
-    SLPoints*   _mappointsMatchedMesh  = nullptr;
-    SLPoints*   _mappointsLocalMesh    = nullptr;
-    SLPolyline* _covisibilityGraphMesh = nullptr;
-    SLPolyline* _spanningTreeMesh      = nullptr;
-    SLPolyline* _loopEdgesMesh         = nullptr;
-
     std::string _externalDir;
 
     void renderMapPoints(std::string                      name,
@@ -146,7 +122,7 @@ class WAISceneView : public SLSceneView
     //! minimum number of covisibles for covisibility graph visualization
     int   _minNumOfCovisibles = 50;
     float _meanReprojectionError;
-
+    AppWAIScene * _appWaiScene  = nullptr;
     bool _showKeyPoints         = true;
     bool _showKeyPointsMatched  = true;
     bool _showMapPC             = true;
