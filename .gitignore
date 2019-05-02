@@ -1,5 +1,5 @@
 _build*
-CMakeLists.txt.user
+CMakeLists.txt.user*
 thirdparty/prebuilt/*
 thirdparty/g2o/BUILD*
 thirdparty/g2o/INSTALL*

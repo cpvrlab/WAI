@@ -29,7 +29,7 @@ AppDemoGuiMapStorage::AppDemoGuiMapStorage(const string&      name,
     _map  = tracking->getMap();
     _kfDB = tracking->getKfDB();
 
-    _mapDir = SLFileSystem::unifySlashes(mapDir);
+    _mapDir = SLUtils::unifySlashes(mapDir);
 
     _existingMapNames.clear();
     vector<pair<int, string>> existingMapNamesSorted;
@@ -42,16 +42,16 @@ AppDemoGuiMapStorage::AppDemoGuiMapStorage(const string&      name,
     else
     {
         //parse content: we search for directories in mapsDir
-        std::vector<std::string> content = SLFileSystem::getFileNamesInDir(_mapDir);
+        std::vector<std::string> content = SLUtils::getFileNamesInDir(_mapDir);
         for (auto path : content)
         {
-            std::string name = SLFileSystem::getFileName(path);
+            std::string name = SLUtils::getFileName(path);
             //find json files that contain mapPrefix and estimate highest used id
-            if (SLFileSystem::contains(name, _mapPrefix))
+            if (SLUtils::contains(name, _mapPrefix))
             {
                 //estimate highest used id
                 std::vector<std::string> splitted;
-                SLFileSystem::split(name, '-', splitted);
+                SLUtils::split(name, '-', splitted);
                 if (splitted.size())
                 {
                     int id = atoi(splitted.back().c_str());
@@ -104,7 +104,7 @@ void AppDemoGuiMapStorage::buildInfos()
             }
             else
             {
-                std::vector<std::string> content = SLFileSystem::getFileNamesInDir(imgDir);
+                std::vector<std::string> content = SLUtils::getFileNamesInDir(imgDir);
                 for (std::string path : content)
                 {
                     SLFileSystem::deleteFile(path);
