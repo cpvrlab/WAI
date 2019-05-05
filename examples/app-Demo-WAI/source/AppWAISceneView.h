@@ -116,7 +116,7 @@ class WAISceneView : public SLSceneView
                          SLNode*&                         node,
                          SLPoints*&                       mesh,
                          SLMaterial*&                     material);
-    void renderKeyFrames();
+    void renderKeyframes();
     void renderGraphs();
 
     //! minimum number of covisibles for covisibility graph visualization

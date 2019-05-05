@@ -1,8 +1,8 @@
 //#############################################################################
 //  File:      AppDemoMainGLFW.cpp
 //  Purpose:   The demo application demonstrates most features of libWAI
-//  Author:    Marcus Hudritsch
-//  Date:      July 2014
+//  Author:    Jan Dellsperger, Luc Girod
+//  Date:      November 2018
 //  Copyright: Marcus Hudritsch
 //             This software is provide under the GNU General Public License
 //             Please visit: http://opensource.org/licenses/GPL-3.0
@@ -21,7 +21,7 @@
 
 #include <SLCVCapture.h>
 #include <SLCVCalibration.h>
-#include <SLCVCamera.h>
+#include <SLKeyframeCamera.h>
 
 #include <SLBox.h>
 #include <SLCoordAxis.h>
@@ -38,27 +38,26 @@
 
 //-----------------------------------------------------------------------------
 // GLobal application variables
-GLFWwindow*   window;                     //!< The global glfw window handle
-SLint         svIndex;                    //!< SceneView index
-SLint         scrWidth;                   //!< Window width at start up
-SLint         scrHeight;                  //!< Window height at start up
-SLbool        fixAspectRatio;             //!< Flag if aspect ratio should be fixed
-SLfloat       scrWdivH;                   //!< aspect ratio screen width divided by height
-SLfloat       scr2fbX;                    //!< Factor from screen to framebuffer coords
-SLfloat       scr2fbY;                    //!< Factor from screen to framebuffer coords
-SLint         startX;                     //!< start position x in pixels
-SLint         startY;                     //!< start position y in pixels
-SLint         mouseX;                     //!< Last mouse position x in pixels
-SLint         mouseY;                     //!< Last mouse position y in pixels
-SLVec2i       touch2;                     //!< Last finger touch 2 position in pixels
-SLVec2i       touchDelta;                 //!< Delta between two fingers in x
-SLint         lastWidth;                  //!< Last window width in pixels
-SLint         lastHeight;                 //!< Last window height in pixels
-SLint         lastMouseWheelPos;          //!< Last mouse wheel position
-SLfloat       lastMouseDownTime = 0.0f;   //!< Last mouse press time
-SLKey         modifiers         = K_none; //!< last modifier keys
-SLbool        fullscreen        = false;  //!< flag if window is in fullscreen mode
-WAISceneView* sceneView         = 0;
+static GLFWwindow*   window;                     //!< The global glfw window handle
+static SLint         svIndex;                    //!< SceneView index
+static SLint         scrWidth;                   //!< Window width at start up
+static SLint         scrHeight;                  //!< Window height at start up
+static SLbool        fixAspectRatio;             //!< Flag if aspect ratio should be fixed
+static SLfloat       scrWdivH;                   //!< aspect ratio screen width divided by height
+static SLfloat       scr2fbX;                    //!< Factor from screen to framebuffer coords
+static SLfloat       scr2fbY;                    //!< Factor from screen to framebuffer coords
+static SLint         startX;                     //!< start position x in pixels
+static SLint         startY;                     //!< start position y in pixels
+static SLint         mouseX;                     //!< Last mouse position x in pixels
+static SLint         mouseY;                     //!< Last mouse position y in pixels
+static SLVec2i       touch2;                     //!< Last finger touch 2 position in pixels
+static SLVec2i       touchDelta;                 //!< Delta between two fingers in x
+static SLint         lastWidth;                  //!< Last window width in pixels
+static SLint         lastHeight;                 //!< Last window height in pixels
+static SLfloat       lastMouseDownTime = 0.0f;   //!< Last mouse press time
+static SLKey         modifiers         = K_none; //!< last modifier keys
+static SLbool        fullscreen        = false;  //!< flag if window is in fullscreen mode
+static WAISceneView* sceneView         = nullptr;
 
 //-----------------------------------------------------------------------------
 //! Alternative SceneView creation function passed by slCreateSceneView
@@ -168,13 +167,13 @@ static void onResize(GLFWwindow* window, int width, int height)
         //correct target width and height
         if (height * scrWdivH <= width)
         {
-            width  = height * scrWdivH;
-            height = width / scrWdivH;
+            width  = (int)(height * scrWdivH);
+            height = (int)(width / scrWdivH);
         }
         else
         {
-            height = width / scrWdivH;
-            width  = height * scrWdivH;
+            height = (int)(width / scrWdivH);
+            width  = (int)(height * scrWdivH);
         }
     }
 

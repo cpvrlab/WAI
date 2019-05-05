@@ -5,7 +5,7 @@
 #include <SLPoints.h>
 
 #include <SLCVTrackedChessboard.h>
-#include <SLCVCamera.h>
+#include <SLKeyframeCamera.h>
 #include <SLCVCapture.h>
 #include <SLFileSystem.h>
 
@@ -25,7 +25,7 @@ WAISceneView::WAISceneView(SLCVCalibration* calib, std::string externalDir, std:
     WAIMapStorage::init(externalDir);
 }
 
-void WAISceneView::setAppWAIScene(AppWAIScene * appWaiScene)
+void WAISceneView::setAppWAIScene(AppWAIScene* appWaiScene)
 {
     _appWaiScene = appWaiScene;
 }
@@ -37,7 +37,7 @@ static void onLoadCalibration(SLScene* s, SLSceneView* sv)
     SLApplication::activeCalib->clear();
 
     // Material
-    SLMaterial* yellow = new SLMaterial("mY", SLCol4f(1, 1, 0, 0.5f));
+    //SLMaterial* yellow = new SLMaterial("mY", SLCol4f(1, 1, 0, 0.5f));
 
     // set the edge length of a chessboard square
     SLfloat e1 = 0.028f;
@@ -136,7 +136,7 @@ static void onLoadTrackChessboard(SLScene* s, SLSceneView* sv)
 static void onLoadScenePoseEstimation(SLScene* s, SLSceneView* sv)
 {
     WAISceneView* waiSceneView = (WAISceneView*)sv;
-    AppWAIScene* appWaiScene = new AppWAIScene();
+    AppWAIScene*  appWaiScene  = new AppWAIScene();
     waiSceneView->setAppWAIScene(appWaiScene);
 
     // Set scene name and info string
@@ -345,7 +345,7 @@ void WAISceneView::update()
         _appWaiScene->keyFrameNode->deleteChildren();
         if (_showKeyFrames)
         {
-            renderKeyFrames();
+            renderKeyframes();
         }
 
         renderGraphs();
@@ -424,7 +424,7 @@ void WAISceneView::renderMapPoints(std::string                      name,
     }
 }
 //-----------------------------------------------------------------------------
-void WAISceneView::renderKeyFrames()
+void WAISceneView::renderKeyframes()
 {
     if (SLApplication::sceneID == SID_VideoCalibrateMain ||
         SLApplication::sceneID == SID_VideoTrackChessMain)
@@ -474,7 +474,7 @@ void WAISceneView::renderKeyFrames()
     // TODO(jan): delete keyframe textures
     for (WAIKeyFrame* kf : keyframes)
     {
-        SLCVCamera* cam = new SLCVCamera("KeyFrame " + std::to_string(kf->mnId));
+        SLKeyframeCamera* cam = new SLKeyframeCamera("KeyFrame " + std::to_string(kf->mnId));
         //set background
         if (kf->getTexturePath().size())
         {
@@ -513,9 +513,9 @@ void WAISceneView::renderKeyFrames()
         SLfloat cy     = (SLfloat)kf->cy;
         SLfloat fovDeg = 2 * (SLfloat)atan2(cy, fy) * SL_RAD2DEG;
         cam->fov(fovDeg);
-        cam->focalDist(0.11);
-        cam->clipNear(0.1);
-        cam->clipFar(1000.0);
+        cam->focalDist(0.11f);
+        cam->clipNear(0.1f);
+        cam->clipFar(1000.0f);
         _appWaiScene->keyFrameNode->addChild(cam);
     }
 #endif

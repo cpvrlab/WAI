@@ -140,7 +140,7 @@ For more information please visit: https://github.com/cpvrlab/SLProject\n\
 
 SLstring AppDemoGui::infoCredits =
   "Contributors since 2005 in alphabetic order: Martin Christen, Jan Dellsperger, \
-Manuel Frischknecht, Michael Goettlicher, Timo Tschanz, Marc Wacker, Pascal Zingg \n\n\
+Manuel Frischknecht, Michael Goettlicher, Luc Girod, Timo Tschanz, Marc Wacker, Pascal Zingg \n\n\
 Credits for external libraries:\n\
 - assimp: assimp.sourceforge.net\n\
 - imgui: github.com/ocornut/imgui\n\
