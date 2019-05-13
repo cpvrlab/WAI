@@ -227,15 +227,21 @@ static bool32 computeBestDescriptorFromObservations(const std::map<KeyFrame*, i3
             // Compute distances between them
             const i32 descriptorsCount = descriptors.size();
 
-            r32 distances[descriptorsCount][descriptorsCount];
+            //r32 distances[descriptorsCount][descriptorsCount];
+            //we have to allocate dynamically due to a compiler problem with visual studio compiler
+            r32** distances = new r32*[descriptorsCount];
+            for (size_t i = 0; i < descriptorsCount; ++i)
+                distances[i] = new r32[descriptorsCount];
+
             for (i32 i = 0; i < descriptorsCount; i++)
             {
                 distances[i][i] = 0;
                 for (i32 j = i + 1; j < descriptorsCount; j++)
                 {
-                    i32 distij      = descriptorDistance(descriptors[i], descriptors[j]);
-                    distances[i][j] = distij;
-                    distances[j][i] = distij;
+                    i32 distij = descriptorDistance(descriptors[i], descriptors[j]);
+                    //TODO: why do we store as real though it is an integer value. For sorting also an integer is used
+                    distances[i][j] = (r32)distij;
+                    distances[j][i] = (r32)distij;
                 }
             }
 
@@ -258,6 +264,11 @@ static bool32 computeBestDescriptorFromObservations(const std::map<KeyFrame*, i3
             *descriptor = descriptors[bestIndex].clone();
 
             result = true;
+
+            //free Distances (remove when vs compiler problem is fixed)
+            for (size_t i = 0; i < descriptorsCount; ++i)
+                delete distances[i];
+            delete distances;
         }
     }
 
@@ -1988,8 +1999,7 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
 
     switch (_state.status)
     {
-        case OrbSlamStatus_Initializing:
-        {
+        case OrbSlamStatus_Initializing: {
             cv::Mat cameraMat     = _camera->getCameraMatrix();
             cv::Mat distortionMat = _camera->getDistortionMatrix();
             cv::Mat cameraFrame   = _camera->getImageGray();
@@ -2524,8 +2534,7 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
         }
         break;
 
-        case OrbSlamStatus_Tracking:
-        {
+        case OrbSlamStatus_Tracking: {
             cv::Mat cameraMat     = _camera->getCameraMatrix();
             cv::Mat distortionMat = _camera->getDistortionMatrix();
             cv::Mat cameraFrame   = _camera->getImageGray();
