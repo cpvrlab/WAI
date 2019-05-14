@@ -2,6 +2,11 @@
 
 AppWAIScene::AppWAIScene()
 {
+
+}
+
+void AppWAIScene::rebuild()
+{
     cameraNode        = new SLCamera("Camera 1");
     mapNode           = new SLNode("map");
     mapPC             = new SLNode("MapPC");

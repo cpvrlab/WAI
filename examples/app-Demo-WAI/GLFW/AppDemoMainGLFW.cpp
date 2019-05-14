@@ -18,6 +18,9 @@
 
 #include <AppDemoGui.h>
 #include <AppWAISceneView.h>
+#include <WAIModeOrbSlam2.h>
+#include <WAIAutoCalibration.h>
+#include <AppWAISingleton.h>
 
 #include <SLCVCapture.h>
 #include <SLCVCalibration.h>
@@ -63,13 +66,12 @@ static WAISceneView* sceneView         = nullptr;
 //! Alternative SceneView creation function passed by slCreateSceneView
 SLuint createNewWAISceneView()
 {
-    sceneView = new WAISceneView(SLApplication::activeCalib,
-                                 std::string(WAI_ROOT) + "/data/",
+    sceneView = new WAISceneView(std::string(WAI_ROOT) + "/data/",
                                  std::string(WAI_ROOT) + "/data/");
     return sceneView->index();
 }
 //-----------------------------------------------------------------------------
-/*! 
+/*!
 onClose event handler for deallocation of the scene & sceneview. onClose is
 called glfwPollEvents, glfwWaitEvents or glfwSwapBuffers.
 */
@@ -79,7 +81,7 @@ void onClose(GLFWwindow* window)
 }
 //-----------------------------------------------------------------------------
 /*!
-onPaint: Paint event handler that passes the event to the slPaint function. 
+onPaint: Paint event handler that passes the event to the slPaint function.
 */
 SLbool onPaint()
 {
@@ -492,8 +494,8 @@ int main(int argc, char* argv[])
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    scrWidth  = 640;
-    scrHeight = 360;
+    int scrWidth  = 640;
+    int scrHeight = 360;
 
     //we have to fix aspect ratio, because the video image is initialized with this ratio
     fixAspectRatio = true;
@@ -560,6 +562,8 @@ int main(int argc, char* argv[])
     slSetupExternalDirectories(projectRoot + "/data");
 
     /////////////////////////////////////////////////////////
+    AppWAISingleton::instance()->load(640, 360, projectRoot);
+
     slCreateAppAndScene(cmdLineArgs,
                         projectRoot + "/data/shaders/",
                         projectRoot + "/data/models/",

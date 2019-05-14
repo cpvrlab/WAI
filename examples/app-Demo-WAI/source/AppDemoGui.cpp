@@ -26,6 +26,7 @@
 #include <SLGLShader.h>
 #include <SLGLTexture.h>
 #include <AppDemoGuiInfosDialog.h>
+#include <AppWAISingleton.h>
 #include <SLImporter.h>
 #include <SLInterface.h>
 #include <SLLightDirect.h>
@@ -544,17 +545,17 @@ void AppDemoGui::build(SLScene* s, SLSceneView* sv)
             if (ImGui::Button(">>>##Rz")) node->rotate(-r3, 0, 0, 1, tSpace);
 
             ImGui::Text("Scale        :"); ImGui::SameLine();
-            if (ImGui::Button("<<<##S")) 
+            if (ImGui::Button("<<<##S"))
                 node->scale( s3); ImGui::SameLine();
-            if (ImGui::Button("<<##S"))  
+            if (ImGui::Button("<<##S"))
                 node->scale( s2); ImGui::SameLine();
-            if (ImGui::Button("<##S"))   
+            if (ImGui::Button("<##S"))
                 node->scale( s1); ImGui::SameLine();
-            if (ImGui::Button(">##S"))   
+            if (ImGui::Button(">##S"))
                 node->scale(1/s1); ImGui::SameLine();
-            if (ImGui::Button(">>##S"))  
+            if (ImGui::Button(">>##S"))
                 node->scale(1/s2); ImGui::SameLine();
-            if (ImGui::Button(">>>##S")) 
+            if (ImGui::Button(">>>##S"))
                 node->scale(1/s3);
             ImGui::Separator();
             if (ImGui::Button("Reset")) node->om(node->initialOM());
@@ -826,6 +827,11 @@ void AppDemoGui::buildMenuBar(SLScene* s, SLSceneView* sv)
                         s->onLoad(s, sv, SID_VideoCalibrateScnd);
                         showHelpCalibration = true;
                         showInfosScene      = true;
+                    }
+
+                    if (ImGui::MenuItem("Recalibrate", nullptr, false))
+                    {
+                        AppWAISingleton::instance()->wc->reset();
                     }
 
                     if (ImGui::MenuItem("Undistort Image", nullptr, ac->showUndistorted(), ac->state() == CS_calibrated))

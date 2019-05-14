@@ -13,12 +13,14 @@
 #ifndef APP_WAI_SCENE_VIEW
 #define APP_WAI_SCENE_VIEW
 
+#include <AppWAISingleton.h>
 #include "AppWAIScene.h"
 #include <SLSceneView.h>
 #include <SLPoints.h>
 #include <SLPolyline.h>
 
 #include <SLCVCalibration.h>
+#include <WAIAutoCalibration.h>
 
 #include <WAI.h>
 
@@ -43,12 +45,10 @@ demonstrates all transform possibilities in SLNode
 class WAISceneView : public SLSceneView
 {
     public:
-    WAISceneView(SLCVCalibration* calib, std::string externalDir, std::string dataRoot);
+    WAISceneView(std::string externalDir, std::string dataRoot);
     void update();
     void updateCamera(WAI::CameraData* cameraData);
     void updateMinNumOfCovisibles(int n);
-
-    void setAppWAIScene(AppWAIScene* appWaiScene);
 
 #if DATA_ORIENTED
     WAI::ModeOrbSlam2DataOriented* getMode()
@@ -75,8 +75,6 @@ class WAISceneView : public SLSceneView
     {
         return _externalDir;
     }
-
-    WAI::WAI wai;
 
     int getMinNumOfCovisibles() { return _minNumOfCovisibles; }
 
@@ -123,7 +121,6 @@ class WAISceneView : public SLSceneView
     //! minimum number of covisibles for covisibility graph visualization
     int          _minNumOfCovisibles = 50;
     float        _meanReprojectionError;
-    AppWAIScene* _appWaiScene           = nullptr;
     bool         _showKeyPoints         = true;
     bool         _showKeyPointsMatched  = true;
     bool         _showMapPC             = true;

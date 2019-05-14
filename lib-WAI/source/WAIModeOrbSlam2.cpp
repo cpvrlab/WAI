@@ -287,6 +287,36 @@ std::vector<WAIMapPoint*> WAI::ModeOrbSlam2::getMatchedMapPoints()
     return result;
 }
 
+std::pair<std::vector<cv::Vec3f>, std::vector<cv::Vec2f>> WAI::ModeOrbSlam2::getMatchedCorrespondances()
+{
+    std::lock_guard<std::mutex> guard(_mapLock);
+
+    std::vector<cv::Vec3f> points3d;
+    std::vector<cv::Vec2f> points2d;
+
+    for (int i = 0; i < mCurrentFrame.N; i++)
+    {
+        if (mCurrentFrame.mvpMapPoints[i])
+        {
+            if (!mCurrentFrame.mvbOutlier[i])
+            {
+                if (mCurrentFrame.mvpMapPoints[i]->Observations() > 0)
+                {
+                    WAI::V3 _v = mCurrentFrame.mvpMapPoints[i]->worldPosVec();
+                    cv::Vec3f v;
+                    v[0] = _v.x;
+                    v[1] = _v.y;
+                    v[2] = _v.z;
+                    points3d.push_back(v);
+                    points2d.push_back(mCurrentFrame.mvKeysUn[i].pt);
+                }
+            }
+        }
+    }
+
+    return std::pair<std::vector<cv::Vec3f>, std::vector<cv::Vec2f>> (points3d, points2d);
+}
+
 std::vector<WAIMapPoint*> WAI::ModeOrbSlam2::getLocalMapPoints()
 {
     std::lock_guard<std::mutex> guard(_mapLock);
