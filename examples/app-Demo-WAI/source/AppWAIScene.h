@@ -36,6 +36,8 @@ class AppWAIScene
     SLPolyline* covisibilityGraphMesh = nullptr;
     SLPolyline* spanningTreeMesh      = nullptr;
     SLPolyline* loopEdgesMesh         = nullptr;
+
+    void rebuild();
 };
 
 #endif

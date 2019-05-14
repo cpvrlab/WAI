@@ -119,6 +119,8 @@ JNIEXPORT void JNICALL Java_ch_fhnw_comgr_GLES3Lib_onInit(JNIEnv* env, jobject o
 
     dataRoot = devicePath;
 
+    AppWAISingleton::instance()->load(width, height, devicePath);
+
     ////////////////////////////////////////////////////
     slCreateAppAndScene(*cmdLineArgs,
                         devicePath + "/shaders/",

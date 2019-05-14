@@ -4,6 +4,7 @@
 WAI::WAI::WAI(std::string dataRoot)
 {
     _dataRoot = dataRoot;
+    _mode = nullptr;
 }
 
 void WAI::WAI::setDataRoot(std::string dataRoot)
@@ -73,6 +74,11 @@ WAI::Mode* WAI::WAI::setMode(ModeType modeType)
         break;
     }
 
+    return _mode;
+}
+
+WAI::Mode* WAI::WAI::getCurrentMode()
+{
     return _mode;
 }
 
