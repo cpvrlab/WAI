@@ -555,7 +555,7 @@ int main(int argc, char* argv[])
     cout << "DPI             : " << dpi << endl;
 
     // get executable path
-    SLstring projectRoot = SLstring(SL_PROJECT_ROOT);
+    SLstring projectRoot = SLstring(WAI_ROOT);
     SLstring configDir   = SLFileSystem::getAppsWritableDir();
     slSetupExternalDirectories(projectRoot + "/data");
 

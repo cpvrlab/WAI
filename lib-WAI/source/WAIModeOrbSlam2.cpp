@@ -300,7 +300,7 @@ std::vector<WAIKeyFrame*> WAI::ModeOrbSlam2::getKeyFrames()
 {
     std::lock_guard<std::mutex> guard(_mapLock);
 
-    std::vector<WAIKeyFrame*> result = mvpLocalKeyFrames;
+    std::vector<WAIKeyFrame*> result = _map->GetAllKeyFrames();
 
     return result;
 }

@@ -363,6 +363,7 @@ void WAISceneView::updateTrackingVisualization(const bool iKnowWhereIAm)
         renderKeyframes();
     }
 
+    //update pose graph visualization
     renderGraphs();
 }
 //-----------------------------------------------------------------------------
@@ -455,6 +456,9 @@ void WAISceneView::renderKeyframes()
     // TODO(jan): delete keyframe textures
     for (WAIKeyFrame* kf : keyframes)
     {
+        if (kf->isBad())
+            continue;
+
         SLKeyframeCamera* cam = new SLKeyframeCamera("KeyFrame " + std::to_string(kf->mnId));
         //set background
         if (kf->getTexturePath().size())

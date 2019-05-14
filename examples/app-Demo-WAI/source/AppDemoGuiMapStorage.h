@@ -32,6 +32,8 @@ class AppDemoGuiMapStorage : public AppDemoGuiInfosDialog
     void buildInfos() override;
 
     private:
+    void saveMap();
+
     WAIMap*                  _map;
     WAIKeyFrameDB*           _kfDB;
     WAI::ModeOrbSlam2*       _tracking;
