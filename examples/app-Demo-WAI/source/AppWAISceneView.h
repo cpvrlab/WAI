@@ -109,6 +109,7 @@ class WAISceneView : public SLSceneView
 #endif
     std::string _externalDir;
 
+    void updateTrackingVisualization(const bool iKnowWhereIAm);
     void renderMapPoints(std::string                      name,
                          const std::vector<WAIMapPoint*>& pts,
                          SLNode*&                         node,
@@ -118,20 +119,19 @@ class WAISceneView : public SLSceneView
     void renderGraphs();
 
     //! minimum number of covisibles for covisibility graph visualization
-    int   _minNumOfCovisibles = 50;
-    float _meanReprojectionError;
-    AppWAIScene * _appWaiScene  = nullptr;
-    bool _showKeyPoints         = true;
-    bool _showKeyPointsMatched  = true;
-    bool _showMapPC             = true;
-    bool _showLocalMapPC        = true;
-    bool _showMatchesPC         = true;
-    bool _showKeyFrames         = true;
-    bool _renderKfBackground    = true;
-    bool _allowKfsAsActiveCam   = true;
-    bool _showCovisibilityGraph = true;
-    bool _showSpanningTree      = true;
-    bool _showLoopEdges         = true;
+    int          _minNumOfCovisibles = 50;
+    float        _meanReprojectionError;
+    bool         _showKeyPoints         = true;
+    bool         _showKeyPointsMatched  = true;
+    bool         _showMapPC             = true;
+    bool         _showLocalMapPC        = true;
+    bool         _showMatchesPC         = true;
+    bool         _showKeyFrames         = true;
+    bool         _renderKfBackground    = true;
+    bool         _allowKfsAsActiveCam   = true;
+    bool         _showCovisibilityGraph = true;
+    bool         _showSpanningTree      = true;
+    bool         _showLoopEdges         = true;
 };
 //-----------------------------------------------------------------------------
 

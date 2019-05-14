@@ -84,6 +84,7 @@ static void onLoadScenePoseEstimation(SLScene* s, SLSceneView* sv)
     s->onAfterLoad();
 
     WAI::WAI* wai = AppWAISingleton::instance()->wai;
+
 #if DATA_ORIENTED
     waiSceneView->setMode((WAI::ModeOrbSlam2DataOriented*)waiSceneView->wai.setMode(WAI::ModeType_ORB_SLAM2_DATA_ORIENTED));
 #else
@@ -136,90 +137,11 @@ void WAISceneView::update()
     cv::Mat      pose          = cv::Mat(4, 4, CV_32F);
     bool         iKnowWhereIAm = wai->whereAmI(&pose);
 
+    //update tracking infos visualization
+    updateTrackingVisualization(iKnowWhereIAm);
+
     if (iKnowWhereIAm)
     {
-        // update map node
-        if (waiScene->mappointsMesh)
-        {
-            waiScene->mapPC->deleteMesh(waiScene->mappointsMesh);
-        }
-        if (_showKeyPoints)
-        {
-#if DATA_ORIENTED
-            //remove old mesh, if it exists
-            if (waiScene->mappointsMesh)
-            {
-                waiScene->mapPC->deleteMesh(waiScene->mappointsMesh);
-            }
-
-            std::vector<MapPoint*> mapPoints = _mode->getMapPoints();
-
-            //instantiate and add new mesh
-            if (mapPoints.size())
-            {
-                //get points as Vec3f
-                std::vector<SLVec3f> points, normals;
-                for (MapPoint* mapPoint : mapPoints)
-                {
-                    points.push_back(SLVec3f(mapPoint->position.at<float>(0, 0),
-                                             mapPoint->position.at<float>(1, 0),
-                                             mapPoint->position.at<float>(2, 0)));
-                    normals.push_back(SLVec3f(mapPoint->normalVector.at<float>(0, 0),
-                                              mapPoint->normalVector.at<float>(1, 0),
-                                              mapPoint->normalVector.at<float>(2, 0)));
-                }
-
-                waiScene->mappointsMesh = new SLPoints(points, normals, "MapPoints", _redMat);
-                waiScene->mapPC->addMesh(waiScene->mappointsMesh);
-                waiScene->mapPC->updateAABBRec();
-            }
-#else
-            renderMapPoints("MapPoints",
-                            _mode->getMapPoints(),
-                            waiScene->mapPC,
-                            waiScene->mappointsMesh,
-                            waiScene->redMat);
-#endif
-        }
-
-        if (waiScene->mappointsMatchedMesh)
-        {
-            waiScene->mapMatchedPC->deleteMesh(waiScene->mappointsMatchedMesh);
-        }
-        if (_showKeyPointsMatched)
-        {
-#ifndef DATA_ORIENTED
-            renderMapPoints("MatchedMapPoints",
-                            _mode->getMatchedMapPoints(),
-                            waiScene->mapMatchedPC,
-                            waiScene->mappointsMatchedMesh,
-                            waiScene->greenMat);
-#endif
-        }
-
-        if (waiScene->mappointsLocalMesh)
-        {
-            waiScene->mapLocalPC->deleteMesh(waiScene->mappointsLocalMesh);
-        }
-        if (_showLocalMapPC)
-        {
-#ifndef DATA_ORIENTED
-            renderMapPoints("LocalMapPoints",
-                            _mode->getLocalMapPoints(),
-                            waiScene->mapLocalPC,
-                            waiScene->mappointsLocalMesh,
-                            waiScene->blueMat);
-#endif
-        }
-
-        waiScene->keyFrameNode->deleteChildren();
-        if (_showKeyFrames)
-        {
-            renderKeyframes();
-        }
-
-        renderGraphs();
-
         // update camera node position
         cv::Mat Rwc(3, 3, CV_32F);
         cv::Mat twc(3, 1, CV_32F);
@@ -247,6 +169,74 @@ void WAISceneView::update()
 
         waiScene->cameraNode->om(slPose);
     }
+}
+//-----------------------------------------------------------------------------
+void WAISceneView::updateTrackingVisualization(const bool iKnowWhereIAm)
+{
+
+    AppWAIScene* waiScene      = AppWAISingleton::instance()->appWaiScene;
+    //update keypoints visualization (2d image points):
+    //TODO: 2d visualization is still done in mode... do we want to keep it there?
+    _mode->showKeyPoints(_showKeyPoints);
+    _mode->showKeyPointsMatched(_showKeyPointsMatched);
+
+    //update map point visualization:
+    //if we still want to visualize the point cloud
+    if (_showMapPC)
+    {
+        //get new points and add them
+        renderMapPoints("MapPoints",
+                        _mode->getMapPoints(),
+                        waiScene->mapPC,
+                        waiScene->mappointsMesh,
+                        waiScene->redMat);
+    }
+    else if (waiScene->mappointsMesh)
+    {
+        //delete mesh if we do not want do visualize it anymore
+        waiScene->mapPC->deleteMesh(waiScene->mappointsMesh);
+    }
+
+    //update visualization of local map points:
+    //only update them with a valid pose from WAI
+    if (_showLocalMapPC && iKnowWhereIAm)
+    {
+        renderMapPoints("LocalMapPoints",
+                        _mode->getLocalMapPoints(),
+                        waiScene->mapLocalPC,
+                        waiScene->mappointsLocalMesh,
+                        waiScene->blueMat);
+    }
+    else if (waiScene->mappointsLocalMesh)
+    {
+        //delete mesh if we do not want do visualize it anymore
+        waiScene->mapLocalPC->deleteMesh(waiScene->mappointsLocalMesh);
+    }
+
+    //update visualization of matched map points
+    //only update them with a valid pose from WAI
+    if (_showMatchesPC && iKnowWhereIAm)
+    {
+        renderMapPoints("MatchedMapPoints",
+                        _mode->getMatchedMapPoints(),
+                        waiScene->mapMatchedPC,
+                        waiScene->mappointsMatchedMesh,
+                        waiScene->greenMat);
+    }
+    else if (waiScene->mappointsMatchedMesh)
+    {
+        //delete mesh if we do not want do visualize it anymore
+        waiScene->mapMatchedPC->deleteMesh(waiScene->mappointsMatchedMesh);
+    }
+
+    //update keyframe visualization
+    waiScene->keyFrameNode->deleteChildren();
+    if (_showKeyFrames)
+    {
+        renderKeyframes();
+    }
+
+    renderGraphs();
 }
 //-----------------------------------------------------------------------------
 void WAISceneView::updateCamera(WAI::CameraData* cameraData)
@@ -387,6 +377,7 @@ void WAISceneView::renderKeyframes()
 //-----------------------------------------------------------------------------
 void WAISceneView::renderGraphs()
 {
+    AppWAIScene* waiScene      = AppWAISingleton::instance()->appWaiScene;
 #ifndef DATA_ORIENTED
     std::vector<WAIKeyFrame*> kfs = _mode->getKeyFrames();
 
@@ -460,17 +451,87 @@ void WAISceneView::renderGraphs()
 ssMain)
 D_VideoCalibrateMain ||    WAI::WAI wai;
 
-        SLApplication::sceneID == SID_VideoTrackChessMain)
-    if (_appSceneView->loopEdgesMesh)D_VideoCalibrateMain ||
-        SLApplication::sceneID == SID_VideoTrackChessMain)
-        _appSceneView->loopEdges->deleteMD_VideoCalibrateMain ||
-        SLApplication::sceneID == SID_VideoTrackChessMain)esh(_appSceneView->loopEdgesMesh);
+    if (loopEdgesPts.size())
+    {
+        _appSceneView->loopEdgesMesh = new SLPolyline(loopEdgesPts, false, "LoopEdges", _appSceneView->loopEdgesMat);
+        _appSceneView->loopEdges->addMesh(_appSceneView->loopEdgesMesh);
+        _appSceneView->loopEdges->updateAABBRec();
+    }
 
-        if (loopEdgesPts.size())
+#else
+    std::vector<WAIKeyFrame*> kfs = _mode->getKeyFrames();
+
+    SLVVec3f covisGraphPts;
+    SLVVec3f spanningTreePts;
+    SLVVec3f loopEdgesPts;
+    for (auto* kf : kfs)
+    {
+        cv::Mat Ow = kf->GetCameraCenter();
+
+        //covisibility graph
+        const vector<WAIKeyFrame*> vCovKFs = kf->GetCovisiblesByWeight(_minNumOfCovisibles);
+        if (!vCovKFs.empty())
         {
-            _appSceneView->loopEdgesMesh = new SLPolyline(loopEdgesPts, false, "LoopEdges", _appSceneView->loopEdgesMat);
-            _appSceneView->loopEdges->addMesh(_appSceneView->loopEdgesMesh);
-            _appSceneView->loopEdges->updateAABBRec();
+            for (vector<WAIKeyFrame*>::const_iterator vit = vCovKFs.begin(), vend = vCovKFs.end(); vit != vend; vit++)
+            {
+                if ((*vit)->mnId < kf->mnId)
+                    continue;
+                cv::Mat Ow2 = (*vit)->GetCameraCenter();
+
+                covisGraphPts.push_back(SLVec3f(Ow.at<float>(0), Ow.at<float>(1), Ow.at<float>(2)));
+                covisGraphPts.push_back(SLVec3f(Ow2.at<float>(0), Ow2.at<float>(1), Ow2.at<float>(2)));
+            }
         }
+
+        //spanning tree
+        WAIKeyFrame* parent = kf->GetParent();
+        if (parent)
+        {
+            cv::Mat Owp = parent->GetCameraCenter();
+            spanningTreePts.push_back(SLVec3f(Ow.at<float>(0), Ow.at<float>(1), Ow.at<float>(2)));
+            spanningTreePts.push_back(SLVec3f(Owp.at<float>(0), Owp.at<float>(1), Owp.at<float>(2)));
+        }
+
+        //loop edges
+        std::set<WAIKeyFrame*> loopKFs = kf->GetLoopEdges();
+        for (set<WAIKeyFrame*>::iterator sit = loopKFs.begin(), send = loopKFs.end(); sit != send; sit++)
+        {
+            if ((*sit)->mnId < kf->mnId)
+                continue;
+            cv::Mat Owl = (*sit)->GetCameraCenter();
+            loopEdgesPts.push_back(SLVec3f(Ow.at<float>(0), Ow.at<float>(1), Ow.at<float>(2)));
+            loopEdgesPts.push_back(SLVec3f(Owl.at<float>(0), Owl.at<float>(1), Owl.at<float>(2)));
+        }
+    }
+
+    if (waiScene->covisibilityGraphMesh)
+        waiScene->covisibilityGraph->deleteMesh(waiScene->covisibilityGraphMesh);
+
+    if (covisGraphPts.size() && _showCovisibilityGraph)
+    {
+        waiScene->covisibilityGraphMesh = new SLPolyline(covisGraphPts, false, "CovisibilityGraph", waiScene->covisibilityGraphMat);
+        waiScene->covisibilityGraph->addMesh(waiScene->covisibilityGraphMesh);
+        waiScene->covisibilityGraph->updateAABBRec();
+    }
+
+    if (waiScene->spanningTreeMesh)
+        waiScene->spanningTree->deleteMesh(waiScene->spanningTreeMesh);
+
+    if (spanningTreePts.size() && _showSpanningTree)
+    {
+        waiScene->spanningTreeMesh = new SLPolyline(spanningTreePts, false, "SpanningTree", waiScene->spanningTreeMat);
+        waiScene->spanningTree->addMesh(waiScene->spanningTreeMesh);
+        waiScene->spanningTree->updateAABBRec();
+    }
+
+    if (waiScene->loopEdgesMesh)
+        waiScene->loopEdges->deleteMesh(waiScene->loopEdgesMesh);
+
+    if (loopEdgesPts.size() && _showLoopEdges)
+    {
+        waiScene->loopEdgesMesh = new SLPolyline(loopEdgesPts, false, "LoopEdges", waiScene->loopEdgesMat);
+        waiScene->loopEdges->addMesh(waiScene->loopEdgesMesh);
+        waiScene->loopEdges->updateAABBRec();
+    }
 #endif
 }

@@ -18,7 +18,6 @@ file(GLOB headers
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAIScene.h
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAISingleton.h
     ${WAI_ROOT}/examples/source/WAICalibration.h
-    ${WAI_ROOT}/examples/source/WAIAutoCalibration.h
     ${WAI_ROOT}/examples/source/WAIFileSystem.h
     ${WAI_ROOT}/examples/source/WAIMapIO.h
     ${WAI_ROOT}/examples/source/WAIMapStorage.h
@@ -35,7 +34,7 @@ file(GLOB sources
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAIScene.cpp
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAISingleton.cpp
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiInfosTracking.cpp
-    ${WAI_ROOT}/examples/source/WAIAutoCalibration.cpp
+    ${WAI_ROOT}/examples/source/WAICalibration.cpp
     ${WAI_ROOT}/examples/source/WAIFileSystem.cpp
     ${WAI_ROOT}/examples/source/WAIMapIO.cpp
     ${WAI_ROOT}/examples/source/WAIMapStorage.cpp

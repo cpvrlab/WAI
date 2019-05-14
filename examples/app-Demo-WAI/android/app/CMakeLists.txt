@@ -14,7 +14,9 @@ file(GLOB headers
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiInfosMapNodeTransform.h
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiInfosTracking.h
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAISceneView.h
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAISingleton.h
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAIScene.h
+    ${WAI_ROOT}/examples/source/WAICalibration.h
     ${WAI_ROOT}/examples/source/WAIFileSystem.h
     ${WAI_ROOT}/examples/source/WAIMapIO.h
     ${WAI_ROOT}/examples/source/WAIMapStorage.h
@@ -27,14 +29,17 @@ file(GLOB sources
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiTrackedMapping.cpp
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiMapStorage.cpp
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAISceneView.cpp
-        ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAIScene.cpp
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAIScene.cpp
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAISingleton.cpp
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiInfosMapNodeTransform.cpp
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiInfosTracking.cpp
+    ${WAI_ROOT}/examples/source/WAICalibration.cpp
     ${WAI_ROOT}/examples/source/WAIFileSystem.cpp
     ${WAI_ROOT}/examples/source/WAIMapIO.cpp
     ${WAI_ROOT}/examples/source/WAIMapStorage.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/main/cpp/AppDemoAndroidJNI.cpp
     )
+
 
 add_library(${target}
     SHARED
@@ -72,7 +77,7 @@ target_link_libraries(${target}
 #
 # Copy APK contents
 #
-file(GLOB_RECURSE TEXTURES      
+file(GLOB_RECURSE TEXTURES
     ${WAI_ROOT}/data/images/textures/CompileError.png
     ${WAI_ROOT}/data/images/textures/brick0512_C.png
     ${WAI_ROOT}/data/images/textures/brick*.jpg
