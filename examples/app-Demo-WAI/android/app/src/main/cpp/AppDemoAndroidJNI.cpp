@@ -64,7 +64,7 @@ JNIEXPORT void JNICALL Java_ch_fhnw_comgr_GLES3Lib_copyVideoYUVPlanes(JNIEnv* en
 //! Alternative SceneView creation function passed by slCreateSceneView
 SLuint createNewWAISceneView()
 {
-    sceneView = new WAISceneView(SLApplication::activeCalib, externalDir + "/", dataRoot);
+    sceneView = new WAISceneView(externalDir + "/", dataRoot);
     return sceneView->index();
 }
 //-----------------------------------------------------------------------------
