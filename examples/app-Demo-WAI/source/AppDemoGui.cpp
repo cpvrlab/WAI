@@ -665,7 +665,7 @@ void AppDemoGui::build(SLScene* s, SLSceneView* sv)
         if (ImGui::MenuItem(reset))
         {
             SLstring fullPathFilename = SLApplication::configPath + "DemoGui.yml";
-            SLFileSystem::deleteFile(fullPathFilename);
+            Utils::deleteFile(fullPathFilename);
             loadConfig(SLApplication::dpi);
         }
         ImGui::PopFont();
@@ -1889,7 +1889,7 @@ void AppDemoGui::loadConfig(SLint dotsPerInch)
     SLstring    fullPathAndFilename = SLApplication::configPath +
                                    SLApplication::name + ".yml";
 
-    if (!SLFileSystem::fileExists(fullPathAndFilename))
+    if (!Utils::fileExists(fullPathAndFilename))
     {
         // Scale for proportional and fixed size fonts
         SLfloat dpiScaleProp  = dotsPerInch / 120.0f;
@@ -2001,7 +2001,7 @@ void AppDemoGui::saveConfig()
         return;
     }
 
-    fs << "configTime" << SLUtils::getLocalTimeString();
+    fs << "configTime" << Utils::getLocalTimeString();
     fs << "fontPropDots" << (SLint)SLGLImGui::fontPropDots;
     fs << "fontFixedDots" << (SLint)SLGLImGui::fontFixedDots;
     fs << "sceneID" << (SLint)SLApplication::sceneID;

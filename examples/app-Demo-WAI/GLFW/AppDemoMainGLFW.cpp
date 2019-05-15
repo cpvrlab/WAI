@@ -558,7 +558,7 @@ int main(int argc, char* argv[])
 
     // get executable path
     SLstring projectRoot = SLstring(WAI_ROOT);
-    SLstring configDir   = SLFileSystem::getAppsWritableDir();
+    SLstring configDir   = Utils::getAppsWritableDir();
     slSetupExternalDirectories(projectRoot + "/data");
 
     /////////////////////////////////////////////////////////

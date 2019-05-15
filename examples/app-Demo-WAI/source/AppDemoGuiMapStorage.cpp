@@ -11,7 +11,7 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 
-#include <SLFileSystem.h>
+#include <Utils.h>
 #include <AppDemoGuiMapStorage.h>
 
 //-----------------------------------------------------------------------------
@@ -29,29 +29,29 @@ AppDemoGuiMapStorage::AppDemoGuiMapStorage(const string&      name,
     _map  = tracking->getMap();
     _kfDB = tracking->getKfDB();
 
-    _mapDir = SLUtils::unifySlashes(mapDir);
+    _mapDir = Utils::unifySlashes(mapDir);
 
     _existingMapNames.clear();
     vector<pair<int, string>> existingMapNamesSorted;
 
     //check if visual odometry maps directory exists
-    if (!SLFileSystem::dirExists(_mapDir))
+    if (!Utils::dirExists(_mapDir))
     {
-        SLFileSystem::makeDir(_mapDir);
+        Utils::makeDir(_mapDir);
     }
     else
     {
         //parse content: we search for directories in mapsDir
-        std::vector<std::string> content = SLUtils::getFileNamesInDir(_mapDir);
+        std::vector<std::string> content = Utils::getFileNamesInDir(_mapDir);
         for (auto path : content)
         {
-            std::string name = SLUtils::getFileName(path);
+            std::string name = Utils::getFileName(path);
             //find json files that contain mapPrefix and estimate highest used id
-            if (SLUtils::contains(name, _mapPrefix))
+            if (Utils::contains(name, _mapPrefix))
             {
                 //estimate highest used id
                 std::vector<std::string> splitted;
-                SLUtils::split(name, '-', splitted);
+                Utils::split(name, '-', splitted);
                 if (splitted.size())
                 {
                     int id = atoi(splitted.back().c_str());
@@ -81,28 +81,28 @@ void AppDemoGuiMapStorage::saveMap()
         std::string filename = mapDir + _mapPrefix + std::to_string(_nextId) + ".json";
         std::string imgDir   = mapDir + "imgs";
 
-        if (!SLFileSystem::dirExists(mapDir))
+        if (!Utils::dirExists(mapDir))
         {
-            SLFileSystem::makeDir(mapDir);
+            Utils::makeDir(mapDir);
         }
         else
         {
-            if (SLFileSystem::fileExists(filename))
+            if (Utils::fileExists(filename))
             {
-                SLFileSystem::deleteFile(filename);
+                Utils::deleteFile(filename);
             }
         }
 
-        if (!SLFileSystem::dirExists(imgDir))
+        if (!Utils::dirExists(imgDir))
         {
-            SLFileSystem::makeDir(imgDir);
+            Utils::makeDir(imgDir);
         }
         else
         {
-            std::vector<std::string> content = SLUtils::getFileNamesInDir(imgDir);
+            std::vector<std::string> content = Utils::getFileNamesInDir(imgDir);
             for (std::string path : content)
             {
-                SLFileSystem::deleteFile(path);
+                Utils::deleteFile(path);
             }
         }
 
@@ -332,9 +332,9 @@ void AppDemoGuiMapStorage::buildInfos()
                 std::string imgDir   = mapDir + "imgs";
 
                 //check if dir and file exist
-                if (SLFileSystem::dirExists(mapDir))
+                if (Utils::dirExists(mapDir))
                 {
-                    if (SLFileSystem::fileExists(filename))
+                    if (Utils::fileExists(filename))
                     {
                         try
                         {
@@ -469,7 +469,7 @@ void AppDemoGuiMapStorage::buildInfos()
                                         stringstream ss;
                                         ss << imgDir << "kf" << id << ".jpg";
                                         //newKf->imgGray = kfImg;
-                                        if (SLFileSystem::fileExists(ss.str()))
+                                        if (Utils::fileExists(ss.str()))
                                         {
                                             newKf->setTexturePath(ss.str());
                                             cv::Mat imgColor = cv::imread(ss.str());

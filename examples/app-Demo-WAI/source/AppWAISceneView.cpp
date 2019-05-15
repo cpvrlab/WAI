@@ -7,7 +7,7 @@
 #include <SLCVTrackedChessboard.h>
 #include <SLKeyframeCamera.h>
 #include <SLCVCapture.h>
-#include <SLFileSystem.h>
+#include <Utils.h>
 
 #include <WAIMapStorage.h>
 
