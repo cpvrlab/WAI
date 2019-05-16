@@ -557,20 +557,21 @@ int main(int argc, char* argv[])
     cout << "DPI             : " << dpi << endl;
 
     // get executable path
-    SLstring projectRoot = SLstring(WAI_ROOT);
+    SLstring slRoot = SLstring(WAI_ROOT) + "/thirdparty/SLProject";
+    SLstring waiRoot = SLstring(WAI_ROOT);
     SLstring configDir   = Utils::getAppsWritableDir();
-    slSetupExternalDirectories(projectRoot + "/data");
+    slSetupExternalDirectories(waiRoot + "/data");
 
     /////////////////////////////////////////////////////////
-    AppWAISingleton::instance()->load(640, 360, projectRoot);
+    AppWAISingleton::instance()->load(640, 360, waiRoot);
 
     slCreateAppAndScene(cmdLineArgs,
-                        projectRoot + "/data/shaders/",
-                        projectRoot + "/data/models/",
-                        projectRoot + "/data/images/textures/",
-                        projectRoot + "/data/videos/",
-                        projectRoot + "/data/images/fonts/",
-                        projectRoot + "/data/calibrations/",
+                        slRoot + "/data/shaders/",
+                        waiRoot + "/data/models/",
+                        slRoot + "/data/images/textures/",
+                        waiRoot + "/data/videos/",
+                        slRoot + "/data/images/fonts/",
+                        waiRoot + "/data/calibrations/",
                         configDir,
                         "AppDemoGLFW",
                         (void*)onLoadWAISceneView);

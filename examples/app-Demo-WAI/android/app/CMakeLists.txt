@@ -80,28 +80,10 @@ target_link_libraries(${target}
 # Copy APK contents
 #
 file(GLOB_RECURSE TEXTURES
-    ${WAI_ROOT}/data/images/textures/CompileError.png
-    ${WAI_ROOT}/data/images/textures/brick0512_C.png
-    ${WAI_ROOT}/data/images/textures/brick*.jpg
-    ${WAI_ROOT}/data/images/textures/Checkerboard0512_C.png
-    ${WAI_ROOT}/data/images/textures/Chess0256_C.bmp
-    ${WAI_ROOT}/data/images/textures/earth*.jpg
-    ${WAI_ROOT}/data/images/textures/grass0512_C.jpg
-    ${WAI_ROOT}/data/images/textures/gray_0256_C.jpg
-    ${WAI_ROOT}/data/images/textures/MuttenzerBox*.png
-    ${WAI_ROOT}/data/images/textures/rusty-metal_2048*.png
-    ${WAI_ROOT}/data/images/textures/Pool*.png
-    ${WAI_ROOT}/data/images/textures/Testmap_0512_C.png
-    ${WAI_ROOT}/data/images/textures/tile1_0256_C.jpg
-    ${WAI_ROOT}/data/images/textures/tree1_1024_C.png
-    ${WAI_ROOT}/data/images/textures/wood*.jpg
-    ${WAI_ROOT}/data/images/textures/cursor.png
-    ${WAI_ROOT}/data/images/textures/Vision*.png
-    ${WAI_ROOT}/data/images/textures/LiveVideoError.png
-    ${WAI_ROOT}/data/images/textures/LogoCPVR_256L.png
-    ${WAI_ROOT}/data/images/textures/features_stones.png
-    ${WAI_ROOT}/data/images/textures/Desert*_C.jpg
-    ${WAI_ROOT}/data/images/textures/i*_0000b.png
+    ${WAI_ROOT}/thirdparty/SLProject/data/images/textures/CompileError.png
+    ${WAI_ROOT}/thirdparty/SLProject/data/images/textures/cursor.png
+    ${WAI_ROOT}/thirdparty/SLProject/data/images/textures/LiveVideoError.png
+    ${WAI_ROOT}/thirdparty/SLProject/data/images/textures/LogoCPVR_256L.png
     )
 
 file(GLOB_RECURSE VIDEOS
@@ -109,8 +91,8 @@ file(GLOB_RECURSE VIDEOS
     )
 
 file(GLOB_RECURSE FONTS
-    ${WAI_ROOT}/data/images/fonts/*.png
-    ${WAI_ROOT}/data/images/fonts/*.ttf
+    ${WAI_ROOT}/thirdparty/SLProject/data/images/fonts/*.png
+    ${WAI_ROOT}/thirdparty/SLProject/data/images/fonts/*.ttf
     )
 
 # If you add new models you must delete ${CMAKE_CURRENT_LIST_DIR}/src/main/assets
@@ -119,8 +101,8 @@ file(GLOB_RECURSE MODELS
     )
 
 file(GLOB_RECURSE SHADERS
-    ${WAI_ROOT}/data/shaders/*.vert
-    ${WAI_ROOT}/data/shaders/*.frag
+    ${WAI_ROOT}/thirdparty/SLProject/data/shaders/*.vert
+    ${WAI_ROOT}/thirdparty/SLProject/data/shaders/*.frag
     )
 
 file(GLOB_RECURSE CALIBRATIONS
@@ -133,10 +115,6 @@ file(GLOB_RECURSE CALIBRATIONS
     ${WAI_ROOT}/data/calibrations/test.yml
     ${WAI_ROOT}/data/calibrations/cam_calibration_main_huawei_p10_640_480.xml
     ${WAI_ROOT}/data/calibrations/ORBvoc.bin
-    )
-
-file(GLOB_RECURSE CONFIG
-    ${WAI_ROOT}/data/config/dummyFile.txt
     )
 
 set(APK_ASSETS
