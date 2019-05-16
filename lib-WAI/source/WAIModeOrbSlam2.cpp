@@ -112,13 +112,15 @@ void WAI::ModeOrbSlam2::notifyUpdate()
 
     switch (_state)
     {
-        case TrackingState_Initializing: {
+        case TrackingState_Initializing:
+        {
             initialize();
         }
         break;
 
         case TrackingState_TrackingOK:
-        case TrackingState_TrackingLost: {
+        case TrackingState_TrackingLost:
+        {
             //relocalize or track 3d points
             track3DPts();
         }
@@ -203,32 +205,38 @@ std::string WAI::ModeOrbSlam2::getPrintableState()
 
     switch (_state)
     {
-        case TrackingState_Initializing: {
+        case TrackingState_Initializing:
+        {
             printableState = "INITIALIZING";
         }
         break;
 
-        case TrackingState_Idle: {
+        case TrackingState_Idle:
+        {
             printableState = "IDLE";
         }
         break;
 
-        case TrackingState_TrackingLost: {
+        case TrackingState_TrackingLost:
+        {
             printableState = "TRACKING_LOST"; //motion model tracking
         }
         break;
 
-        case TrackingState_TrackingOK: {
+        case TrackingState_TrackingOK:
+        {
             printableState = "TRACKING_OK";
         }
         break;
 
-        case TrackingState_None: {
+        case TrackingState_None:
+        {
             printableState = "TRACKING_NONE";
         }
         break;
 
-        default: {
+        default:
+        {
             printableState = "";
         }
         break;
@@ -305,7 +313,7 @@ std::pair<std::vector<cv::Vec3f>, std::vector<cv::Vec2f>> WAI::ModeOrbSlam2::get
             {
                 if (mCurrentFrame.mvpMapPoints[i]->Observations() > 0)
                 {
-                    WAI::V3 _v = mCurrentFrame.mvpMapPoints[i]->worldPosVec();
+                    WAI::V3   _v = mCurrentFrame.mvpMapPoints[i]->worldPosVec();
                     cv::Vec3f v;
                     v[0] = _v.x;
                     v[1] = _v.y;
@@ -317,7 +325,7 @@ std::pair<std::vector<cv::Vec3f>, std::vector<cv::Vec2f>> WAI::ModeOrbSlam2::get
         }
     }
 
-    return std::pair<std::vector<cv::Vec3f>, std::vector<cv::Vec2f>> (points3d, points2d);
+    return std::pair<std::vector<cv::Vec3f>, std::vector<cv::Vec2f>>(points3d, points2d);
 }
 
 std::vector<WAIMapPoint*> WAI::ModeOrbSlam2::getLocalMapPoints()
