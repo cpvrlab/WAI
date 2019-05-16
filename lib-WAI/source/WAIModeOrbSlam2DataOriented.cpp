@@ -9,7 +9,7 @@
 #include "OrbSlamDataOriented/WAIOrbSlamInitialization.cpp"
 
 WAI::ModeOrbSlam2DataOriented::ModeOrbSlam2DataOriented(SensorCamera* camera, std::string vocabularyPath)
-  : _camera(camera)
+  : Mode(WAI::ModeType_ORB_SLAM2_DATA_ORIENTED), _camera(camera)
 {
     _pose = cv::Mat::eye(4, 4, CV_32F);
 

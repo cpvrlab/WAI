@@ -1,3 +1,4 @@
+
 #include <WAIModeOrbSlam2.h>
 
 WAI::ModeOrbSlam2::ModeOrbSlam2(SensorCamera* camera,
@@ -6,12 +7,14 @@ WAI::ModeOrbSlam2::ModeOrbSlam2(SensorCamera* camera,
                                 bool          onlyTracking,
                                 bool          trackOptFlow,
                                 std::string   orbVocFile)
-  : _serial(serial),
+  : Mode(WAI::ModeType_ORB_SLAM2),
+    _serial(serial),
     _retainImg(retainImg),
     _onlyTracking(onlyTracking),
     _trackOptFlow(trackOptFlow),
     _camera(camera)
 {
+
     //load visual vocabulary for relocalization
     WAIOrbVocabulary::initialize(orbVocFile);
     mpVocabulary = WAIOrbVocabulary::get();
