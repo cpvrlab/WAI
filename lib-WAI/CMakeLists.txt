@@ -86,6 +86,7 @@ target_include_directories(${target}
     ${g2o_INCLUDE_DIR}
     ${WAI_ROOT}/thirdparty/eigen
     ${WAI_ROOT}/thirdparty/DBoW2
+    ${WAI_ROOT}/thirdparty/utils/lib-Utils/source
 
     INTERFACE
     )
@@ -119,6 +120,7 @@ target_link_libraries(${target}
     ${DEFAULT_LINKER_OPTIONS}
     ${OpenCV_LIBS}
     ${g2o_LIBS}
+    ${META_PROJECT_NAME}::lib-Utils
     ${META_PROJECT_NAME}::lib-DBoW2
 
     INTERFACE

@@ -272,7 +272,7 @@ std::vector<WAIMapPoint*> WAI::ModeOrbSlam2::getMapPoints()
 
     std::vector<WAIMapPoint*> result = _map->GetAllMapPoints();
 
-    WAI_LOG("getMapPoints: %i", result.size());
+    //WAI_LOG("getMapPoints: %i", result.size());
 
     return result;
 }
@@ -539,8 +539,8 @@ void WAI::ModeOrbSlam2::initializeWithKnownPose()
         int reprojection2TooHigh = 0;
         int scaleInconsistent    = 0;
 
-        pKFini->printPose();
-        pKFcur->printPose();
+        //pKFini->printPose();
+        //pKFcur->printPose();
 
         cv::Mat imgInitialFrame, imgCurrentFrame;
         cv::cvtColor(mInitialFrame.imgGray, imgInitialFrame, CV_GRAY2BGR);
@@ -716,6 +716,7 @@ void WAI::ModeOrbSlam2::initializeWithKnownPose()
             _map->AddMapPoint(pMP);
         }
 
+#if 0
         WAI_LOG("%i matches found, %i mapPoints created\n%i behindKF1\n%i behindKF2\n%i noDepth\n%i lowParallax\n%i reprojection1TooHigh\n%i reprojection2TooHigh\n%i scaleInconsistent",
                 nmatches,
                 _map->MapPointsInMap(),
@@ -726,6 +727,7 @@ void WAI::ModeOrbSlam2::initializeWithKnownPose()
                 reprojection1TooHigh,
                 reprojection2TooHigh,
                 scaleInconsistent);
+#endif
 
 #if 0
         { // TODO(jan): REMOVE THIS AGAIN!!!!! Only here for debugging
@@ -748,7 +750,7 @@ void WAI::ModeOrbSlam2::initializeWithKnownPose()
         pKFcur->UpdateConnections();
 
         // Bundle Adjustment
-        WAI_LOG("New Map created with: %i ", _map->MapPointsInMap());
+        //WAI_LOG("New Map created with: %i ", _map->MapPointsInMap());
         Optimizer::GlobalBundleAdjustemnt(_map, 20);
 
         // Set median depth to 1
@@ -757,7 +759,7 @@ void WAI::ModeOrbSlam2::initializeWithKnownPose()
 
         if (medianDepth < 0 || pKFcur->TrackedMapPoints(1) < 100)
         {
-            WAI_LOG("Wrong initialization, reseting...");
+            //WAI_LOG("Wrong initialization, reseting...");
             reset();
         }
         else
@@ -804,10 +806,13 @@ void WAI::ModeOrbSlam2::initializeWithKnownPose()
             if (_serial)
             {
                 mpLocalMapper->RunOnce();
+                mpLoopCloser->RunOnce();
+
                 mpLocalMapper->RunOnce();
+                mpLoopCloser->RunOnce();
             }
 
-            WAI_LOG("Number of Map points after local mapping: %i", _map->MapPointsInMap());
+            //WAI_LOG("Number of Map points after local mapping: %i", _map->MapPointsInMap());
 
             //ghm1: add keyframe to scene graph. this position is wrong after bundle adjustment!
             //set map dirty, the map will be updated in next decoration
@@ -1049,6 +1054,8 @@ void WAI::ModeOrbSlam2::track3DPts()
 
         if (_state == TrackingState_TrackingOK)
         {
+            WAI_LOG("track3Dpts::trackingOk\n");
+
             // Local Mapping might have changed some MapPoints tracked in last frame
             checkReplacedInLastFrame();
 
@@ -1071,6 +1078,8 @@ void WAI::ModeOrbSlam2::track3DPts()
         }
         else
         {
+            WAI_LOG("track3Dpts::relocalizing\n");
+
             _bOK = relocalization();
         }
     }
@@ -1689,10 +1698,15 @@ bool WAI::ModeOrbSlam2::relocalization()
     vector<WAIKeyFrame*> vpCandidateKFs = mpKeyFrameDatabase->DetectRelocalizationCandidates(&mCurrentFrame);
 
     if (vpCandidateKFs.empty())
+    {
+        WAI_LOG("relocalization::no candidates\n");
         return false;
+    }
 
     //vector<WAIKeyFrame*> vpCandidateKFs = mpKeyFrameDatabase->keyFrames();
     const int nKFs = vpCandidateKFs.size();
+
+    WAI_LOG("relocalization::candidateCount %i\n", nKFs);
 
     // We perform first an ORB matching with each candidate
     // If enough matches are found we setup a PnP solver

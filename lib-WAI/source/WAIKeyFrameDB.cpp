@@ -40,6 +40,8 @@ void WAIKeyFrameDB::add(WAIKeyFrame* pKF)
 {
     unique_lock<mutex> lock(mMutex);
 
+    WAI_LOG("Keyframe added to DB\n");
+
     for (DBoW2::BowVector::const_iterator vit = pKF->mBowVec.begin(), vend = pKF->mBowVec.end(); vit != vend; vit++)
         mvInvertedFile[vit->first].push_back(pKF);
 }
