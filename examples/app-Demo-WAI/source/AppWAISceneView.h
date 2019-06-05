@@ -110,28 +110,37 @@ class WAISceneView : public SLSceneView
     std::string _externalDir;
 
     void updateTrackingVisualization(const bool iKnowWhereIAm);
-    void renderMapPoints(std::string                      name,
-                         const std::vector<WAIMapPoint*>& pts,
-                         SLNode*&                         node,
-                         SLPoints*&                       mesh,
-                         SLMaterial*&                     material);
+
+#if DATA_ORIENTED
+    void renderMapPoints(std::string                   name,
+                         const std::vector<MapPoint*>& pts,
+                         SLNode*&                      node,
+                         SLPoints*&                    mesh,
+                         SLMaterial*&                  material);
+#else
+    void               renderMapPoints(std::string                      name,
+                                       const std::vector<WAIMapPoint*>& pts,
+                                       SLNode*&                         node,
+                                       SLPoints*&                       mesh,
+                                       SLMaterial*&                     material);
+#endif
     void renderKeyframes();
     void renderGraphs();
 
     //! minimum number of covisibles for covisibility graph visualization
-    int          _minNumOfCovisibles = 50;
-    float        _meanReprojectionError;
-    bool         _showKeyPoints         = true;
-    bool         _showKeyPointsMatched  = true;
-    bool         _showMapPC             = true;
-    bool         _showLocalMapPC        = true;
-    bool         _showMatchesPC         = true;
-    bool         _showKeyFrames         = true;
-    bool         _renderKfBackground    = true;
-    bool         _allowKfsAsActiveCam   = true;
-    bool         _showCovisibilityGraph = true;
-    bool         _showSpanningTree      = true;
-    bool         _showLoopEdges         = true;
+    int   _minNumOfCovisibles = 50;
+    float _meanReprojectionError;
+    bool  _showKeyPoints         = true;
+    bool  _showKeyPointsMatched  = true;
+    bool  _showMapPC             = true;
+    bool  _showLocalMapPC        = true;
+    bool  _showMatchesPC         = true;
+    bool  _showKeyFrames         = true;
+    bool  _renderKfBackground    = true;
+    bool  _allowKfsAsActiveCam   = true;
+    bool  _showCovisibilityGraph = true;
+    bool  _showSpanningTree      = true;
+    bool  _showLoopEdges         = true;
 };
 //-----------------------------------------------------------------------------
 

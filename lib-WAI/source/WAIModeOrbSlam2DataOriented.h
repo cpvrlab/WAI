@@ -232,13 +232,28 @@ class WAI_API ModeOrbSlam2DataOriented : public Mode
     bool getPose(cv::Mat* pose);
 
     std::vector<MapPoint*> getMapPoints();
+    std::vector<MapPoint*> getLocalMapPoints();
+    std::vector<MapPoint*> getMatchedMapPoints();
     std::vector<KeyFrame*> getKeyFrames();
     i32                    getMapPointCount() { return _state.mapPoints.size(); }
+
+    void showKeyPointsMatched(const bool flag)
+    {
+        _showKeyPointsMatched = flag;
+    }
+
+    void showKeyPoints(const bool flag)
+    {
+        _showKeyPoints = flag;
+    }
 
     private:
     SensorCamera* _camera;
     OrbSlamState  _state;
     cv::Mat       _pose;
+
+    bool _showKeyPoints        = false;
+    bool _showKeyPointsMatched = true;
 };
 }
 
