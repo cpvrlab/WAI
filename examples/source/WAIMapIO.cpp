@@ -371,7 +371,7 @@ void WAIMapIO::loadKeyFrames(WAIMap& map, WAIKeyFrameDB& kfDB)
             stringstream ss;
             ss << _currImgPath << "kf" << id << ".jpg";
             //newKf->imgGray = kfImg;
-            if (WAIFileSystem::fileExists(ss.str()))
+            if (Utils::fileExists(ss.str()))
             {
                 newKf->setTexturePath(ss.str());
                 cv::Mat imgColor = cv::imread(ss.str());

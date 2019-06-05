@@ -1,4 +1,6 @@
 set(SL_DOWNLOAD_PREBUILTS OFF CACHE BOOL "disable SLProject prebuilt download")
 set(SL_BUILD_APPS OFF CACHE BOOL "disable SLProject sample apps")
+set(SL_BUILD_UTILS OFF CACHE BOOL "disable SLProject lib-Utils")
 add_subdirectory(SLProject)
 add_subdirectory(DBoW2)
+add_subdirectory(utils)

@@ -114,7 +114,6 @@ void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
     s->init();
 
 #if LIVE_VIDEO
-
     s->videoType(VT_MAIN);
     onLoadScenePoseEstimation(s, sv);
 #else
@@ -174,7 +173,7 @@ void WAISceneView::update()
 void WAISceneView::updateTrackingVisualization(const bool iKnowWhereIAm)
 {
 
-    AppWAIScene* waiScene      = AppWAISingleton::instance()->appWaiScene;
+    AppWAIScene* waiScene = AppWAISingleton::instance()->appWaiScene;
     //update keypoints visualization (2d image points):
     //TODO: 2d visualization is still done in mode... do we want to keep it there?
     _mode->showKeyPoints(_showKeyPoints);
@@ -381,7 +380,7 @@ void WAISceneView::renderKeyframes()
 //-----------------------------------------------------------------------------
 void WAISceneView::renderGraphs()
 {
-    AppWAIScene* waiScene      = AppWAISingleton::instance()->appWaiScene;
+    AppWAIScene* waiScene = AppWAISingleton::instance()->appWaiScene;
 #ifndef DATA_ORIENTED
     std::vector<WAIKeyFrame*> kfs = _mode->getKeyFrames();
 
@@ -455,12 +454,12 @@ void WAISceneView::renderGraphs()
 ssMain)
 D_VideoCalibrateMain ||    WAI::WAI wai;
 
-    if (loopEdgesPts.size())
-    {
-        _appSceneView->loopEdgesMesh = new SLPolyline(loopEdgesPts, false, "LoopEdges", _appSceneView->loopEdgesMat);
-        _appSceneView->loopEdges->addMesh(_appSceneView->loopEdgesMesh);
-        _appSceneView->loopEdges->updateAABBRec();
-    }
+if (loopEdgesPts.size())
+{
+    _appSceneView->loopEdgesMesh = new SLPolyline(loopEdgesPts, false, "LoopEdges", _appSceneView->loopEdgesMat);
+    _appSceneView->loopEdges->addMesh(_appSceneView->loopEdgesMesh);
+    _appSceneView->loopEdges->updateAABBRec();
+}
 
 #else
     std::vector<WAIKeyFrame*> kfs = _mode->getKeyFrames();

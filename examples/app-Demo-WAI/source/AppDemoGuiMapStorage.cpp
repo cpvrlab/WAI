@@ -47,11 +47,11 @@ AppDemoGuiMapStorage::AppDemoGuiMapStorage(const string&      name,
         {
             std::string name = Utils::getFileName(path);
             //find json files that contain mapPrefix and estimate highest used id
-            if (Utils::contains(name, _mapPrefix))
+            if (Utils::containsString(name, _mapPrefix))
             {
                 //estimate highest used id
                 std::vector<std::string> splitted;
-                Utils::split(name, '-', splitted);
+                Utils::splitString(name, '-', splitted);
                 if (splitted.size())
                 {
                     int id = atoi(splitted.back().c_str());
