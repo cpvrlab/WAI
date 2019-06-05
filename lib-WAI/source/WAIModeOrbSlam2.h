@@ -68,6 +68,17 @@ class WAI_API ModeOrbSlam2 : public Mode
     std::vector<WAIMapPoint*> getMatchedMapPoints();
     std::vector<WAIMapPoint*> getLocalMapPoints();
     std::vector<WAIKeyFrame*> getKeyFrames();
+    std::pair<std::vector<cv::Vec3f>, std::vector<cv::Vec2f>> getMatchedCorrespondances();
+
+    void showKeyPointsMatched(const bool flag)
+    {
+        _showKeyPointsMatched = flag;
+    }
+
+    void showKeyPoints(const bool flag)
+    {
+        _showKeyPoints = flag;
+    }
 
     bool getTrackOptFlow();
     void setTrackOptFlow(bool flag);

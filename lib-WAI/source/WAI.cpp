@@ -4,6 +4,7 @@
 WAI::WAI::WAI(std::string dataRoot)
 {
     _dataRoot = dataRoot;
+    _mode     = nullptr;
 }
 
 void WAI::WAI::setDataRoot(std::string dataRoot)
@@ -30,8 +31,8 @@ WAI::Mode* WAI::WAI::setMode(ModeType modeType)
             else
             {
                 _mode = new ModeOrbSlam2((SensorCamera*)_sensors[SensorType_Camera],
-                                         true,
-                                         true,
+                                         false,
+                                         false,
                                          false,
                                          false,
                                          _dataRoot + "/calibrations/ORBvoc.bin");
@@ -76,6 +77,11 @@ WAI::Mode* WAI::WAI::setMode(ModeType modeType)
     return _mode;
 }
 
+WAI::Mode* WAI::WAI::getCurrentMode()
+{
+    return _mode;
+}
+
 void WAI::WAI::activateSensor(SensorType sensorType, void* sensorInfo)
 {
     if (_sensors.find(sensorType) != _sensors.end())
@@ -89,7 +95,8 @@ void WAI::WAI::activateSensor(SensorType sensorType, void* sensorInfo)
     {
         case SensorType_Camera:
         {
-            _sensors[SensorType_Camera] = new SensorCamera((CameraCalibration*)sensorInfo);
+            CameraCalibration* cameraCalibration = (CameraCalibration*)sensorInfo;
+            _sensors[SensorType_Camera]          = new SensorCamera(cameraCalibration);
         }
         break;
 

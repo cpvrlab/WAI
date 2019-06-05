@@ -14,7 +14,7 @@ BUILD_R=build/"$ARCH"_release_"$CV_VERSION"
 clear
 echo "Building OpenCV Version: $CV_VERSION"
 
-if [ "$1" == "" ]; then
+if [ "$#" -lt 1 ]; then
     echo "No OpenCV tag passed as 1st parameter"
     exit
 fi
@@ -32,6 +32,7 @@ fi
 # Get all OpenCV tags and check if the requested exists
 cd opencv
 git tag > opencv_tags.txt
+
 if grep -Fx "$CV_VERSION" opencv_tags.txt > /dev/null; then
     git checkout $CV_VERSION
     git pull origin $CV_VERSION
@@ -41,7 +42,7 @@ if grep -Fx "$CV_VERSION" opencv_tags.txt > /dev/null; then
     git pull origin $CV_VERSION
     cd ..
 else
-    echo "No valid OpenCV tag passed as 1st parameter"
+    echo "No valid OpenCV tag passed as 1st parameter !!!!!"
     exit
 fi
 
@@ -103,8 +104,14 @@ cd ../.. # back to opencv
 rm -rf $ZIPFOLDER
 mkdir $ZIPFOLDER
 cp -R $BUILD_R/install/include   $ZIPFOLDER/include
-cp -R $BUILD_R/install/lib64     $ZIPFOLDER/Release
-cp -R $BUILD_D/install/lib64     $ZIPFOLDER/Debug
+cp -R $BUILD_R/install/lib       $ZIPFOLDER/Release
+cp -R $BUILD_D/install/lib       $ZIPFOLDER/Debug
+
+if [ -d  $BUILD_D/install/lib64 ]; then
+    cp -R $BUILD_R/install/lib64 $ZIPFOLDER/Release
+    cp -R $BUILD_D/install/lib64 $ZIPFOLDER/Debug
+fi
+
 cp LICENSE $ZIPFOLDER
 cp README.md $ZIPFOLDER
 

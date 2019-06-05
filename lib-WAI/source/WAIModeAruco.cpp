@@ -1,7 +1,7 @@
 #include <WAIModeAruco.h>
 
 // TODO(jan): possibility to change edgeLength
-WAI::ModeAruco::ModeAruco(SensorCamera* camera) : _camera(camera), _edgeLength(0.06f)
+WAI::ModeAruco::ModeAruco(SensorCamera* camera) : Mode(WAI::ModeType_ORB_SLAM2), _camera(camera), _edgeLength(0.06f)
 {
     // TODO(jan): possibility to choose aruco params
     _arucoParams                                        = cv::aruco::DetectorParameters::create();

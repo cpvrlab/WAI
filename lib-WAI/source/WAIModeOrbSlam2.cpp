@@ -1,3 +1,4 @@
+
 #include <WAIModeOrbSlam2.h>
 
 WAI::ModeOrbSlam2::ModeOrbSlam2(SensorCamera* camera,
@@ -6,12 +7,14 @@ WAI::ModeOrbSlam2::ModeOrbSlam2(SensorCamera* camera,
                                 bool          onlyTracking,
                                 bool          trackOptFlow,
                                 std::string   orbVocFile)
-  : _serial(serial),
+  : Mode(WAI::ModeType_ORB_SLAM2),
+    _serial(serial),
     _retainImg(retainImg),
     _onlyTracking(onlyTracking),
     _trackOptFlow(trackOptFlow),
     _camera(camera)
 {
+
     //load visual vocabulary for relocalization
     WAIOrbVocabulary::initialize(orbVocFile);
     mpVocabulary = WAIOrbVocabulary::get();
@@ -62,6 +65,7 @@ WAI::ModeOrbSlam2::ModeOrbSlam2(SensorCamera* camera,
 
 WAI::ModeOrbSlam2::~ModeOrbSlam2()
 {
+    WAI_LOG("Destructor ModeOrbSlam2");
     if (!_serial)
     {
         mpLocalMapper->RequestFinish();
@@ -305,6 +309,36 @@ std::vector<WAIMapPoint*> WAI::ModeOrbSlam2::getMatchedMapPoints()
     return result;
 }
 
+std::pair<std::vector<cv::Vec3f>, std::vector<cv::Vec2f>> WAI::ModeOrbSlam2::getMatchedCorrespondances()
+{
+    std::lock_guard<std::mutex> guard(_mapLock);
+
+    std::vector<cv::Vec3f> points3d;
+    std::vector<cv::Vec2f> points2d;
+
+    for (int i = 0; i < mCurrentFrame.N; i++)
+    {
+        if (mCurrentFrame.mvpMapPoints[i])
+        {
+            if (!mCurrentFrame.mvbOutlier[i])
+            {
+                if (mCurrentFrame.mvpMapPoints[i]->Observations() > 0)
+                {
+                    WAI::V3   _v = mCurrentFrame.mvpMapPoints[i]->worldPosVec();
+                    cv::Vec3f v;
+                    v[0] = _v.x;
+                    v[1] = _v.y;
+                    v[2] = _v.z;
+                    points3d.push_back(v);
+                    points2d.push_back(mCurrentFrame.mvKeysUn[i].pt);
+                }
+            }
+        }
+    }
+
+    return std::pair<std::vector<cv::Vec3f>, std::vector<cv::Vec2f>>(points3d, points2d);
+}
+
 std::vector<WAIMapPoint*> WAI::ModeOrbSlam2::getLocalMapPoints()
 {
     std::lock_guard<std::mutex> guard(_mapLock);
@@ -318,7 +352,7 @@ std::vector<WAIKeyFrame*> WAI::ModeOrbSlam2::getKeyFrames()
 {
     std::lock_guard<std::mutex> guard(_mapLock);
 
-    std::vector<WAIKeyFrame*> result = mvpLocalKeyFrames;
+    std::vector<WAIKeyFrame*> result = _map->GetAllKeyFrames();
 
     return result;
 }
@@ -759,7 +793,7 @@ void WAI::ModeOrbSlam2::initializeWithKnownPose()
 
         if (medianDepth < 0 || pKFcur->TrackedMapPoints(1) < 100)
         {
-            //WAI_LOG("Wrong initialization, reseting...");
+            WAI_LOG("Wrong initialization, reseting...");
             reset();
         }
         else
@@ -1054,8 +1088,6 @@ void WAI::ModeOrbSlam2::track3DPts()
 
         if (_state == TrackingState_TrackingOK)
         {
-            WAI_LOG("track3Dpts::trackingOk\n");
-
             // Local Mapping might have changed some MapPoints tracked in last frame
             checkReplacedInLastFrame();
 
@@ -1078,8 +1110,6 @@ void WAI::ModeOrbSlam2::track3DPts()
         }
         else
         {
-            WAI_LOG("track3Dpts::relocalizing\n");
-
             _bOK = relocalization();
         }
     }
@@ -1403,7 +1433,7 @@ bool WAI::ModeOrbSlam2::createInitialMapMonocular()
 
     if (medianDepth < 0 || pKFcur->TrackedMapPoints(1) < 100)
     {
-        cout << "Wrong initialization, reseting..." << endl;
+        WAI_LOG("Wrong initialization, reseting...");
         reset();
         return false;
     }
@@ -1523,19 +1553,19 @@ bool WAI::ModeOrbSlam2::needNewKeyFrame()
         // Otherwise send a signal to interrupt BA
         if (bLocalMappingIdle)
         {
-            std::cout << "[WAITrackedMapping] NeedNewKeyFrame: YES bLocalMappingIdle!" << std::endl;
+            WAI_LOG("[WAITrackedMapping] NeedNewKeyFrame: YES bLocalMappingIdle!");
             return true;
         }
         else
         {
             mpLocalMapper->InterruptBA();
-            std::cout << "[WAITrackedMapping] NeedNewKeyFrame: NO InterruptBA!" << std::endl;
+            WAI_LOG("[WAITrackedMapping] NeedNewKeyFrame: NO InterruptBA!");
             return false;
         }
     }
     else
     {
-        std::cout << "[WAITrackedMapping] NeedNewKeyFrame: NO!" << std::endl;
+        WAI_LOG("[WAITrackedMapping] NeedNewKeyFrame: NO!");
         return false;
     }
 }
@@ -1559,7 +1589,7 @@ void WAI::ModeOrbSlam2::createNewKeyFrame()
 
 void WAI::ModeOrbSlam2::reset()
 {
-    cout << "System Reseting" << endl;
+    WAI_LOG("System Reseting");
 
     // Reset Local Mapping
     if (!_serial)
@@ -1747,6 +1777,8 @@ bool WAI::ModeOrbSlam2::relocalization()
             }
         }
     }
+
+    WAI_LOG("relocalization::candiates with enough matches %i\n", nCandidates);
 
     // Alternatively perform some iterations of P4P RANSAC
     // Until we found a camera pose supported by enough inliers
@@ -2535,6 +2567,7 @@ void WAI::ModeOrbSlam2::decorate()
     calculatePoseDifference();
     //show rectangle for key points in video that where matched to map points
     cv::Mat imgRGB = _camera->getImageRGB();
+    decorateVideoWithKeyPoints(imgRGB);
     decorateVideoWithKeyPointMatches(imgRGB);
     //decorate scene with matched map points, local map points and matched map points
     //decorateScene();

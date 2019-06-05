@@ -20,9 +20,14 @@ enum ModeType
 class WAI_API Mode
 {
     public:
+    Mode(ModeType type) { _type = type; }
+    ModeType getType() { return _type; }
     virtual ~Mode()                     = 0;
     virtual bool getPose(cv::Mat* pose) = 0;
     virtual void notifyUpdate()         = 0;
+
+    private:
+    ModeType _type;
 };
 }
 

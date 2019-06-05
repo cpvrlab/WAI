@@ -23,6 +23,7 @@ class WAI_API WAI
     void  updateSensor(SensorType type, void* value);
     bool  whereAmI(cv::Mat* pose);
     Mode* setMode(ModeType mode);
+    Mode* getCurrentMode();
 
     private:
     std::string                   _dataRoot;

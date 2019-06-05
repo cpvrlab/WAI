@@ -26,6 +26,7 @@
 #include <SLGLShader.h>
 #include <SLGLTexture.h>
 #include <AppDemoGuiInfosDialog.h>
+#include <AppWAISingleton.h>
 #include <SLImporter.h>
 #include <SLInterface.h>
 #include <SLLightDirect.h>
@@ -314,31 +315,6 @@ void AppDemoGui::build(SLScene* s, SLSceneView* sv)
             sprintf(m + strlen(m), "Maximum depth : %u\n", SLRay::maxDepthReached);
             sprintf(m + strlen(m), "Average depth : %0.3f\n", SLRay::avgDepth / rayPrimaries);
         }
-        else if (rType == RT_rt)
-        {
-            SLRaytracer* rt           = sv->raytracer();
-            SLuint       rayPrimaries = sv->scrW() * sv->scrH();
-            SLuint       rayTotal     = rayPrimaries + SLRay::reflectedRays + SLRay::subsampledRays + SLRay::refractedRays + SLRay::shadowRays;
-            SLfloat      rpms         = rt->renderSec() ? rayTotal / rt->renderSec() / 1000.0f : 0.0f;
-
-            sprintf(m + strlen(m), "Renderer      : Ray Tracer\n");
-            sprintf(m + strlen(m), "Frame size    : %d x %d\n", sv->scrW(), sv->scrH());
-            sprintf(m + strlen(m), "Frames per s. : %0.2f\n", 1.0f / rt->renderSec());
-            sprintf(m + strlen(m), "Frame Time    : %0.2f sec.\n", rt->renderSec());
-            sprintf(m + strlen(m), "Rays per ms   : %0.0f\n", rpms);
-            sprintf(m + strlen(m), "Threads       : %d\n", rt->numThreads());
-            sprintf(m + strlen(m), "-------------------------------\n");
-            sprintf(m + strlen(m), "Primary rays  : %8d (%3d%%)\n", rayPrimaries, (int)((float)rayPrimaries / (float)rayTotal * 100.0f));
-            sprintf(m + strlen(m), "Reflected rays: %8d (%3d%%)\n", SLRay::reflectedRays, (int)((float)SLRay::reflectedRays / (float)rayTotal * 100.0f));
-            sprintf(m + strlen(m), "Refracted rays: %8d (%3d%%)\n", SLRay::refractedRays, (int)((float)SLRay::refractedRays / (float)rayTotal * 100.0f));
-            sprintf(m + strlen(m), "TIR rays      : %8d\n", SLRay::tirRays);
-            sprintf(m + strlen(m), "Shadow rays   : %8d (%3d%%)\n", SLRay::shadowRays, (int)((float)SLRay::shadowRays / (float)rayTotal * 100.0f));
-            sprintf(m + strlen(m), "AA rays       : %8d (%3d%%)\n", SLRay::subsampledRays, (int)((float)SLRay::subsampledRays / (float)rayTotal * 100.0f));
-            sprintf(m + strlen(m), "Total rays    : %8d (%3d%%)\n", rayTotal, 100);
-            sprintf(m + strlen(m), "-------------------------------\n");
-            sprintf(m + strlen(m), "Maximum depth : %u\n", SLRay::maxDepthReached);
-            sprintf(m + strlen(m), "Average depth : %0.3f\n", SLRay::avgDepth / rayPrimaries);
-        }
 
         ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[1]);
         ImGui::Begin("Timing", &showStatsTiming, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
@@ -569,17 +545,17 @@ void AppDemoGui::build(SLScene* s, SLSceneView* sv)
             if (ImGui::Button(">>>##Rz")) node->rotate(-r3, 0, 0, 1, tSpace);
 
             ImGui::Text("Scale        :"); ImGui::SameLine();
-            if (ImGui::Button("<<<##S")) 
+            if (ImGui::Button("<<<##S"))
                 node->scale( s3); ImGui::SameLine();
-            if (ImGui::Button("<<##S"))  
+            if (ImGui::Button("<<##S"))
                 node->scale( s2); ImGui::SameLine();
-            if (ImGui::Button("<##S"))   
+            if (ImGui::Button("<##S"))
                 node->scale( s1); ImGui::SameLine();
-            if (ImGui::Button(">##S"))   
+            if (ImGui::Button(">##S"))
                 node->scale(1/s1); ImGui::SameLine();
-            if (ImGui::Button(">>##S"))  
+            if (ImGui::Button(">>##S"))
                 node->scale(1/s2); ImGui::SameLine();
-            if (ImGui::Button(">>>##S")) 
+            if (ImGui::Button(">>>##S"))
                 node->scale(1/s3);
             ImGui::Separator();
             if (ImGui::Button("Reset")) node->om(node->initialOM());
@@ -689,7 +665,7 @@ void AppDemoGui::build(SLScene* s, SLSceneView* sv)
         if (ImGui::MenuItem(reset))
         {
             SLstring fullPathFilename = SLApplication::configPath + "DemoGui.yml";
-            SLFileSystem::deleteFile(fullPathFilename);
+            Utils::deleteFile(fullPathFilename);
             loadConfig(SLApplication::dpi);
         }
         ImGui::PopFont();
@@ -851,6 +827,11 @@ void AppDemoGui::buildMenuBar(SLScene* s, SLSceneView* sv)
                         s->onLoad(s, sv, SID_VideoCalibrateScnd);
                         showHelpCalibration = true;
                         showInfosScene      = true;
+                    }
+
+                    if (ImGui::MenuItem("Recalibrate", nullptr, false))
+                    {
+                        AppWAISingleton::instance()->wc->reset();
                     }
 
                     if (ImGui::MenuItem("Undistort Image", nullptr, ac->showUndistorted(), ac->state() == CS_calibrated))
@@ -1053,14 +1034,17 @@ void AppDemoGui::buildMenuBar(SLScene* s, SLSceneView* sv)
                     sv->startPathtracing(5, 10);
                 }
 
-                if (ImGui::MenuItem("Apply Gamma Corr.", nullptr, pt->applyGamma()))
-                {
-                    pt->applyGamma(!pt->applyGamma());
-                    sv->startPathtracing(5, 10);
-                }
-
                 if (ImGui::MenuItem("Save Rendered Image"))
-                    sv->pathtracer()->saveImage();
+                    pt->saveImage();
+
+                ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.65f);
+                SLfloat gamma = pt->gamma();
+                if (ImGui::SliderFloat("Gamma", &gamma, 0.1f, 3.0f, "%.1f"))
+                {
+                    pt->gamma(gamma);
+                    sv->startPathtracing(5, 1);
+                }
+                ImGui::PopItemWidth();
 
                 ImGui::EndMenu();
             }
@@ -1905,7 +1889,7 @@ void AppDemoGui::loadConfig(SLint dotsPerInch)
     SLstring    fullPathAndFilename = SLApplication::configPath +
                                    SLApplication::name + ".yml";
 
-    if (!SLFileSystem::fileExists(fullPathAndFilename))
+    if (!Utils::fileExists(fullPathAndFilename))
     {
         // Scale for proportional and fixed size fonts
         SLfloat dpiScaleProp  = dotsPerInch / 120.0f;
@@ -2017,7 +2001,7 @@ void AppDemoGui::saveConfig()
         return;
     }
 
-    fs << "configTime" << SLUtils::getLocalTimeString();
+    fs << "configTime" << Utils::getLocalTimeString();
     fs << "fontPropDots" << (SLint)SLGLImGui::fontPropDots;
     fs << "fontFixedDots" << (SLint)SLGLImGui::fontFixedDots;
     fs << "sceneID" << (SLint)SLApplication::sceneID;
