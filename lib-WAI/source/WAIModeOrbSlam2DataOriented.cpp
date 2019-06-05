@@ -1999,7 +1999,8 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
 
     switch (_state.status)
     {
-        case OrbSlamStatus_Initializing: {
+        case OrbSlamStatus_Initializing:
+        {
             cv::Mat cameraMat     = _camera->getCameraMatrix();
             cv::Mat distortionMat = _camera->getDistortionMatrix();
             cv::Mat cameraFrame   = _camera->getImageGray();
@@ -2534,7 +2535,8 @@ void WAI::ModeOrbSlam2DataOriented::notifyUpdate()
         }
         break;
 
-        case OrbSlamStatus_Tracking: {
+        case OrbSlamStatus_Tracking:
+        {
             cv::Mat cameraMat     = _camera->getCameraMatrix();
             cv::Mat distortionMat = _camera->getDistortionMatrix();
             cv::Mat cameraFrame   = _camera->getImageGray();
@@ -2990,6 +2992,34 @@ std::vector<KeyFrame*> WAI::ModeOrbSlam2DataOriented::getKeyFrames()
 std::vector<MapPoint*> WAI::ModeOrbSlam2DataOriented::getMapPoints()
 {
     std::vector<MapPoint*> result = std::vector<MapPoint*>(_state.mapPoints.begin(), _state.mapPoints.end());
+
+    return result;
+}
+
+std::vector<MapPoint*> WAI::ModeOrbSlam2DataOriented::getLocalMapPoints()
+{
+    std::vector<MapPoint*> result = std::vector<MapPoint*>(_state.localMapPoints.begin(), _state.localMapPoints.end());
+
+    return result;
+}
+
+std::vector<MapPoint*> WAI::ModeOrbSlam2DataOriented::getMatchedMapPoints()
+{
+    std::vector<MapPoint*> result;
+
+    for (int i = 0; i < _state.lastFrame.numberOfKeyPoints; i++)
+    {
+        if (_state.lastFrame.mapPointMatches[i])
+        {
+            if (!_state.lastFrame.mapPointIsOutlier[i])
+            {
+                if (_state.lastFrame.mapPointMatches[i]->observations.size() > 0)
+                {
+                    result.push_back(_state.lastFrame.mapPointMatches[i]);
+                }
+            }
+        }
+    }
 
     return result;
 }

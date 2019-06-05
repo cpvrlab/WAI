@@ -14,8 +14,9 @@
 #include <WAIHelper.h>
 #include <OrbSlam/ORBVocabulary.h>
 #include <WAIModeOrbSlam2.h>
-#include <WAIFileSystem.h>
 #include <WAIMapIO.h>
+
+#include <Utils.h>
 
 //-----------------------------------------------------------------------------
 /* This class keeps track of the existing slam maps (WAIMap) in the storage.
@@ -52,6 +53,7 @@ class WAI_API WAIMapStorage
     static std::string  _mapsDirName;
     static std::string  _mapsDir;
     static bool         _isInitialized;
+    static std::string  _externalDir;
 };
 //-----------------------------------------------------------------------------
 

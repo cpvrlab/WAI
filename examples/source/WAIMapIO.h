@@ -17,8 +17,9 @@
 #include <WAIMap.h>
 #include <WAIKeyFrameDB.h>
 #include <WAIKeyFrame.h>
-#include <WAIFileSystem.h>
 #include <OrbSlam/ORBVocabulary.h>
+
+#include <Utils.h>
 
 using namespace ORB_SLAM2;
 //-----------------------------------------------------------------------------
