@@ -36,3 +36,20 @@ void AppWAISingleton::load(int width, int height, std::string path)
     calibration = wc->getCameraCalibration();
     wai->activateSensor(WAI::SensorType_Camera, &calibration);
 }
+
+void AppWAISingleton::load(int width, int height, std::string path, WAICalibration * c)
+{
+    scrWidth    = width;
+    scrHeight   = height;
+    root_path   = path;
+
+    wai         = new WAI::WAI(path + "/data");
+    appWaiScene = new AppWAIScene();
+    wc          = c;
+
+    wc->changeImageSize(width, height);
+    wc->loadFromFile(root_path + "/data/calibrations/cam_calibration_main.xml");
+    WAI::CameraCalibration calibration;
+    calibration = wc->getCameraCalibration();
+    wai->activateSensor(WAI::SensorType_Camera, &calibration);
+}

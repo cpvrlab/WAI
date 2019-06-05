@@ -307,13 +307,14 @@ std::pair<std::vector<cv::Vec3f>, std::vector<cv::Vec2f>> WAI::ModeOrbSlam2::get
 
     for (int i = 0; i < mCurrentFrame.N; i++)
     {
-        if (mCurrentFrame.mvpMapPoints[i])
+        WAIMapPoint * mp = mCurrentFrame.mvpMapPoints[i];
+        if (mp)
         {
             if (!mCurrentFrame.mvbOutlier[i])
             {
-                if (mCurrentFrame.mvpMapPoints[i]->Observations() > 0)
+                if (mp->Observations() > 0)
                 {
-                    WAI::V3   _v = mCurrentFrame.mvpMapPoints[i]->worldPosVec();
+                    WAI::V3   _v = mp->worldPosVec();
                     cv::Vec3f v;
                     v[0] = _v.x;
                     v[1] = _v.y;
@@ -322,6 +323,31 @@ std::pair<std::vector<cv::Vec3f>, std::vector<cv::Vec2f>> WAI::ModeOrbSlam2::get
                     points2d.push_back(mCurrentFrame.mvKeysUn[i].pt);
                 }
             }
+        }
+    }
+
+    return std::pair<std::vector<cv::Vec3f>, std::vector<cv::Vec2f>>(points3d, points2d);
+}
+
+std::pair<std::vector<cv::Vec3f>, std::vector<cv::Vec2f>> WAI::ModeOrbSlam2::getCorrespondances()
+{
+    std::lock_guard<std::mutex> guard(_mapLock);
+
+    std::vector<cv::Vec3f> points3d;
+    std::vector<cv::Vec2f> points2d;
+
+    for (int i = 0; i < mCurrentFrame.N; i++)
+    {
+        WAIMapPoint * mp = mCurrentFrame.mvpMapPoints[i];
+        if (mp)
+        {
+            WAI::V3   _v = mp->worldPosVec();
+            cv::Vec3f v;
+            v[0] = _v.x;
+            v[1] = _v.y;
+            v[2] = _v.z;
+            points3d.push_back(v);
+            points2d.push_back(mCurrentFrame.mvKeys[i].pt);
         }
     }
 
@@ -357,6 +383,26 @@ void WAI::ModeOrbSlam2::setTrackOptFlow(bool flag)
     std::lock_guard<std::mutex> guard(_optFlowLock);
     _trackOptFlow = flag;
     _optFlowOK    = false;
+}
+
+void WAI::ModeOrbSlam2::disableMapping()
+{
+    _onlyTracking = true;
+    if (!_serial)
+    {
+        mpLocalMapper->RequestStop();
+        while (!mpLocalMapper->isStopped())
+        {
+            std::this_thread::sleep_for(std::chrono::microseconds(10));
+        }
+    }
+    mpLocalMapper->InterruptBA();
+}
+
+void WAI::ModeOrbSlam2::enableMapping()
+{
+    _onlyTracking = false;
+    resume();
 }
 
 void WAI::ModeOrbSlam2::stateTransition()
@@ -1269,6 +1315,50 @@ void WAI::ModeOrbSlam2::resetRequests()
     _resumeRequested = false;
 }
 
+void WAI::ModeOrbSlam2::findMatches(std::vector<cv::Point2f> &vP2D, std::vector<cv::Point3f> &vP3Dw)
+{
+    // Compute Bag of Words Vector
+    mCurrentFrame.ComputeBoW();
+
+    // Relocalization is performed when tracking is lost
+    // Track Lost: Query WAIKeyFrame Database for keyframe candidates for relocalisation
+    vector<WAIKeyFrame*> vpCandidateKFs = mpKeyFrameDatabase->DetectRelocalizationCandidates(&mCurrentFrame);
+
+    if (vpCandidateKFs.empty())
+        return;
+
+    //vector<WAIKeyFrame*> vpCandidateKFs = mpKeyFrameDatabase->keyFrames();
+    const int nKFs = vpCandidateKFs.size();
+
+    // We perform first an ORB matching with each candidate
+    ORBmatcher matcher(0.75, true);
+
+    vector<vector<WAIMapPoint*>> vvpMapPointMatches;
+    vvpMapPointMatches.resize(nKFs);
+
+    for (int i = 0; i < nKFs; i++)
+    {
+        WAIKeyFrame* pKF      = vpCandidateKFs[i];
+        int          nmatches = matcher.SearchByBoW(pKF, mCurrentFrame, vvpMapPointMatches[i]);
+        if (nmatches < 15)
+            continue;
+        int idx = 0;
+
+        for (size_t j = 0; j < vvpMapPointMatches[i].size(); j++)
+        {
+            WAIMapPoint* pMP = vvpMapPointMatches[i][j];
+
+            if (pMP && pMP->Observations() > 1)
+            {
+                const cv::KeyPoint& kp = mCurrentFrame.mvKeys[i];
+                vP2D.push_back(kp.pt);
+                auto Pos = pMP->worldPosVec();
+                vP3Dw.push_back(cv::Point3f(Pos.x, Pos.y, Pos.z));
+            }
+        }
+    }
+}
+
 bool WAI::ModeOrbSlam2::relocalization()
 {
     // Compute Bag of Words Vector
@@ -1316,10 +1406,10 @@ bool WAI::ModeOrbSlam2::relocalization()
             }
             else
             {
-                PnPsolver* pSolver = new PnPsolver(mCurrentFrame, vvpMapPointMatches[i]);
-                pSolver->SetRansacParameters(0.99, 10, 300, 4, 0.5, 5.991);
-                vpPnPsolvers[i] = pSolver;
-                nCandidates++;
+               PnPsolver* pSolver = new PnPsolver(mCurrentFrame, vvpMapPointMatches[i]);
+               pSolver->SetRansacParameters(0.99, 10, 300, 4, 0.5, 5.991);
+               vpPnPsolvers[i] = pSolver;
+               nCandidates++;
             }
         }
     }
