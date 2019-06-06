@@ -62,6 +62,13 @@ class AutoCalibration : public WAICalibration
                           const std::vector<cv::Mat>& rvecs,
                           const std::vector<cv::Mat>& tvecs);
 
+    bool calibrateBruteForce(cv::Mat &intrinsic,
+                             std::vector<std::vector<cv::Point2f>>& vvP2D,
+                             std::vector<std::vector<cv::Point3f>>& vvP3Dw,
+                             std::vector<cv::Mat>& rvecs,
+                             std::vector<cv::Mat>& tvecs,
+                             float &error);
+
     cv::Mat                               _intrinsic;
     cv::Mat                               _distortion;
     std::vector<std::vector<cv::Point2f>> _vvP2D;

@@ -1350,7 +1350,7 @@ void WAI::ModeOrbSlam2::findMatches(std::vector<cv::Point2f> &vP2D, std::vector<
 
             if (pMP && pMP->Observations() > 1)
             {
-                const cv::KeyPoint& kp = mCurrentFrame.mvKeys[i];
+                const cv::KeyPoint& kp = mCurrentFrame.mvKeys[j];
                 vP2D.push_back(kp.pt);
                 auto Pos = pMP->worldPosVec();
                 vP3Dw.push_back(cv::Point3f(Pos.x, Pos.y, Pos.z));

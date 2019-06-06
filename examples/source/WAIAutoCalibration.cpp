@@ -27,7 +27,7 @@ void AutoCalibration::reset()
 
 bool AutoCalibration::tryCalibrateRansac(std::vector<cv::Point2f> vP2D, std::vector<cv::Point3f> vP3Dw)
 {
-    if (vP3Dw.size() < 35)
+    if (vP3Dw.size() < 30)
         return false;
 
     // Add new matches to the list if they are different than the old one
@@ -35,6 +35,7 @@ bool AutoCalibration::tryCalibrateRansac(std::vector<cv::Point2f> vP2D, std::vec
     {
         _vvP3Dw.push_back(vP3Dw);
         _vvP2D.push_back(vP2D);
+        cout << "add view" << endl;
     }
     else
     {
@@ -48,52 +49,42 @@ bool AutoCalibration::tryCalibrateRansac(std::vector<cv::Point2f> vP2D, std::vec
         mean_position(m_new, max, min, vP3Dw);
         dist += norm(max - min) * 0.5;
 
-        if (norm(m_new - m_old) > 0.3 * dist)
+        if (norm(m_new - m_old) > 0.2 * dist)
         {
            _vvP3Dw.push_back(vP3Dw);
            _vvP2D.push_back(vP2D);
+            cout << "add view" << endl;
         }
     }
 
     if (_vvP2D.size() < NB_SAMPLES)
         return false;
 
-    cout << "RANSAC on 10 frames with 50 iter (with initial fov 35 40 45)" << endl;
+    cout << "RANSAC on " << NB_SAMPLES << " frames with 50 iter" << endl;
+    cv::Mat distortion = (cv::Mat_<float>(5, 1) << 0, 0, 0, 0, 0);
     cv::Mat intrinsic;
-    cv::Mat distortion;
-    bool has_better_solution = false;
+    float error = 99999;
 
-    for (int i = 0; i < 3; i++)
+    if (calibrate_ransac(intrinsic, distortion, _imgSize, error, 50, 35, 5, 4, _vvP2D, _vvP3Dw))
     {
-        float err = _error;
-        float fov = 35.0 + i * 5.0;
-
-        computeMatrix(intrinsic, fov);
-        distortion = (cv::Mat_<float>(5, 1) << 0, 0, 0, 0, 0);
-
-        if (calibrate_ransac(intrinsic, distortion, _imgSize, err, 50, 50, 9, 4, _vvP2D, _vvP3Dw))
-        {
-            if (err < _error)
-            {
-                _error  = err;
-                float best_fov = calcCameraFOV(intrinsic);
-                cout << "start fov " << fov << " fov = " << best_fov << " min_err = " << err << endl;
-                cout << "= camera matrix =" << endl << intrinsic << endl;
-                _intrinsic = intrinsic.clone();
-                _distortion = distortion.clone();
-                has_better_solution = true;
-            }
-        }
+        float fov = calcCameraFOV(intrinsic);
+        cout << " fov = " << fov << " min_err = " << _error << endl;
+        cout << "= camera matrix =" << endl << intrinsic << endl;
     }
     _vvP2D.clear();
     _vvP3Dw.clear();
 
-    return has_better_solution;
+    if (error < _error)
+    {
+        _intrinsic = intrinsic.clone();
+        return true;
+    }
+    return false;
 }
 
 bool AutoCalibration::tryCalibrateBruteForce(std::vector<cv::Point2f> vP2D, std::vector<cv::Point3f> vP3Dw)
 {
-    if (vP3Dw.size() < 35)
+    if (vP3Dw.size() < 30)
         return false;
 
     // Add new matches to the list if they are different than the old one
@@ -114,45 +105,81 @@ bool AutoCalibration::tryCalibrateBruteForce(std::vector<cv::Point2f> vP2D, std:
         mean_position(m_new, max, min, vP3Dw);
         dist += norm(max - min) * 0.5;
 
-        if (norm(m_new - m_old) > 0.3 * dist)
+        if (norm(m_new - m_old) > 0.2 * dist)
         {
            _vvP3Dw.push_back(vP3Dw);
            _vvP2D.push_back(vP2D);
-
         }
     }
 
     if (_vvP2D.size() < NB_SAMPLES)
         return false;
 
+    savePoints();
+
     cv::Mat intrinsic;
-    cv::Mat distortion;
-    bool has_better_solution = false;
+    std::vector<cv::Mat> rvecs, tvecs;
+
+    float err;
+    if(!calibrateBruteForce(intrinsic, _vvP2D, _vvP3Dw, rvecs, tvecs, err))
+    {
+        _vvP2D.clear();
+        _vvP3Dw.clear();
+        return false;
+    }
+
+    _vvP2D.clear();
+    _vvP3Dw.clear();
+
+    if (err < _error)
+    {
+        _intrinsic = intrinsic.clone();
+        return true;
+    }
+
+    return false;
+}
+
+bool AutoCalibration::calibrateBruteForce(cv::Mat &intrinsic,
+                                             std::vector<std::vector<cv::Point2f>>& vvP2D,
+                                             std::vector<std::vector<cv::Point3f>>& vvP3Dw,
+                                             std::vector<cv::Mat>& rvecs,
+                                             std::vector<cv::Mat>& tvecs,
+                                             float &error)
+
+{
+    error = 999999999.0;
+
+    bool has_solution = false;
+    computeMatrix(intrinsic, 40.0);
 
     for (int i = 0; i < 20; i++)
     {
         float fov = 30 + i;
-        std::vector<cv::Mat> rvecs, tvecs;
-        computeMatrix(intrinsic, fov);
-        float err = calibrate_opencv_no_distortion_fixed_center (intrinsic, _imgSize, rvecs, tvecs, _vvP2D, _vvP3Dw);
 
-        if (err < _error)
+        std::vector<cv::Mat> rotvecs, trvecs;
+        cv::Mat matrix;
+        computeMatrix(matrix, fov);
+
+        float err = calibrate_opencv_no_distortion_fixed_center (matrix, _imgSize, rotvecs, trvecs, vvP2D, vvP3Dw);
+
+        if (err < error)
         {
-            _error = err;
-            _intrinsic = intrinsic.clone();
-            has_better_solution = true;
+            float rfov = calcCameraFOV(matrix);
 
-            float best_fov = calcCameraFOV(intrinsic);
-            cout << "start fov " << fov << " fov = " << best_fov << " min_err = " << err << endl;
-            cout << "= camera matrix =" << endl << intrinsic << endl;
+            if (rfov > 30 && rfov < 50)
+            {
+                error     = err;
+                intrinsic = matrix.clone();
+                rvecs     = rotvecs;
+                tvecs     = trvecs;
+                has_solution = true;
+            }
         }
     }
-    _vvP2D.clear();
-    _vvP3Dw.clear();
 
-    return has_better_solution;
+    return has_solution;
 }
-
 
 void AutoCalibration::mean_position(cv::Point3f& mean, cv::Point3f& max, cv::Point3f& min, std::vector<cv::Point3f>& points3d)
 {
@@ -415,7 +442,7 @@ bool AutoCalibration::calibrate_ransac(cv::Mat& intrinsic, cv::Mat& distortion, 
         for (int i = 0; i < nswp.size(); i++)
         {
             cv::Point2f p = nskp[i] - projected[i];
-            float       t = p.x * p.x + p.y * p.y;
+            float       t = sqrt(p.x * p.x + p.y * p.y);
             if (t < threshold)
             {
                 skp.push_back(nskp[i]);
@@ -468,12 +495,10 @@ bool AutoCalibration::calibrate_ransac(cv::Mat& intrinsic, cv::Mat& distortion, 
     for (int i = 0; i < N; i++) { d += ((percent_correct * keypoints[i].size()) / 100); }
 
     //Save of initial model parameters
-    cv::Mat ini_matrix     = intrinsic.clone();
     cv::Mat ini_distortion = distortion.clone();
 
     //Model parameters to optimize
     cv::Mat              matrix;
-    cv::Mat              distort;
     std::vector<cv::Mat> rvecs, tvecs;
     tvecs.reserve(N);
     rvecs.reserve(N);
@@ -495,15 +520,15 @@ bool AutoCalibration::calibrate_ransac(cv::Mat& intrinsic, cv::Mat& distortion, 
         select_random(selections, nselect);
         pick_selection(skp, swp, nskp, nswp, selections, keypoints, worldpoints);
 
-        //Get model with selected points
-        matrix  = ini_matrix.clone();
-        distort = ini_distortion.clone();
-
         // Compute parameters for nselect points per frame
-        calibrate_opencv(matrix, distort, size, rvecs, tvecs, skp, swp);
-        distort = ini_distortion.clone();
-        matrix.at<double>(0, 2) = size.width * 0.5;
-        matrix.at<double>(1, 2) = size.height * 0.5;
+        float err;
+        if (!calibrateBruteForce(matrix, skp, swp, rvecs, tvecs, err))
+        {
+            k = k-1;
+            continue;
+        }
+
+        cout << calcCameraFOV(matrix) << endl;
 
         float curr_total_error = 0;
 
@@ -512,26 +537,12 @@ bool AutoCalibration::calibrate_ransac(cv::Mat& intrinsic, cv::Mat& distortion, 
         {
             projected.clear();
             //apply model on complement
-            cv::projectPoints(nswp[i], rvecs[i], tvecs[i], matrix, distort, projected);
+            cv::projectPoints(worldpoints[i], rvecs[i], tvecs[i], matrix, ini_distortion, projected);
 
-            for (int j = 0; j < nswp[i].size(); j++)
+            for (int j = 0; j < worldpoints[i].size(); j++)
             {
-                cv::Point2f p = nskp[i][j] - projected[j];
-                float       t = p.x * p.x + p.y * p.y;
-                if (t < threshold)
-                {
-                    // Add current point error to total current error
-                    curr_total_error += t;
-                    nb_correct++;
-                }
-            }
-
-            projected.clear();
-            cv::projectPoints(swp[i], rvecs[i], tvecs[i], matrix, distort, projected);
-            for (int j = 0; j < swp[i].size(); j++)
-            {
-                cv::Point2f p = skp[i][j] - projected[j];
-                float       t = p.x * p.x + p.y * p.y;
+                cv::Point2f p = keypoints[i][j] - projected[j];
+                float       t = sqrt(p.x * p.x + p.y * p.y);
                 if (t < threshold)
                 {
                     // Add current point error to total current error
@@ -543,6 +554,8 @@ bool AutoCalibration::calibrate_ransac(cv::Mat& intrinsic, cv::Mat& distortion, 
 
         // If there is more than d elements that fit the current model and
         //  the total error with this model is the lowest we have so far => keeps this model
+
+        //cout << "nb correct " << nb_correct << "curr total error " << total_error << endl;
         if (nb_correct >= d && curr_total_error < total_error)
         {
             float fy  = matrix.at<double>(1, 1);
@@ -553,7 +566,6 @@ bool AutoCalibration::calibrate_ransac(cv::Mat& intrinsic, cv::Mat& distortion, 
             {
                 total_error  = curr_total_error;
                 intrinsic    = matrix.clone();
-                distortion   = distort.clone();
                 has_solution = true;
             }
         }

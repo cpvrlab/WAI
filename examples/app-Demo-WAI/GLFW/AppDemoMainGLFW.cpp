@@ -631,7 +631,7 @@ int main(int argc, char* argv[])
                 ((WAI::ModeOrbSlam2*)wai->getCurrentMode())->findMatches(vP2D, vP3Dw);
                 WAI::CameraCalibration calibration;
 
-                if (ac->tryCalibrateBruteForce(vP2D, vP3Dw))
+                if (ac->tryCalibrateRansac(vP2D, vP3Dw))
                 {
                     if (ac->getError() < 80.0)
                     {
