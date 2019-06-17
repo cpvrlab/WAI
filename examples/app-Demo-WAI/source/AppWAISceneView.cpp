@@ -118,7 +118,7 @@ void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
     onLoadScenePoseEstimation(s, sv);
 #else
     SLstring calibFileName = "cam_calibration_main_huawei_p10_640_360.xml";
-    SLApplication::calibVideoFile.load(SLFileSystem::externalDir() + "calibrations/", calibFileName, false, false);
+    SLApplication::calibVideoFile.load(WAIMapStorage::externalDir() + "calibrations/", calibFileName, false, false);
     SLApplication::calibVideoFile.loadCalibParams();
 
     s->videoType(VT_FILE);
@@ -259,7 +259,9 @@ void WAISceneView::renderMapPoints(std::string                   name,
 {
     //remove old mesh, if it exists
     if (mesh)
+    {
         node->deleteMesh(mesh);
+    }
 
     //instantiate and add new mesh
     if (pts.size())
@@ -268,14 +270,16 @@ void WAISceneView::renderMapPoints(std::string                   name,
         std::vector<SLVec3f> points, normals;
         for (auto mapPt : pts)
         {
+            if (mapPt->bad) continue;
+
             cv::Mat wP = mapPt->position;
             cv::Mat wN = mapPt->normalVector;
-            points.push_back(SLVec3f(wP.at<float>(0, 0),
-                                     wP.at<float>(1, 0),
-                                     wP.at<float>(2, 0)));
-            normals.push_back(SLVec3f(wN.at<float>(0, 0),
-                                      wN.at<float>(1, 0),
-                                      wN.at<float>(2, 0)));
+            points.push_back(SLVec3f(wP.at<float>(0),
+                                     wP.at<float>(1),
+                                     wP.at<float>(2)));
+            normals.push_back(SLVec3f(wN.at<float>(0),
+                                      wN.at<float>(1),
+                                      wN.at<float>(2)));
         }
 
         mesh = new SLPoints(points, normals, name, material);
@@ -322,6 +326,8 @@ void WAISceneView::renderKeyframes()
     // TODO(jan): delete keyframe textures
     for (KeyFrame* kf : keyframes)
     {
+        if (kf->bad) continue;
+
         SLKeyframeCamera* cam = new SLKeyframeCamera("KeyFrame " + std::to_string(kf->index));
 
         cv::Mat Twc = kf->wTc.clone();
@@ -426,7 +432,7 @@ void WAISceneView::renderGraphs()
     SLVVec3f loopEdgesPts;
     for (auto* kf : kfs)
     {
-        cv::Mat Ow = kf->cameraMat;
+        cv::Mat Ow = kf->worldOrigin.clone();
 
         //covisibility graph
         std::vector<KeyFrame*> vCovKFs;
@@ -448,7 +454,7 @@ void WAISceneView::renderGraphs()
             {
                 if ((*vit)->index < kf->index)
                     continue;
-                cv::Mat Ow2 = (*vit)->cameraMat;
+                cv::Mat Ow2 = (*vit)->worldOrigin.clone();
 
                 covisGraphPts.push_back(SLVec3f(Ow.at<float>(0), Ow.at<float>(1), Ow.at<float>(2)));
                 covisGraphPts.push_back(SLVec3f(Ow2.at<float>(0), Ow2.at<float>(1), Ow2.at<float>(2)));
@@ -459,7 +465,7 @@ void WAISceneView::renderGraphs()
         KeyFrame* parent = kf->parent;
         if (parent)
         {
-            cv::Mat Owp = parent->cameraMat;
+            cv::Mat Owp = parent->worldOrigin.clone();
             spanningTreePts.push_back(SLVec3f(Ow.at<float>(0), Ow.at<float>(1), Ow.at<float>(2)));
             spanningTreePts.push_back(SLVec3f(Owp.at<float>(0), Owp.at<float>(1), Owp.at<float>(2)));
         }

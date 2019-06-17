@@ -60,6 +60,13 @@ struct MapPoint
     MapPointTrackingInfos trackingInfos; // TODO(jan): this should not be in here
 };
 
+struct KeyFrameRelocalizationData
+{
+    i32 queryId;
+    i32 words;
+    r32 score;
+};
+
 struct KeyFrame
 {
     i32    index;
@@ -93,6 +100,8 @@ struct KeyFrame
 
     DBoW2::BowVector     bowVector;
     DBoW2::FeatureVector featureVector;
+
+    KeyFrameRelocalizationData relocalizationData;
 };
 
 struct Frame
@@ -100,6 +109,9 @@ struct Frame
     i32     id;
     cv::Mat cameraMat;
     i32     numberOfKeyPoints;
+
+    r32 scaleFactor;
+    r32 logScaleFactor;
 
     // Pose matrices
     cv::Mat cTw;
@@ -164,11 +176,12 @@ struct OrbSlamState
 
     OrbExtractionParameters orbExtractionParameters;
 
-    std::set<KeyFrame*> keyFrames;
-    std::set<MapPoint*> mapPoints;
-    i32                 nextFrameId;
-    i32                 nextKeyFrameId;
-    i32                 nextMapPointId;
+    std::set<KeyFrame*>               keyFrames;
+    std::vector<std::list<KeyFrame*>> invertedKeyFrameFile;
+    std::set<MapPoint*>               mapPoints;
+    i32                               nextFrameId;
+    i32                               nextKeyFrameId;
+    i32                               nextMapPointId;
 
     KeyFrame* referenceKeyFrame;
 
@@ -203,6 +216,17 @@ static inline cv::Mat getKeyFrameCameraCenter(const KeyFrame* keyFrame)
     cv::Mat result = keyFrame->worldOrigin.clone();
 
     return result;
+}
+
+static inline void addKeyFrameToInvertedFile(KeyFrame*                          keyFrame,
+                                             std::vector<std::list<KeyFrame*>>& invertedKeyFrameFile)
+{
+    // TODO(jan): mutex
+
+    for (DBoW2::BowVector::const_iterator vit = keyFrame->bowVector.begin(), vend = keyFrame->bowVector.end(); vit != vend; vit++)
+    {
+        invertedKeyFrameFile[vit->first].push_back(keyFrame);
+    }
 }
 
 // TODO(jan): move this somewhere smarter
