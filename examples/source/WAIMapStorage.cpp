@@ -16,6 +16,7 @@ unsigned int WAIMapStorage::_currentId   = 0;
 std::string  WAIMapStorage::_mapPrefix   = "slam-map-";
 std::string  WAIMapStorage::_mapsDirName = "slam-maps";
 std::string  WAIMapStorage::_mapsDir     = "";
+std::string  WAIMapStorage::_externalDir = "";
 //values used by imgui
 std::vector<std::string> WAIMapStorage::existingMapNames;
 const char*              WAIMapStorage::currItem       = nullptr;
@@ -28,35 +29,35 @@ WAIMapStorage::WAIMapStorage()
 //-----------------------------------------------------------------------------
 void WAIMapStorage::init(std::string externalDir)
 {
-    WAIFileSystem::setExternalDir(externalDir);
+    _externalDir = externalDir;
     existingMapNames.clear();
     vector<pair<int, string>> existingMapNamesSorted;
 
     //setup file system and check for existing files
-    if (WAIFileSystem::externalDirExists())
+    if (Utils::dirExists(_externalDir))
     {
-        _mapsDir = WAIFileSystem::unifySlashes(externalDir + _mapsDirName);
+        _mapsDir = Utils::unifySlashes(externalDir + _mapsDirName);
 
         //check if visual odometry maps directory exists
-        if (!WAIFileSystem::dirExists(_mapsDir))
+        if (!Utils::dirExists(_mapsDir))
         {
             WAI_LOG("Making dir: %s\n", _mapsDir.c_str());
-            WAIFileSystem::makeDir(_mapsDir);
+            Utils::makeDir(_mapsDir);
         }
         else
         {
             //parse content: we search for directories in mapsDir
-            std::vector<std::string> content = WAIFileSystem::getFileNamesInDir(_mapsDir);
+            std::vector<std::string> content = Utils::getFileNamesInDir(_mapsDir);
             for (auto path : content)
             {
-                std::string name = WAIFileSystem::getFileName(path);
+                std::string name = Utils::getFileName(path);
                 //find json files that contain mapPrefix and estimate highest used id
-                if (WAIFileSystem::contains(name, _mapPrefix))
+                if (Utils::containsString(name, _mapPrefix))
                 {
                     WAI_LOG("VO-Map found: %s\n", name.c_str());
                     //estimate highest used id
                     std::vector<std::string> splitted;
-                    WAIFileSystem::split(name, '-', splitted);
+                    Utils::splitString(name, '-', splitted);
                     if (splitted.size())
                     {
                         int id = atoi(splitted.back().c_str());
@@ -103,26 +104,26 @@ void WAIMapStorage::saveMap(int id, WAI::ModeOrbSlam2* orbSlamMode, bool saveImg
     bool errorOccured = false;
     //check if map exists
     string mapName  = _mapPrefix + to_string(id);
-    string path     = WAIFileSystem::unifySlashes(_mapsDir + mapName);
+    string path     = Utils::unifySlashes(_mapsDir + mapName);
     string pathImgs = path + "imgs/";
     string filename = path + mapName + ".json";
 
     try
     {
         //if path exists, delete content
-        if (WAIFileSystem::fileExists(path))
+        if (Utils::fileExists(path))
         {
             //remove json file
-            if (WAIFileSystem::fileExists(filename))
+            if (Utils::fileExists(filename))
             {
-                WAIFileSystem::deleteFile(filename);
+                Utils::deleteFile(filename);
                 //check if imgs dir exists and delete all containing files
-                if (WAIFileSystem::fileExists(pathImgs))
+                if (Utils::fileExists(pathImgs))
                 {
-                    std::vector<std::string> content = WAIFileSystem::getFileNamesInDir(pathImgs);
+                    std::vector<std::string> content = Utils::getFileNamesInDir(pathImgs);
                     for (auto path : content)
                     {
-                        WAIFileSystem::deleteFile(path);
+                        Utils::deleteFile(path);
                     }
                 }
             }
@@ -130,12 +131,12 @@ void WAIMapStorage::saveMap(int id, WAI::ModeOrbSlam2* orbSlamMode, bool saveImg
         else
         {
             //create map directory and imgs directory
-            WAIFileSystem::makeDir(path);
+            Utils::makeDir(path);
         }
 
-        if (!WAIFileSystem::fileExists(pathImgs))
+        if (!Utils::fileExists(pathImgs))
         {
-            WAIFileSystem::makeDir(pathImgs);
+            Utils::makeDir(pathImgs);
         }
 
         //switch to idle, so that map does not change, while we are accessing keyframes
@@ -179,22 +180,22 @@ void WAIMapStorage::saveMap(int id, WAI::ModeOrbSlam2* orbSlamMode, bool saveImg
     if (errorOccured)
     {
         //if path exists, delete content
-        if (WAIFileSystem::fileExists(path))
+        if (Utils::fileExists(path))
         {
             //remove json file
-            if (WAIFileSystem::fileExists(filename))
-                WAIFileSystem::deleteFile(filename);
+            if (Utils::fileExists(filename))
+                Utils::deleteFile(filename);
             //check if imgs dir exists and delete all containing files
-            if (WAIFileSystem::fileExists(pathImgs))
+            if (Utils::fileExists(pathImgs))
             {
-                std::vector<std::string> content = WAIFileSystem::getFileNamesInDir(pathImgs);
+                std::vector<std::string> content = Utils::getFileNamesInDir(pathImgs);
                 for (auto path : content)
                 {
-                    WAIFileSystem::deleteFile(path);
+                    Utils::deleteFile(path);
                 }
-                WAIFileSystem::deleteFile(pathImgs);
+                Utils::deleteFile(pathImgs);
             }
-            WAIFileSystem::deleteFile(path);
+            Utils::deleteFile(path);
         }
     }
 
@@ -244,18 +245,18 @@ bool WAIMapStorage::loadMap(const string& path, WAI::ModeOrbSlam2* orbSlamMode, 
 
     //check if map exists
     string mapName      = _mapPrefix + to_string(_currentId);
-    string mapPath      = WAIFileSystem::unifySlashes(_mapsDir + mapName);
+    string mapPath      = Utils::unifySlashes(_mapsDir + mapName);
     string currPathImgs = mapPath + "imgs/";
     string filename     = mapPath + mapName + ".json";
 
     //check if dir and file exist
-    if (!WAIFileSystem::dirExists(mapPath))
+    if (!Utils::dirExists(mapPath))
     {
         string msg = "Failed to load map. Path does not exist: " + mapPath + "\n";
         WAI_LOG("%s\n", msg.c_str());
         return loadingSuccessful;
     }
-    if (!WAIFileSystem::fileExists(filename))
+    if (!Utils::fileExists(filename))
     {
         string msg = "Failed to load map: " + filename + "\n";
         WAI_LOG("%s\n", msg.c_str());

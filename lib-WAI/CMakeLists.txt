@@ -122,6 +122,7 @@ target_link_libraries(${target}
     ${g2o_LIBS}
     ${META_PROJECT_NAME}::lib-Utils
     ${META_PROJECT_NAME}::lib-DBoW2
+    ${META_PROJECT_NAME}::lib-Utils
 
     INTERFACE
     )

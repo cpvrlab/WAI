@@ -24,7 +24,6 @@
 
 #include <WAI.h>
 
-#define DATA_ORIENTED 0
 #define LIVE_VIDEO 0
 
 void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid);
@@ -50,17 +49,6 @@ class WAISceneView : public SLSceneView
     void updateCamera(WAI::CameraData* cameraData);
     void updateMinNumOfCovisibles(int n);
 
-#if DATA_ORIENTED
-    WAI::ModeOrbSlam2DataOriented* getMode()
-    {
-        return _mode;
-    }
-
-    void setMode(WAI::ModeOrbSlam2DataOriented* mode)
-    {
-        _mode = mode;
-    }
-#else
     WAI::ModeOrbSlam2* getMode()
     {
         return _mode;
@@ -70,7 +58,7 @@ class WAISceneView : public SLSceneView
     {
         _mode = mode;
     }
-#endif
+
     std::string getExternalDir()
     {
         return _externalDir;
@@ -102,19 +90,17 @@ class WAISceneView : public SLSceneView
     void showLoopEdges(bool showLoopEdges) { _showLoopEdges = showLoopEdges; }
 
     private:
-#if DATA_ORIENTED
-    WAI::ModeOrbSlam2DataOriented* _mode;
-#else
     WAI::ModeOrbSlam2* _mode;
-#endif
-    std::string _externalDir;
+    std::string        _externalDir;
 
     void updateTrackingVisualization(const bool iKnowWhereIAm);
+
     void renderMapPoints(std::string                      name,
                          const std::vector<WAIMapPoint*>& pts,
                          SLNode*&                         node,
                          SLPoints*&                       mesh,
                          SLMaterial*&                     material);
+
     void renderKeyframes();
     void renderGraphs();
 

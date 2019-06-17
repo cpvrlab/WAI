@@ -17,6 +17,7 @@ static void initializeOrbExtractionParameters(OrbExtractionParameters* orbExtrac
     orbExtractionParameters->initialThreshold        = initialFastThreshold;
     orbExtractionParameters->minimalThreshold        = minimalFastThreshold;
     orbExtractionParameters->scaleFactor             = scaleFactor;
+    orbExtractionParameters->logScaleFactor          = log(scaleFactor);
     orbExtractionParameters->orbOctTreeHalfPatchSize = orbHalfPatchSize;
     orbExtractionParameters->orbOctTreePatchSize     = orbPatchSize;
     orbExtractionParameters->edgeThreshold           = edgeThreshold;

@@ -85,9 +85,6 @@ static void onLoadScenePoseEstimation(SLScene* s, SLSceneView* sv)
 
     WAI::WAI* wai = AppWAISingleton::instance()->wai;
 
-#if DATA_ORIENTED
-    waiSceneView->setMode((WAI::ModeOrbSlam2DataOriented*)waiSceneView->wai.setMode(WAI::ModeType_ORB_SLAM2_DATA_ORIENTED));
-#else
     waiSceneView->setMode((WAI::ModeOrbSlam2*)wai->setMode(WAI::ModeType_ORB_SLAM2));
     auto trackedMapping = std::make_shared<AppDemoGuiTrackedMapping>("Tracked mapping", waiSceneView->getMode());
     AppDemoGui::addInfoDialog(trackedMapping);
@@ -105,7 +102,6 @@ static void onLoadScenePoseEstimation(SLScene* s, SLSceneView* sv)
                                                                    waiSceneView,
                                                                    waiSceneView->getMode());
     AppDemoGui::addInfoDialog(trackingInfos);
-#endif
 }
 
 //-----------------------------------------------------------------------------
@@ -113,15 +109,13 @@ void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
 {
     s->init();
 
-    WAISceneView* waiSceneView = (WAISceneView*)sv;
-
 #if LIVE_VIDEO
     s->videoType(VT_MAIN);
     onLoadScenePoseEstimation(s, sv);
 #else
-    /*SLstring calibFileName = "cam_calibration_main_huawei_p10_640_360.xml";
-    SLApplication::calibVideoFile.load(waiSceneView->getExternalDir() + "calibrations/", calibFileName, false, false);
-    SLApplication::calibVideoFile.loadCalibParams();*/
+    SLstring calibFileName = "cam_calibration_main_huawei_p10_640_360.xml";
+    SLApplication::calibVideoFile.load(WAIMapStorage::externalDir() + "calibrations/", calibFileName, false, false);
+    SLApplication::calibVideoFile.loadCalibParams();
 
     s->videoType(VT_FILE);
     SLCVCapture::videoFilename = "cropedDJI_0211.mp4";
@@ -282,46 +276,6 @@ void WAISceneView::renderMapPoints(std::string                      name,
 //-----------------------------------------------------------------------------
 void WAISceneView::renderKeyframes()
 {
-#if DATA_ORIENTED
-    std::vector<KeyFrame*> keyframes = _mode->getKeyFrames();
-
-    // TODO(jan): delete keyframe textures
-    for (KeyFrame* kf : keyframes)
-    {
-        SLCVCamera* cam = new SLCVCamera("KeyFrame " + std::to_string(kf->index));
-
-        cv::Mat Twc = kf->wTc.clone();
-        SLMat4f om;
-        om.setMatrix(Twc.at<float>(0, 0),
-                     -Twc.at<float>(0, 1),
-                     -Twc.at<float>(0, 2),
-                     Twc.at<float>(0, 3),
-                     Twc.at<float>(1, 0),
-                     -Twc.at<float>(1, 1),
-                     -Twc.at<float>(1, 2),
-                     Twc.at<float>(1, 3),
-                     Twc.at<float>(2, 0),
-                     -Twc.at<float>(2, 1),
-                     -Twc.at<float>(2, 2),
-                     Twc.at<float>(2, 3),
-                     Twc.at<float>(3, 0),
-                     -Twc.at<float>(3, 1),
-                     -Twc.at<float>(3, 2),
-                     Twc.at<float>(3, 3));
-
-        cam->om(om);
-
-        //calculate vertical field of view
-        SLfloat fy     = SLApplication::activeCalib->fx();
-        SLfloat cy     = SLApplication::activeCalib->cy();
-        SLfloat fovDeg = 2 * (SLfloat)atan2(cy, fy) * SL_RAD2DEG;
-        cam->fov(fovDeg);
-        cam->focalDist(0.11);
-        cam->clipNear(0.1);
-        cam->clipFar(1000.0);
-        _keyFrameNode->addChild(cam);
-    }
-#else
     std::vector<WAIKeyFrame*> keyframes = _mode->getKeyFrames();
 
     // TODO(jan): delete keyframe textures
@@ -336,11 +290,11 @@ void WAISceneView::renderKeyframes()
         {
             // TODO(jan): textures are saved in a global textures vector (scene->textures)
             // and should be deleted from there. Otherwise we have a yuuuuge memory leak.
-#    if 0
+#if 0
         SLGLTexture* texture = new SLGLTexture(kf->getTexturePath());
         _kfTextures.push_back(texture);
         cam->background().texture(texture);
-#    endif
+#endif
         }
 
         cv::Mat Twc = kf->getObjectMatrix();
@@ -376,14 +330,12 @@ void WAISceneView::renderKeyframes()
         AppWAIScene* waiScene = AppWAISingleton::instance()->appWaiScene;
         waiScene->keyFrameNode->addChild(cam);
     }
-#endif
 }
 //-----------------------------------------------------------------------------
 void WAISceneView::renderGraphs()
 {
-    AppWAIScene* waiScene = AppWAISingleton::instance()->appWaiScene;
-#ifndef DATA_ORIENTED
-    std::vector<WAIKeyFrame*> kfs = _mode->getKeyFrames();
+    AppWAIScene*              waiScene = AppWAISingleton::instance()->appWaiScene;
+    std::vector<WAIKeyFrame*> kfs      = _mode->getKeyFrames();
 
     SLVVec3f covisGraphPts;
     SLVVec3f spanningTreePts;
@@ -393,87 +345,8 @@ void WAISceneView::renderGraphs()
         cv::Mat Ow = kf->GetCameraCenter();
 
         //covisibility graph
-        const vector<WAIKeyFrame*> vCovKFs = kf->GetCovisiblesByWeight(_minNumOfCovisibles);
-        if (!vCovKFs.empty())
-        {
-            for (vector<WAIKeyFrame*>::const_iterator vit = vCovKFs.begin(), vend = vCovKFs.end(); vit != vend; vit++)
-            {
-                if ((*vit)->mnId < kf->mnId)
-                    continue;
-                cv::Mat Ow2 = (*vit)->GetCameraCenter();
+        const std::vector<WAIKeyFrame*> vCovKFs = kf->GetBestCovisibilityKeyFrames(_minNumOfCovisibles);
 
-                covisGraphPts.push_back(SLVec3f(Ow.at<float>(0), Ow.at<float>(1), Ow.at<float>(2)));
-                covisGraphPts.push_back(SLVec3f(Ow2.at<float>(0), Ow2.at<float>(1), Ow2.at<float>(2)));
-            }
-        }
-
-        //spanning tree
-        WAIKeyFrame* parent = kf->GetParent();
-        if (parent)
-        {
-            cv::Mat Owp = parent->GetCameraCenter();
-            spanningTreePts.push_back(SLVec3f(Ow.at<float>(0), Ow.at<float>(1), Ow.at<float>(2)));
-            spanningTreePts.push_back(SLVec3f(Owp.at<float>(0), Owp.at<float>(1), Owp.at<float>(2)));
-        }
-
-        //loop edges
-        std::set<WAIKeyFrame*> loopKFs = kf->GetLoopEdges();
-        for (set<WAIKeyFrame*>::iterator sit = loopKFs.begin(), send = loopKFs.end(); sit != send; sit++)
-        {
-            if ((*sit)->mnId < kf->mnId)
-                continue;
-            cv::Mat Owl = (*sit)->GetCameraCenter();
-            loopEdgesPts.push_back(SLVec3f(Ow.at<float>(0), Ow.at<float>(1), Ow.at<float>(2)));
-            loopEdgesPts.push_back(SLVec3f(Owl.at<float>(0), Owl.at<float>(1), Owl.at<float>(2)));
-        }
-    }
-
-    if (_appSceneView->covisibilityGraphMesh)
-        _appSceneView->covisibilityGraph->deleteMesh(_appSceneView->covisibilityGraphMesh);
-
-    if (covisGraphPts.size())
-    {
-        _appSceneView->covisibilityGraphMesh = new SLPolyline(covisGraphPts, false, "CovisibilityGraph", _appSceneView->covisibilityGraphMat);
-        _appSceneView->covisibilityGraph->addMesh(_appSceneView->covisibilityGraphMesh);
-        _appSceneView->covisibilityGraph->updateAABBRec();
-    }
-
-    if (_appSceneView->spanningTreeMesh)
-        _appSceneView->spanningTree->deleteMesh(_appSceneView->spanningTreeMesh);
-
-    if (spanningTreePts.size())
-        ;
-    {
-        _appSceneView->spanningTreeMesh = new SLPolyline(spanningTreePts, false, "SpanningTree", _appSceneView->spanningTreeMat);
-        _appSceneView->spanningTree->addMesh(_appSceneView->spanningTreeMesh);
-        _appSceneView->WAI::WAI wai;
-);
-    }
-    D_VideoCalibrateMa WAI::WAI wai;
-
-    SLApplication::WAI::WAI wai;
-ssMain)
-D_VideoCalibrateMain ||    WAI::WAI wai;
-
-if (loopEdgesPts.size())
-{
-    _appSceneView->loopEdgesMesh = new SLPolyline(loopEdgesPts, false, "LoopEdges", _appSceneView->loopEdgesMat);
-    _appSceneView->loopEdges->addMesh(_appSceneView->loopEdgesMesh);
-    _appSceneView->loopEdges->updateAABBRec();
-}
-
-#else
-    std::vector<WAIKeyFrame*> kfs = _mode->getKeyFrames();
-
-    SLVVec3f covisGraphPts;
-    SLVVec3f spanningTreePts;
-    SLVVec3f loopEdgesPts;
-    for (auto* kf : kfs)
-    {
-        cv::Mat Ow = kf->GetCameraCenter();
-
-        //covisibility graph
-        const vector<WAIKeyFrame*> vCovKFs = kf->GetCovisiblesByWeight(_minNumOfCovisibles);
         if (!vCovKFs.empty())
         {
             for (vector<WAIKeyFrame*>::const_iterator vit = vCovKFs.begin(), vend = vCovKFs.end(); vit != vend; vit++)
@@ -537,5 +410,4 @@ if (loopEdgesPts.size())
         waiScene->loopEdges->addMesh(waiScene->loopEdgesMesh);
         waiScene->loopEdges->updateAABBRec();
     }
-#endif
 }

@@ -9,19 +9,22 @@ using namespace std;
 
 enum CalibrationState
 {
-    Guess,
-    Calibrated
+    CalibrationState_None,
+    CalibrationState_Guess,
+    CalibrationState_Calibrated
 };
 
 class WAICalibration
 {
     public:
     WAICalibration();
-    virtual void loadFromFile(std::string path);
+    virtual bool loadFromFile(std::string path);
     virtual void reset();
     virtual void changeImageSize(int width, int height);
 
+    float                  calcCameraFOV(cv::Mat& mat);
     float                  calcCameraFOV();
+    void                   computeMatrix(cv::Mat& mat, float fov);
     WAI::CameraCalibration getCameraCalibration();
     cv::Mat&               cameraMat() { return _cameraMat; }
     cv::Mat&               distortion() { return _distortion; }
