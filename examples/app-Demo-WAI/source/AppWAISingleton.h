@@ -11,6 +11,7 @@ class AppWAISingleton
     static AppWAISingleton* instance();
 
     void            load(int width, int height, std::string path);
+    void            load(int width, int height, std::string path, WAICalibration* calibration);
     std::string     root_path;
     WAI::WAI*       wai;
     WAICalibration* wc;

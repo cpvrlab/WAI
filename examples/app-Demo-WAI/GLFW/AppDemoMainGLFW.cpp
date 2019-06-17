@@ -495,7 +495,7 @@ int main(int argc, char* argv[])
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     int scrWidth  = 640;
-    int scrHeight = 360;
+    int scrHeight = 480;
 
     //we have to fix aspect ratio, because the video image is initialized with this ratio
     fixAspectRatio = true;
@@ -557,13 +557,13 @@ int main(int argc, char* argv[])
     cout << "DPI             : " << dpi << endl;
 
     // get executable path
-    SLstring slRoot = SLstring(WAI_ROOT) + "/thirdparty/SLProject";
-    SLstring waiRoot = SLstring(WAI_ROOT);
-    SLstring configDir   = Utils::getAppsWritableDir();
+    SLstring slRoot    = SLstring(WAI_ROOT) + "/thirdparty/SLProject";
+    SLstring waiRoot   = SLstring(WAI_ROOT);
+    SLstring configDir = Utils::getAppsWritableDir();
     slSetupExternalDirectories(waiRoot + "/data");
 
     /////////////////////////////////////////////////////////
-    AppWAISingleton::instance()->load(640, 360, waiRoot);
+    AppWAISingleton::instance()->load(640, 480, waiRoot, new AutoCalibration(640, 480));
 
     slCreateAppAndScene(cmdLineArgs,
                         slRoot + "/data/shaders/",
@@ -601,6 +601,15 @@ int main(int argc, char* argv[])
     glfwSetScrollCallback(window, onMouseWheel);
     glfwSetWindowCloseCallback(window, onClose);
 
+    AutoCalibration* ac  = (AutoCalibration*)AppWAISingleton::instance()->wc;
+    WAI::WAI*           wai = AppWAISingleton::instance()->wai;
+    if (ac->getState() == Guess && wai->getCurrentMode()->getType() == WAI::ModeType_ORB_SLAM2)
+    {
+        WAI::ModeOrbSlam2* mode = (WAI::ModeOrbSlam2*)wai->getCurrentMode();
+        mode->disableMapping();
+        cout << "disable mapping" << endl;
+    }
+
     // Event loop
     while (!slShouldClose())
     {
@@ -614,6 +623,24 @@ int main(int argc, char* argv[])
             cameraData.imageRGB        = &SLCVCapture::lastFrame;
 
             sceneView->updateCamera(&cameraData);
+
+            if (ac->getState() == Guess)
+            {
+                std::vector<cv::Point2f> vP2D;
+                std::vector<cv::Point3f> vP3Dw;
+                ((WAI::ModeOrbSlam2*)wai->getCurrentMode())->findMatches(vP2D, vP3Dw);
+                WAI::CameraCalibration calibration;
+
+                if (ac->tryCalibrateRansac(vP2D, vP3Dw))
+                {
+                    if (ac->getError() < 80.0)
+                    {
+                        cout << "find calibration with error = " << ac->getError() << endl;
+                        wai->activateSensor(WAI::SensorType_Camera, &calibration);
+                        ((WAI::ModeOrbSlam2*)wai->getCurrentMode())->enableMapping();
+                    }
+                }
+            }
         }
 
         sceneView->update();

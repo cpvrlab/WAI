@@ -41,6 +41,10 @@ class WAI_API ModeOrbSlam2 : public Mode
     void reset();
     bool isInitialized();
 
+    void disableMapping();
+
+    void enableMapping();
+
     WAIMap*        getMap() { return _map; }
     WAIKeyFrameDB* getKfDB() { return mpKeyFrameDatabase; }
 
@@ -59,16 +63,18 @@ class WAI_API ModeOrbSlam2 : public Mode
     int         getNumKeyFrames();
     float       poseDifference();
     float       getMeanReprojectionError();
+    void        findMatches(std::vector<cv::Point2f> &vP2D, std::vector<cv::Point3f> &vP3Dw);
 
     std::string getLoopCloseStatus();
     uint32_t    getLoopCloseCount();
     uint32_t    getKeyFramesInLoopCloseQueueCount();
 
-    std::vector<WAIMapPoint*> getMapPoints();
-    std::vector<WAIMapPoint*> getMatchedMapPoints();
-    std::vector<WAIMapPoint*> getLocalMapPoints();
-    std::vector<WAIKeyFrame*> getKeyFrames();
+    std::vector<WAIMapPoint*>                                 getMapPoints();
+    std::vector<WAIMapPoint*>                                 getMatchedMapPoints();
+    std::vector<WAIMapPoint*>                                 getLocalMapPoints();
+    std::vector<WAIKeyFrame*>                                 getKeyFrames();
     std::pair<std::vector<cv::Vec3f>, std::vector<cv::Vec2f>> getMatchedCorrespondances();
+    std::pair<std::vector<cv::Vec3f>, std::vector<cv::Vec2f>> getCorrespondances();
 
     void showKeyPointsMatched(const bool flag)
     {
