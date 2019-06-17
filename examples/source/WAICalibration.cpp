@@ -27,16 +27,16 @@ void WAICalibration::reset()
     _distortion = (Mat_<double>(5, 1) << 0, 0, 0, 0, 0);
 
     _cameraFovDeg = fov;
-    _state        = Guess;
+    _state        = CalibrationState_Guess;
 }
 
-void WAICalibration::computeMatrix(cv::Mat &mat, float fov)
+void WAICalibration::computeMatrix(cv::Mat& mat, float fov)
 {
-    float cx  = (float)_imgSize.width * 0.5f;
-    float cy  = (float)_imgSize.height * 0.5f;
-    float fy  = cy / tanf(fov * 0.5f * M_PI / 180.0);
-    float fx  = fy;
-    mat = (Mat_<double>(3, 3) << fx, 0, cx, 0, fy, cy, 0, 0, 1);
+    float cx = (float)_imgSize.width * 0.5f;
+    float cy = (float)_imgSize.height * 0.5f;
+    float fy = cy / tanf(fov * 0.5f * M_PI / 180.0);
+    float fx = fy;
+    mat      = (Mat_<double>(3, 3) << fx, 0, cx, 0, fy, cy, 0, 0, 1);
 }
 
 bool WAICalibration::loadFromFile(std::string path)
@@ -53,7 +53,7 @@ bool WAICalibration::loadFromFile(std::string path)
     fs["distortion"] >> _distortion;
 
     fs.release();
-    _state = Calibrated;
+    _state = CalibrationState_Calibrated;
 
     float fov = calcCameraFOV();
 

@@ -39,6 +39,8 @@
 
 #include <WAI.h>
 
+#define AUTO_CALIBRATION 0
+
 //-----------------------------------------------------------------------------
 // GLobal application variables
 static GLFWwindow*   window;                     //!< The global glfw window handle
@@ -602,13 +604,16 @@ int main(int argc, char* argv[])
     glfwSetWindowCloseCallback(window, onClose);
 
     AutoCalibration* ac  = (AutoCalibration*)AppWAISingleton::instance()->wc;
-    WAI::WAI*           wai = AppWAISingleton::instance()->wai;
-    if (ac->getState() == Guess && wai->getCurrentMode()->getType() == WAI::ModeType_ORB_SLAM2)
+    WAI::WAI*        wai = AppWAISingleton::instance()->wai;
+
+#if AUTO_CALIBRATION
+    if (ac->getState() == CalibrationState_Guess && wai->getCurrentMode()->getType() == WAI::ModeType_ORB_SLAM2)
     {
         WAI::ModeOrbSlam2* mode = (WAI::ModeOrbSlam2*)wai->getCurrentMode();
         mode->disableMapping();
-        cout << "disable mapping" << endl;
+        WAI_LOG("disable mapping");
     }
+#endif
 
     // Event loop
     while (!slShouldClose())
@@ -624,7 +629,8 @@ int main(int argc, char* argv[])
 
             sceneView->updateCamera(&cameraData);
 
-            if (ac->getState() == Guess)
+#if AUTO_CALIBRATION
+            if (ac->getState() == CalibrationState_Guess)
             {
                 std::vector<cv::Point2f> vP2D;
                 std::vector<cv::Point3f> vP3Dw;
@@ -635,12 +641,13 @@ int main(int argc, char* argv[])
                 {
                     if (ac->getError() < 80.0)
                     {
-                        cout << "find calibration with error = " << ac->getError() << endl;
+                        WAI_LOG("find calibration with error = %f", ac->getError());
                         wai->activateSensor(WAI::SensorType_Camera, &calibration);
                         ((WAI::ModeOrbSlam2*)wai->getCurrentMode())->enableMapping();
                     }
                 }
             }
+#endif
         }
 
         sceneView->update();

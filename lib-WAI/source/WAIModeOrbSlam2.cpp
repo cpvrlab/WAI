@@ -128,7 +128,8 @@ void WAI::ModeOrbSlam2::notifyUpdate()
 
         case TrackingState_Idle:
         case TrackingState_None:
-        default: {
+        default:
+        {
         }
         break;
     }
@@ -307,7 +308,7 @@ std::pair<std::vector<cv::Vec3f>, std::vector<cv::Vec2f>> WAI::ModeOrbSlam2::get
 
     for (int i = 0; i < mCurrentFrame.N; i++)
     {
-        WAIMapPoint * mp = mCurrentFrame.mvpMapPoints[i];
+        WAIMapPoint* mp = mCurrentFrame.mvpMapPoints[i];
         if (mp)
         {
             if (!mCurrentFrame.mvbOutlier[i])
@@ -338,7 +339,7 @@ std::pair<std::vector<cv::Vec3f>, std::vector<cv::Vec2f>> WAI::ModeOrbSlam2::get
 
     for (int i = 0; i < mCurrentFrame.N; i++)
     {
-        WAIMapPoint * mp = mCurrentFrame.mvpMapPoints[i];
+        WAIMapPoint* mp = mCurrentFrame.mvpMapPoints[i];
         if (mp)
         {
             WAI::V3   _v = mp->worldPosVec();
@@ -1186,7 +1187,7 @@ void WAI::ModeOrbSlam2::createNewKeyFrame()
 
 void WAI::ModeOrbSlam2::reset()
 {
-    cout << "System Reseting" << endl;
+    WAI_LOG("System Reseting");
 
     // Reset Local Mapping
     if (!_serial)
@@ -1315,7 +1316,7 @@ void WAI::ModeOrbSlam2::resetRequests()
     _resumeRequested = false;
 }
 
-void WAI::ModeOrbSlam2::findMatches(std::vector<cv::Point2f> &vP2D, std::vector<cv::Point3f> &vP3Dw)
+void WAI::ModeOrbSlam2::findMatches(std::vector<cv::Point2f>& vP2D, std::vector<cv::Point3f>& vP3Dw)
 {
     // Compute Bag of Words Vector
     mCurrentFrame.ComputeBoW();
@@ -1406,10 +1407,10 @@ bool WAI::ModeOrbSlam2::relocalization()
             }
             else
             {
-               PnPsolver* pSolver = new PnPsolver(mCurrentFrame, vvpMapPointMatches[i]);
-               pSolver->SetRansacParameters(0.99, 10, 300, 4, 0.5, 5.991);
-               vpPnPsolvers[i] = pSolver;
-               nCandidates++;
+                PnPsolver* pSolver = new PnPsolver(mCurrentFrame, vvpMapPointMatches[i]);
+                pSolver->SetRansacParameters(0.99, 10, 300, 4, 0.5, 5.991);
+                vpPnPsolvers[i] = pSolver;
+                nCandidates++;
             }
         }
     }

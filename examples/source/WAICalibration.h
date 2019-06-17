@@ -9,8 +9,9 @@ using namespace std;
 
 enum CalibrationState
 {
-    Guess,
-    Calibrated
+    CalibrationState_None,
+    CalibrationState_Guess,
+    CalibrationState_Calibrated
 };
 
 class WAICalibration
