@@ -9,6 +9,9 @@ AppWAISingleton* AppWAISingleton::_instance = 0;
 
 AppWAISingleton::AppWAISingleton()
 {
+    wai         = NULL;
+    appWaiScene = NULL;
+    wc          = NULL;
 }
 
 AppWAISingleton* AppWAISingleton::instance()
@@ -26,12 +29,12 @@ void AppWAISingleton::load(int width, int height, std::string path)
     scrHeight   = height;
     root_path   = path;
 
-    wai         = new WAI::WAI(path + "/data");
+    wai         = new WAI::WAI(path);
     appWaiScene = new AppWAIScene();
     wc          = new WAICalibration();
 
     wc->changeImageSize(width, height);
-    wc->loadFromFile(root_path + "/data/calibrations/cam_calibration_main.xml");
+    wc->loadFromFile(root_path + "/calibrations/cam_calibration_main.xml");
     WAI::CameraCalibration calibration;
     calibration = wc->getCameraCalibration();
     wai->activateSensor(WAI::SensorType_Camera, &calibration);
@@ -43,13 +46,31 @@ void AppWAISingleton::load(int width, int height, std::string path, WAICalibrati
     scrHeight   = height;
     root_path   = path;
 
-    wai         = new WAI::WAI(path + "/data");
+    wai         = new WAI::WAI(path);
     appWaiScene = new AppWAIScene();
     wc          = c;
 
     wc->changeImageSize(width, height);
-    wc->loadFromFile(root_path + "/data/calibrations/cam_calibration_main.xml");
+    wc->loadFromFile(root_path + "/calibrations/cam_calibration_main.xml");
     WAI::CameraCalibration calibration;
     calibration = wc->getCameraCalibration();
     wai->activateSensor(WAI::SensorType_Camera, &calibration);
 }
+
+void AppWAISingleton::load(int width, int height, std::string path, std::string externalpath)
+{
+    scrWidth    = width;
+    scrHeight   = height;
+    root_path   = path;
+
+    wai         = new WAI::WAI(path);
+    appWaiScene = new AppWAIScene();
+    wc          = new WAICalibration();
+
+    wc->changeImageSize(width, height);
+    wc->loadFromFile(externalpath + "/cam_calibration_main.xml");
+    WAI::CameraCalibration calibration;
+    calibration = wc->getCameraCalibration();
+    wai->activateSensor(WAI::SensorType_Camera, &calibration);
+}
+

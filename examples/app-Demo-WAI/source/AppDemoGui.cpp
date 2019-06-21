@@ -400,29 +400,27 @@ void AppDemoGui::build(SLScene* s, SLSceneView* sv)
         SLchar m[2550]; // message character array
         m[0] = 0;       // set zero length
 
-        SLCVCalibration* c        = SLApplication::activeCalib;
+        WAICalibration * wc = AppWAISingleton::instance()->wc;
+
         SLCVSize         capSize  = SLCVCapture::captureSize;
         SLVideoType      vt       = s->videoType();
-        SLstring         mirrored = "None";
-        if (c->isMirroredH() && c->isMirroredV())
-            mirrored = "horizontally & vertically";
-        else if (c->isMirroredH())
-            mirrored = "horizontally";
-        else if (c->isMirroredV())
-            mirrored = "vertically";
 
         sprintf(m + strlen(m), "Video Type    : %s\n", vt == VT_NONE ? "None" : vt == VT_MAIN ? "Main Camera" : vt == VT_FILE ? "File" : "Secondary Camera");
         sprintf(m + strlen(m), "Display size  : %d x %d\n", SLCVCapture::lastFrame.cols, SLCVCapture::lastFrame.rows);
         sprintf(m + strlen(m), "Capture size  : %d x %d\n", capSize.width, capSize.height);
         sprintf(m + strlen(m), "Requested size: %d\n", SLCVCapture::requestedSizeIndex);
-        sprintf(m + strlen(m), "Mirrored      : %s\n", mirrored.c_str());
-        sprintf(m + strlen(m), "Undistorted   : %s\n", c->showUndistorted() && c->state() == CS_calibrated ? "Yes" : "No");
-        sprintf(m + strlen(m), "FOV (deg.)    : %4.1f\n", c->cameraFovDeg());
-        sprintf(m + strlen(m), "fx,fy,cx,cy   : %4.1f,%4.1f,%4.1f,%4.1f\n", c->fx(), c->fy(), c->cx(), c->cy());
-        sprintf(m + strlen(m), "k1,k2,p1,p2   : %4.2f,%4.2f,%4.2f,%4.2f\n", c->k1(), c->k2(), c->p1(), c->p2());
-        sprintf(m + strlen(m), "Calib. time   : %s\n", c->calibrationTime().c_str());
-        sprintf(m + strlen(m), "Calib. file   : %s\n", c->calibFileName().c_str());
-        sprintf(m + strlen(m), "Calib. state  : %s\n", c->stateStr().c_str());
+        //sprintf(m + strlen(m), "Mirrored      : %s\n", mirrored.c_str());
+
+        if (wc != nullptr)
+        {
+            //sprintf(m + strlen(m), "Undistorted   : %s\n", c->showUndistorted() && c->state() == CS_calibrated ? "Yes" : "No");
+            sprintf(m + strlen(m), "FOV (deg.)    : %4.1f\n", wc->calcCameraFOV());
+            sprintf(m + strlen(m), "fx,fy,cx,cy   : %4.1f,%4.1f,%4.1f,%4.1f\n", wc->fx(), wc->fy(), wc->cx(), wc->cy());
+            sprintf(m + strlen(m), "k1,k2,p1,p2   : %4.2f,%4.2f,%4.2f,%4.2f\n", wc->k1(), wc->k2(), wc->p1(), wc->p2());
+            //sprintf(m + strlen(m), "Calib. time   : %s\n", c->calibrationTime().c_str());
+            sprintf(m + strlen(m), "Calib. file   : %s\n", wc->getCalibrationPath().c_str());
+            sprintf(m + strlen(m), "Calib. state  : %s\n", wc->stateStr().c_str());
+        }
 
         if (vt != VT_NONE && s->trackers().size() > 0)
         {

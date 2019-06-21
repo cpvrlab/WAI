@@ -18,6 +18,7 @@ struct OrbExtractionParameters
 {
     i32 numberOfFeatures;
     r32 scaleFactor;
+    r32 logScaleFactor;
     i32 numberOfScaleLevels;
     i32 initialThreshold;
     i32 minimalThreshold;

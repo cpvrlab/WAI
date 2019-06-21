@@ -338,11 +338,10 @@ static i32 findMapPointMatchesByBoW(const DBoW2::FeatureVector&      featureVect
                                     const cv::Mat&                   descriptorsReferenceFrame,
                                     const cv::Mat&                   descriptorsCurrentFrame,
                                     const bool32                     checkOrientation,
-                                    std::vector<MapPoint*>&          matches)
+                                    std::vector<MapPoint*>&          matches,
+                                    r32                              bestToSecondBestRatio)
 {
     i32 result = 0;
-
-    const r32 bestToSecondBestRatio = 0.7f;
 
     const std::vector<MapPoint*> referenceKeyFrameMapPoints = mapPointMatchesReferenceFrame;
     matches                                                 = std::vector<MapPoint*>(keyPointsCurrentFrame.size(), nullptr);
@@ -458,6 +457,216 @@ static i32 findMapPointMatchesByBoW(const DBoW2::FeatureVector&      featureVect
             {
                 matches[rotHist[i][j]] = nullptr;
                 result--;
+            }
+        }
+    }
+
+    return result;
+}
+
+static r32 getMapPointMaxDistanceInvariance(r32 maxDistance)
+{
+    r32 result = 1.2f * maxDistance;
+
+    return result;
+}
+
+static r32 getMapPointMaxDistanceInvariance(MapPoint* mapPoint)
+{
+    // TODO(jan): mutex
+
+    r32 result = getMapPointMaxDistanceInvariance(mapPoint->maxDistance);
+
+    return result;
+}
+
+static r32 getMapPointMinDistanceInvariance(r32 minDistance)
+{
+    r32 result = 0.8f * minDistance;
+
+    return result;
+}
+
+static r32 getMapPointMinDistanceInvariance(MapPoint* mapPoint)
+{
+    // TODO(jan): mutex
+
+    r32 result = getMapPointMinDistanceInvariance(mapPoint->minDistance);
+
+    return result;
+}
+
+static i32 predictMapPointScale(const r32 maxDistance,
+                                const r32 currentDistance,
+                                const i32 numberOfScaleLevels,
+                                const r32 logScaleFactor)
+{
+    r32 ratio;
+    {
+        // TODO(jan): mutex
+        ratio = maxDistance / currentDistance;
+    }
+
+    i32 result = ceil(log(ratio) / logScaleFactor);
+    if (result < 0)
+    {
+        result = 0;
+    }
+    else if (result >= numberOfScaleLevels)
+    {
+        result = numberOfScaleLevels - 1;
+    }
+
+    return result;
+}
+
+static i32 searchMapPointsByProjection(const cv::Mat&                  cTwCurrentFrame,
+                                       const std::vector<size_t>       currentFrameKeyPointIndexGrid[FRAME_GRID_COLS][FRAME_GRID_ROWS],
+                                       const i32                       currentFrameKeyPointCount,
+                                       const std::vector<cv::KeyPoint> currentFrameUndistortedKeyPoints,
+                                       const cv::Mat&                  currentFrameDescriptors,
+                                       std::vector<MapPoint*>&         currentFrameMapPoints,
+                                       const std::vector<MapPoint*>&   candiateKeyFrameMapPoints,
+                                       const std::vector<cv::KeyPoint> candiateKeyFrameUndistortedKeyPoints,
+                                       const set<MapPoint*>&           alreadyFoundMapPoints,
+                                       const GridConstraints           gridConstraints,
+                                       const std::vector<r32>&         scaleFactors,
+                                       const i32                       numberOfScaleLevels,
+                                       const r32                       logScaleFactor,
+                                       const r32                       fx,
+                                       const r32                       fy,
+                                       const r32                       cx,
+                                       const r32                       cy,
+                                       const r32                       threshold,
+                                       const i32                       ORBdist,
+                                       const bool32                    checkOrientation)
+{
+    i32 result = 0;
+
+    const cv::Mat Rcw = cTwCurrentFrame.rowRange(0, 3).colRange(0, 3);
+    const cv::Mat tcw = cTwCurrentFrame.rowRange(0, 3).col(3);
+    const cv::Mat Ow  = -Rcw.t() * tcw;
+
+    // Rotation Histogram (to check rotation consistency)
+    std::vector<i32> rotHist[ROTATION_HISTORY_LENGTH];
+    for (i32 i = 0; i < ROTATION_HISTORY_LENGTH; i++) rotHist[i].reserve(500);
+    const float factor = 1.0f / ROTATION_HISTORY_LENGTH;
+
+    const vector<MapPoint*> vpMPs = candiateKeyFrameMapPoints;
+
+    for (i32 i = 0; i < vpMPs.size(); i++)
+    {
+        MapPoint* pMP = vpMPs[i];
+
+        if (pMP)
+        {
+            if (!pMP->bad && !alreadyFoundMapPoints.count(pMP))
+            {
+                //Project
+                cv::Mat x3Dw = pMP->position;
+                cv::Mat x3Dc = Rcw * x3Dw + tcw;
+
+                const float xc    = x3Dc.at<float>(0);
+                const float yc    = x3Dc.at<float>(1);
+                const float invzc = 1.0 / x3Dc.at<float>(2);
+
+                const float u = fx * xc * invzc + cx;
+                const float v = fy * yc * invzc + cy;
+
+                if (u < gridConstraints.minX || u > gridConstraints.maxX) continue;
+                if (v < gridConstraints.minY || v > gridConstraints.maxY) continue;
+
+                // Compute predicted scale level
+                cv::Mat PO     = x3Dw - Ow;
+                float   dist3D = cv::norm(PO);
+
+                const float maxDistance = getMapPointMaxDistanceInvariance(pMP);
+                const float minDistance = getMapPointMinDistanceInvariance(pMP);
+
+                // Depth must be inside the scale pyramid of the image
+                if (dist3D < minDistance || dist3D > maxDistance) continue;
+
+                int nPredictedLevel = predictMapPointScale(pMP->maxDistance,
+                                                           dist3D,
+                                                           numberOfScaleLevels,
+                                                           logScaleFactor);
+
+                // Search in a window
+                const r32 radius = threshold * scaleFactors[nPredictedLevel];
+
+                const std::vector<size_t> vIndices2 = getFeatureIndicesForArea(currentFrameKeyPointCount,
+                                                                               radius,
+                                                                               u,
+                                                                               v,
+                                                                               gridConstraints,
+                                                                               nPredictedLevel - 1,
+                                                                               nPredictedLevel + 1,
+                                                                               currentFrameKeyPointIndexGrid,
+                                                                               currentFrameUndistortedKeyPoints);
+
+                if (vIndices2.empty()) continue;
+
+                const cv::Mat dMP = pMP->descriptor;
+
+                int bestDist = 256;
+                int bestIdx2 = -1;
+
+                for (vector<size_t>::const_iterator vit = vIndices2.begin(); vit != vIndices2.end(); vit++)
+                {
+                    const size_t i2 = *vit;
+
+                    if (currentFrameMapPoints[i2]) continue;
+
+                    const cv::Mat& d = currentFrameDescriptors.row(i2);
+
+                    const int dist = descriptorDistance(dMP, d);
+
+                    if (dist < bestDist)
+                    {
+                        bestDist = dist;
+                        bestIdx2 = i2;
+                    }
+                }
+
+                if (bestDist <= ORBdist)
+                {
+                    currentFrameMapPoints[bestIdx2] = pMP;
+                    result++;
+
+                    if (checkOrientation)
+                    {
+                        float rot = candiateKeyFrameUndistortedKeyPoints[i].angle - currentFrameUndistortedKeyPoints[bestIdx2].angle;
+                        if (rot < 0.0) rot += 360.0f;
+
+                        int bin = round(rot * factor);
+                        if (bin == ROTATION_HISTORY_LENGTH) bin = 0;
+
+                        assert(bin >= 0 && bin < ROTATION_HISTORY_LENGTH);
+                        rotHist[bin].push_back(bestIdx2);
+                    }
+                }
+            }
+        }
+    }
+
+    //Apply rotation consistency
+    if (checkOrientation)
+    {
+        int ind1 = -1;
+        int ind2 = -1;
+        int ind3 = -1;
+
+        computeThreeMaxima(rotHist, ROTATION_HISTORY_LENGTH, ind1, ind2, ind3);
+
+        for (int i = 0; i < ROTATION_HISTORY_LENGTH; i++)
+        {
+            if (i != ind1 && i != ind2 && i != ind3)
+            {
+                for (size_t j = 0, jend = rotHist[i].size(); j < jend; j++)
+                {
+                    currentFrameMapPoints[rotHist[i][j]] = static_cast<MapPoint*>(NULL);
+                    result--;
+                }
             }
         }
     }

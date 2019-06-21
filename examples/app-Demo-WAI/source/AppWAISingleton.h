@@ -12,6 +12,7 @@ class AppWAISingleton
 
     void            load(int width, int height, std::string path);
     void            load(int width, int height, std::string path, WAICalibration* calibration);
+    void            load(int width, int height, std::string path, std::string externalPath);
     std::string     root_path;
     WAI::WAI*       wai;
     WAICalibration* wc;

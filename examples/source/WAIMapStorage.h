@@ -38,6 +38,8 @@ class WAI_API WAIMapStorage
     static unsigned int getCurrentId() { return _currentId; }
     static string       mapsDir();
 
+    static string externalDir() { return _externalDir; }
+
     //values used by imgui:
     //!currently existing names in storage
     static std::vector<std::string> existingMapNames;
