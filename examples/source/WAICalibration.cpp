@@ -28,6 +28,7 @@ void WAICalibration::reset()
 
     _cameraFovDeg = fov;
     _state        = Guess;
+    _calibrationPath = std::string("");
 }
 
 void WAICalibration::computeMatrix(cv::Mat &mat, float fov)
@@ -37,6 +38,15 @@ void WAICalibration::computeMatrix(cv::Mat &mat, float fov)
     float fy  = cy / tanf(fov * 0.5f * M_PI / 180.0);
     float fx  = fy;
     mat = (Mat_<double>(3, 3) << fx, 0, cx, 0, fy, cy, 0, 0, 1);
+}
+
+
+std::string WAICalibration::stateStr()
+{
+    if (_state == Guess)
+        return std::string("Guess");
+    else
+        return std::string("Calibrated");
 }
 
 bool WAICalibration::loadFromFile(std::string path)
@@ -56,6 +66,8 @@ bool WAICalibration::loadFromFile(std::string path)
     _state = Calibrated;
 
     float fov = calcCameraFOV();
+
+    _calibrationPath = path;
 
     std::cout << "calibration file " << path << " loaded.    FOV = " << fov << std::endl;
     return true;

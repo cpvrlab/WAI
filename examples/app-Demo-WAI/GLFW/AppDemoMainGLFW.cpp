@@ -563,7 +563,7 @@ int main(int argc, char* argv[])
     slSetupExternalDirectories(waiRoot + "/data");
 
     /////////////////////////////////////////////////////////
-    AppWAISingleton::instance()->load(640, 480, waiRoot, new AutoCalibration(640, 480));
+    AppWAISingleton::instance()->load(640, 480, waiRoot + "/data", new AutoCalibration(640, 480));
 
     slCreateAppAndScene(cmdLineArgs,
                         slRoot + "/data/shaders/",

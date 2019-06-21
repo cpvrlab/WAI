@@ -28,6 +28,8 @@ class WAICalibration
     cv::Mat&               cameraMat() { return _cameraMat; }
     cv::Mat&               distortion() { return _distortion; }
     CalibrationState       getState() { return _state; }
+    std::string            getCalibrationPath() { return _calibrationPath; }
+    std::string            stateStr();
 
     float fx() { return _cameraMat.cols == 3 && _cameraMat.rows == 3 ? (float)_cameraMat.at<double>(0, 0) : 0.0f; }
     float fy() { return _cameraMat.cols == 3 && _cameraMat.rows == 3 ? (float)_cameraMat.at<double>(1, 1) : 0.0f; }
@@ -44,5 +46,6 @@ class WAICalibration
     cv::Mat          _distortion;
     cv::Size         _imgSize;
     float            _cameraFovDeg;
+    std::string      _calibrationPath;
 };
 #endif
