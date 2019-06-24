@@ -188,13 +188,6 @@ WAI_API bool wai_whereAmI(WAI::M4x4* pose)
     return result;
 }
 
-WAI_API void wai_stopSystem()
-{
-    delete mode;
-
-    WAI_LOG("System stopped\n");
-}
-
 WAI_API int wai_getState(char* buffer, int size)
 {
     //WAI_LOG("getState called");
@@ -224,6 +217,12 @@ WAI_API void wai_registerDebugCallback(DebugLogCallback callback)
     registerDebugCallback(callback);
 }
 
+WAI_API void wai_stopSystem()
+{
+    WAI_LOG("Wai Stop System called");
+    wai.deleteMode();
+}
+
 WAI_API bool32 wai_saveMap(bool32 saveAndLoadImages)
 {
     //save keyframes (without graph/neigbourhood information)
@@ -232,7 +231,7 @@ WAI_API bool32 wai_saveMap(bool32 saveAndLoadImages)
     {
         std::string mapDir   = mapsDir + mapPrefix + std::to_string(nextId) + "/";
         std::string filename = mapDir + mapPrefix + std::to_string(nextId) + ".json";
-        std::string imgDir   = mapDir + "imgs";
+        std::string imgDir   = mapDir + "imgs/";
 
         WAI_LOG("Saving map to %s\n", mapDir.c_str());
 

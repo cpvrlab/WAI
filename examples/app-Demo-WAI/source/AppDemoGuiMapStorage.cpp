@@ -79,7 +79,7 @@ void AppDemoGuiMapStorage::saveMap()
     {
         std::string mapDir   = _mapDir + _mapPrefix + std::to_string(_nextId) + "/";
         std::string filename = mapDir + _mapPrefix + std::to_string(_nextId) + ".json";
-        std::string imgDir   = mapDir + "imgs";
+        std::string imgDir   = mapDir + "imgs/";
 
         if (!Utils::dirExists(mapDir))
         {

@@ -27,7 +27,7 @@ struct CameraData
 {
     cv::Mat* imageGray;
     cv::Mat* imageRGB;
-    i32      knownPoseProvided;
+    bool32   knownPoseProvided;
     cv::Mat* knownPose;
 };
 

@@ -497,7 +497,7 @@ int main(int argc, char* argv[])
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     int scrWidth  = 640;
-    int scrHeight = 480;
+    int scrHeight = 360;
 
     //we have to fix aspect ratio, because the video image is initialized with this ratio
     fixAspectRatio = true;
@@ -565,7 +565,7 @@ int main(int argc, char* argv[])
     slSetupExternalDirectories(waiRoot + "/data");
 
     /////////////////////////////////////////////////////////
-    AppWAISingleton::instance()->load(640, 480, waiRoot, new AutoCalibration(640, 480));
+    AppWAISingleton::instance()->load(640, 360, waiRoot, new AutoCalibration(640, 360));
 
     slCreateAppAndScene(cmdLineArgs,
                         slRoot + "/data/shaders/",

@@ -113,12 +113,12 @@ void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
     s->videoType(VT_MAIN);
     onLoadScenePoseEstimation(s, sv);
 #else
-    SLstring calibFileName = "cam_calibration_main_huawei_p10_640_360.xml";
-    SLApplication::calibVideoFile.load(WAIMapStorage::externalDir() + "calibrations/", calibFileName, false, false);
-    SLApplication::calibVideoFile.loadCalibParams();
+    //SLstring calibFileName = "cam_calibration_main_huawei_p10_640_360.xml";
+    //SLApplication::calibVideoFile.load(WAIMapStorage::externalDir() + "calibrations/", calibFileName, false, false);
+    //SLApplication::calibVideoFile.loadCalibParams();
 
     s->videoType(VT_FILE);
-    SLCVCapture::videoFilename = "cropedDJI_0211.mp4";
+    SLCVCapture::videoFilename = "cropedDJI_0209.mp4";
     SLCVCapture::videoLoops    = true;
 
     onLoadScenePoseEstimation(s, sv);

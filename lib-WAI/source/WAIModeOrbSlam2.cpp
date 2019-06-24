@@ -66,6 +66,7 @@ WAI::ModeOrbSlam2::ModeOrbSlam2(SensorCamera* camera,
 WAI::ModeOrbSlam2::~ModeOrbSlam2()
 {
     WAI_LOG("Destructor ModeOrbSlam2");
+
     if (!_serial)
     {
         mpLocalMapper->RequestFinish();
@@ -536,7 +537,6 @@ void WAI::ModeOrbSlam2::initializeWithKnownPose()
             return;
         }
 
-#if 0
         // ghm1: decorate image with tracked matches
         // mvIniMatches is same size as number of keypoints in mInitialFrame and
         // contains the index of the matched keypoint of mCurrentFrame
@@ -550,7 +550,6 @@ void WAI::ModeOrbSlam2::initializeWithKnownPose()
                          cv::Scalar(0, 255, 0));
             }
         }
-#endif
 
         // Create KeyFrames
         WAIKeyFrame* pKFini = new WAIKeyFrame(mInitialFrame, _map, mpKeyFrameDatabase);
@@ -839,7 +838,7 @@ void WAI::ModeOrbSlam2::initializeWithKnownPose()
 
         if (medianDepth < 0 || pKFcur->TrackedMapPoints(1) < 100)
         {
-            WAI_LOG("Wrong initialization, reseting...");
+            WAI_LOG("Wrong initialization (medianDepth), reseting...");
             reset();
         }
         else
@@ -1647,7 +1646,7 @@ void WAI::ModeOrbSlam2::reset()
         mpLocalMapper->reset();
     }
 
-    //// Reset Loop Closing
+    // Reset Loop Closing
     if (!_serial)
     {
         mpLoopCloser->RequestReset();
@@ -1852,7 +1851,7 @@ bool WAI::ModeOrbSlam2::relocalization()
         else
         {
             int nmatches = matcher.SearchByBoW(pKF, mCurrentFrame, vvpMapPointMatches[i]);
-            //cout << "Num matches: " << nmatches << endl;
+            WAI_LOG("Num matches: %i", nmatches);
             if (nmatches < 15)
             {
                 vbDiscarded[i] = true;

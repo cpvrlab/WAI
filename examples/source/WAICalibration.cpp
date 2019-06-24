@@ -21,7 +21,7 @@ void WAICalibration::changeImageSize(int width, int height)
 
 void WAICalibration::reset()
 {
-    float fov = 30;
+    float fov = 42.0f;
     computeMatrix(_cameraMat, fov);
     // No distortion
     _distortion = (Mat_<double>(5, 1) << 0, 0, 0, 0, 0);
@@ -44,6 +44,8 @@ bool WAICalibration::loadFromFile(std::string path)
     FileStorage fs(path, FileStorage::READ);
     if (!fs.isOpened())
     {
+        // TODO(jan): handle more nicely
+        WAI_LOG("Calibration file %s does not exist. Exiting...", path.c_str());
         return false;
     }
 
@@ -57,7 +59,7 @@ bool WAICalibration::loadFromFile(std::string path)
 
     float fov = calcCameraFOV();
 
-    std::cout << "calibration file " << path << " loaded.    FOV = " << fov << std::endl;
+    WAI_LOG("calibration file %s loaded.    FOV = %f", path.c_str(), fov);
     return true;
 }
 

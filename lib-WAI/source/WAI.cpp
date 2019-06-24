@@ -32,7 +32,7 @@ WAI::Mode* WAI::WAI::setMode(ModeType modeType)
             {
                 _mode = new ModeOrbSlam2((SensorCamera*)_sensors[SensorType_Camera],
                                          false,
-                                         false,
+                                         true,
                                          false,
                                          false,
                                          _dataRoot + "/calibrations/ORBvoc.bin");
@@ -128,4 +128,13 @@ bool WAI::WAI::whereAmI(cv::Mat* pose)
     bool result = _mode->getPose(pose);
 
     return result;
+}
+
+void WAI::WAI::deleteMode()
+{
+    if (_mode)
+    {
+        delete _mode;
+        _mode = nullptr;
+    }
 }

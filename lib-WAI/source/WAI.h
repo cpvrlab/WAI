@@ -24,6 +24,7 @@ class WAI_API WAI
     bool  whereAmI(cv::Mat* pose);
     Mode* setMode(ModeType mode);
     Mode* getCurrentMode();
+    void  deleteMode();
 
     private:
     std::string                   _dataRoot;
