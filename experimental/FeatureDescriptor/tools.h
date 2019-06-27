@@ -51,5 +51,7 @@ unsigned int hamming_distance(Descriptor &a, Descriptor &b);
 
 void print_desc(Descriptor &d);
 
+void compute_three_maxima(std::vector<int>* histo, const int L, int& ind1, int& ind2, int& ind3);
+
 #endif
 
