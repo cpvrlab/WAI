@@ -1,4 +1,3 @@
-
 #include <WAIModeOrbSlam2.h>
 
 WAI::ModeOrbSlam2::ModeOrbSlam2(SensorCamera* camera,
@@ -495,31 +494,6 @@ void WAI::ModeOrbSlam2::initialize()
                              mpVocabulary,
                              _retainImg);
 
-#if 0
-    if (!_videoCaptureStarted)
-    {
-        SL_LOG("Starting video capture\n");
-        string videoName = "slam-map-video.avi";
-        string videoPath = SLUtils::unifySlashes(WAIMapStorage::mapsDir() + "slam-map-" + to_string(WAIMapStorage::getCurrentId()));
-
-        if (!SLFileSystem::dirExists(videoPath))
-        {
-            SL_LOG("Making dir: %s\n", videoPath.c_str());
-            SLFileSystem::makeDir(videoPath);
-        }
-
-        SL_LOG("Initializing video writer for path %s\n", videoPath.c_str());
-        _videoWriter.open(videoPath + videoName, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 30, _img.size(), true);
-        if (!_videoWriter.isOpened())
-        {
-            SL_LOG("Could not write video file to %s\n", videoPath.c_str());
-        }
-        _videoCaptureStarted = true;
-    }
-
-    _videoWriter.write(_img);
-#endif
-
     if (!mpInitializer)
     {
         // Set Reference Frame
@@ -663,8 +637,6 @@ void WAI::ModeOrbSlam2::track3DPts()
                              distortionMat,
                              mpVocabulary,
                              _retainImg);
-
-    //_videoWriter.write(_img);
 
     // Get Map Mutex -> Map cannot be changed
     std::unique_lock<std::mutex> lock(_map->mMutexMapUpdate, std::defer_lock);
@@ -1377,7 +1349,7 @@ bool WAI::ModeOrbSlam2::relocalization()
 
     // We perform first an ORB matching with each candidate
     // If enough matches are found we setup a PnP solver
-
+    // Best match < 0.75 * second best match (default is 0.6)
     ORBmatcher matcher(0.75, true);
 
     vector<PnPsolver*> vpPnPsolvers;
