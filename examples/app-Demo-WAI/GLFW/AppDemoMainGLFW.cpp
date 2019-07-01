@@ -21,6 +21,7 @@
 #include <WAIModeOrbSlam2.h>
 #include <WAIAutoCalibration.h>
 #include <AppWAISingleton.h>
+#include <AppDemoGuiVideoStorage.h>
 
 #include <SLCVCapture.h>
 #include <SLCVCalibration.h>
@@ -39,7 +40,7 @@
 
 #include <WAI.h>
 
-#define AUTO_CALIBRATION 0
+#define AUTO_CALIBRATION 1
 
 //-----------------------------------------------------------------------------
 // GLobal application variables
@@ -581,6 +582,10 @@ int main(int argc, char* argv[])
 
     // This load the GUI configs that are locally stored
     AppDemoGui::loadConfig(dpi);
+
+    auto videoStorageGUI = std::make_shared<AppDemoGuiVideoStorage>("VideoStorage", waiRoot + "/data/videos/");
+    AppDemoGui::addInfoDialog(videoStorageGUI);
+
     SLApplication::sceneID = (SLSceneID)Scene_WAI;
 
     /////////////////////////////////////////////////////////

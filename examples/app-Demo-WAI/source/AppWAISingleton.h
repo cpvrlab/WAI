@@ -20,6 +20,8 @@ class AppWAISingleton
     int             scrWidth;
     int             scrHeight;
 
+    cv::VideoWriter videoWriter;
+
     private:
     AppWAISingleton();
     static AppWAISingleton* _instance;

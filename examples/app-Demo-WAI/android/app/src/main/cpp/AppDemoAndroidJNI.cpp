@@ -18,6 +18,7 @@
 
 #include <AppWAISceneView.h>
 #include <AppDemoGui.h>
+#include <AppDemoGuiVideoStorage.h>
 #include <CV/SLCVCapture.h>
 
 //-----------------------------------------------------------------------------
@@ -117,9 +118,13 @@ JNIEXPORT void JNICALL Java_ch_fhnw_comgr_GLES3Lib_onInit(JNIEnv* env, jobject o
     string device_path_msg = "Device path:" + devicePath;
     SL_LOG(device_path_msg.c_str(), 0);
 
+
+    string external_dir_msg = "External dir:" + externalDir;
+    SL_LOG(external_dir_msg.c_str(), 0);
+
     dataRoot = devicePath;
 
-    AppWAISingleton::instance()->load(width, height, devicePath);
+    AppWAISingleton::instance()->load(width, height, devicePath, externalDir);
 
     ////////////////////////////////////////////////////
     slCreateAppAndScene(*cmdLineArgs,
@@ -136,6 +141,8 @@ JNIEXPORT void JNICALL Java_ch_fhnw_comgr_GLES3Lib_onInit(JNIEnv* env, jobject o
 
     // This load the GUI configs that are locally stored
     AppDemoGui::loadConfig(dpi);
+    auto videoStorageGUI = std::make_shared<AppDemoGuiVideoStorage>("VideoStorage", externalDir + "/videos/");
+    AppDemoGui::addInfoDialog(videoStorageGUI);
 
     ////////////////////////////////////////////////////////////////////
     svIndex = slCreateSceneView((int)width,

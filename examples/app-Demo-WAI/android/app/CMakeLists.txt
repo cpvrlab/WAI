@@ -11,6 +11,7 @@ file(GLOB headers
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiInfosDialog.h
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiTrackedMapping.h
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiMapStorage.h
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiVideoStorage.h
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiInfosMapNodeTransform.h
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiInfosTracking.h
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAISceneView.h
@@ -29,6 +30,7 @@ file(GLOB sources
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiInfosDialog.cpp
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiTrackedMapping.cpp
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiMapStorage.cpp
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiVideoStorage.cpp
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAISceneView.cpp
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAIScene.cpp
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAISingleton.cpp
@@ -108,12 +110,7 @@ file(GLOB_RECURSE SHADERS
 file(GLOB_RECURSE CALIBRATIONS
     ${WAI_ROOT}/data/calibrations/calib_in_params.yml
     ${WAI_ROOT}/data/calibrations/aruco_detector_params.yml
-    ${WAI_ROOT}/data/calibrations/street1_manip.json
-    ${WAI_ROOT}/data/calibrations/orb-slam-state-altstadtbiel1_manip.json
-    ${WAI_ROOT}/data/calibrations/orb-slam-state-bern1-manip1.json
-    ${WAI_ROOT}/data/calibrations/orb-slam-state-buero1.json
-    ${WAI_ROOT}/data/calibrations/test.yml
-    ${WAI_ROOT}/data/calibrations/cam_calibration_main_huawei_p10_640_480.xml
+    ${WAI_ROOT}/data/calibrations/cam_calibration_main.xml
     ${WAI_ROOT}/data/calibrations/ORBvoc.bin
     )
 

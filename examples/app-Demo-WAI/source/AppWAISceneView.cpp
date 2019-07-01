@@ -239,6 +239,10 @@ void WAISceneView::updateCamera(WAI::CameraData* cameraData)
 {
     WAI::WAI* wai = AppWAISingleton::instance()->wai;
     wai->updateSensor(WAI::SensorType_Camera, cameraData);
+
+    if (AppWAISingleton::instance()->videoWriter.isOpened()) {
+        AppWAISingleton::instance()->videoWriter.write(*cameraData->imageRGB);
+    }
 }
 //-----------------------------------------------------------------------------
 void WAISceneView::updateMinNumOfCovisibles(int n)
