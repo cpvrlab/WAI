@@ -29,6 +29,7 @@ import android.os.IBinder;
 import android.support.annotation.NonNull;
 import android.util.Log;
 import android.util.Size;
+import android.util.SizeF;
 
 import java.util.Arrays;
 
@@ -90,6 +91,23 @@ public class GLES3Camera2Service extends Service {
             for (String cameraId : manager.getCameraIdList()) {
                 CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
                 int cOrientation = characteristics.get(CameraCharacteristics.LENS_FACING);
+
+                float[] focalLengths = characteristics.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS);
+                SizeF physicalSize = characteristics.get(CameraCharacteristics.SENSOR_INFO_PHYSICAL_SIZE);
+                android.graphics.Rect activePhysicalSize = characteristics.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE);
+                float[] apertureSizes = characteristics.get(CameraCharacteristics.LENS_INFO_AVAILABLE_APERTURES);
+                int distanceCalibration = characteristics.get(CameraCharacteristics.LENS_INFO_FOCUS_DISTANCE_CALIBRATION);
+                float minFocusDistance = characteristics.get(CameraCharacteristics.LENS_INFO_MINIMUM_FOCUS_DISTANCE);
+
+                Log.i(TAG, "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+                Log.i(TAG, "focalLength " + focalLengths[0]);
+                Log.i(TAG, "Sensors physical size : h " + ((SizeF) physicalSize).getHeight() + " w " + physicalSize.getWidth());
+                Log.i(TAG, "Active physical size : " + activePhysicalSize);
+                Log.i(TAG, "Aperture size : " + apertureSizes[0]);
+                Log.i(TAG, "Focus distance calibration : " + distanceCalibration);
+                Log.i(TAG, "Min focus distance : " + minFocusDistance);
+                Log.i(TAG, "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB");
+
                 if (cOrientation == lensFacing)
                     return cameraId;
             }
@@ -99,6 +117,27 @@ public class GLES3Camera2Service extends Service {
         return null;
     }
 
+    /*
+    public float getCameraFocalLengths(CameraManager manager, int lensFacing) {
+        try {
+            for (String cameraId : manager.getCameraIdList()) {
+                CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
+                int cOrientation = characteristics.get(CameraCharacteristics.LENS_FACING);
+
+                if (cOrientation == lensFacing)
+                {
+                    float[] focalLengths = characteristics.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS);
+                    return focalLengths[0];
+                }
+                SizeF physicalSize = characteristics.get(CameraCharacteristics.SENSOR_INFO_PHYSICAL_SIZE);
+
+            }
+        } catch (CameraAccessException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+    */
 
     /**
      * Returns the requested video size in pixel
@@ -311,6 +350,8 @@ public class GLES3Camera2Service extends Service {
     protected CaptureRequest createCaptureRequest() {
         try {
             CaptureRequest.Builder builder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
+            builder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_OFF);
+            builder.set(CaptureRequest.LENS_FOCUS_DISTANCE,0.0f);
             builder.addTarget(imageReader.getSurface());
             return builder.build();
         } catch (CameraAccessException e) {
