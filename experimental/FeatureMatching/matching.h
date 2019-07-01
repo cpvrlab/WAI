@@ -15,8 +15,8 @@ void match_keypoints_1(std::vector<int> &indexes,
                        std::vector<cv::KeyPoint> &kps2, std::vector<Descriptor> &desc2,
                        bool check_orientation = false,
                        float factor = 0.08333333,
-                       float nnratio = 0.8,
-                       float thres = 80);
+                       float nnratio = 0.6,
+                       float thres = 50);
 
 #endif
 

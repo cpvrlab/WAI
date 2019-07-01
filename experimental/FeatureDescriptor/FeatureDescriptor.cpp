@@ -1,38 +1,22 @@
 #include <iostream>
 #include <stdio.h>
 #include "tools.h"
-#include "ExtractKeypoints.h"
-#include "orb_descriptor.h"
-#include "matching.h"
-
-void image_descriptors_and_keypoints(std::vector<cv::KeyPoint> &keypoints, std::vector<Descriptor> &desc, cv::Mat &image, PyramidParameters &p)
-{
-    cv::Mat grayscaleImg;
-    std::vector<cv::Mat> image_pyramid;
-    std::vector<std::vector<cv::KeyPoint>> all_keypoints;
-    std::vector<std::vector<Descriptor>> all_desc;
-
-    grayscaleImg = to_grayscale(image);
-    build_pyramid(image_pyramid, grayscaleImg, p);
-
-    KeyPointExtract(all_keypoints, image_pyramid, p, 20, 7);
-    
-    ComputeORBDescriptor(all_desc, image_pyramid, p, all_keypoints);
-
-    flatten_keypoints(keypoints, all_keypoints, p);
-    flatten_decriptors(desc, all_desc, p);
-}
 
 int main(int argc, char** argv)
 {
-    PyramidParameters pyramid_param;
-    cv::Mat image1;
-    cv::Mat image2;
-    std::vector<cv::KeyPoint> keypoints1;
-    std::vector<Descriptor> desc1;
-    std::vector<cv::KeyPoint> keypoints2;
-    std::vector<Descriptor> desc2;
-    std::vector<int> indexes;
+    cv::Mat img1_resized;
+    cv::Mat img2_resized;
+
+    cv::Mat img1;
+    cv::Mat img2;
+
+    cv::Mat img_gray1;
+    cv::Mat img_gray2;
+
+    Descriptor desc1;
+    Descriptor desc2;
+
+    std::vector<int> umax;
 
     if (argc < 3)
     {
@@ -40,32 +24,36 @@ int main(int argc, char** argv)
         exit(1);
     }
 
-    init_pyramid_parameters(pyramid_param, 5, 1.2, 1000);
-    image1 = cv::imread(argv[1], CV_LOAD_IMAGE_COLOR);
-    image2 = cv::imread(argv[2], CV_LOAD_IMAGE_COLOR);
+    img1 = cv::imread(argv[1], CV_LOAD_IMAGE_COLOR);
+    img2 = cv::imread(argv[2], CV_LOAD_IMAGE_COLOR);
 
-    image_descriptors_and_keypoints(keypoints1, desc1, image1, pyramid_param);
-    image_descriptors_and_keypoints(keypoints2, desc2, image2, pyramid_param);
+    cv::resize(img1, img1_resized, cv::Size(512,512),0,0,cv::INTER_NEAREST);
+    cv::resize(img2, img2_resized, cv::Size(512,512),0,0,cv::INTER_NEAREST);
 
-    match_keypoints_1(indexes, keypoints1, desc1, keypoints2, desc2,false);
+    img_gray1 = to_grayscale(img1);
+    img_gray2 = to_grayscale(img2);
 
-    //Draw keypoints
-    cv::drawKeypoints(image1, keypoints1, image1, cv::Scalar(255, 0, 0));
-    cv::drawKeypoints(image2, keypoints2, image2, cv::Scalar(255, 0, 0));
+    init_patch(umax);
 
-    cv::Mat concatenated;
-    cv::hconcat(image1, image2, concatenated);
+    cv::GaussianBlur(img_gray1, img_gray1, cv::Size(7, 7), 2, 2, cv::BORDER_REFLECT_101);
+    cv::GaussianBlur(img_gray2, img_gray2, cv::Size(7, 7), 2, 2, cv::BORDER_REFLECT_101);
 
-    for (int i = 0; i < indexes.size(); i++)
-    {
-        if (indexes[i] >= 0)
-        {
-            cv::Scalar clr(rand() % 255, rand() % 255, rand() % 255); 
-            cv::line(concatenated, keypoints2[i].pt + cv::Point2f(image1.cols, 0), keypoints1[indexes[i]].pt, clr);
-        }
-    }
+    cv::KeyPoint kp1 = get_middle_keypoint(img_gray1);
+    cv::KeyPoint kp2 = get_middle_keypoint(img_gray2);
 
-    cv::imshow("orbextractor", concatenated);
+    keypoint_angle(img_gray1, kp1, umax);
+    keypoint_angle(img_gray2, kp2, umax);
+
+
+
+
+
+    std::cout << "angle img1 : " << kp1.angle * 180.0/M_PI << std::endl;
+    std::cout << "angle img2 : " << kp2.angle * 180.0/M_PI << std::endl;
+    std::cout << "d angle : " << (kp1.angle - kp2.angle) * 180.0/M_PI  << std::endl;
+
+    cv::imshow("img1", img1_resized);
+    cv::imshow("img2", img2_resized);
     cv::waitKey(0);
 
     return 0;

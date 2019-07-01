@@ -206,44 +206,4 @@ void compute_three_maxima(std::vector<int>* histo, const int L, int& ind1, int& 
     }
 }
 
-cv::KeyPoint get_middle_keypoint(cv::Mat image)
-{
-    float x = image.cols * 0.5;
-    float y = image.rows * 0.5;
-   
-    cv::KeyPoint kp = cv::KeyPoint(x, y, 7);
-    kp.angle = 0;
-    kp.octave = 0;
-
-    return kp;
-}
-
-void keypoint_angle(const cv::Mat& image, cv::KeyPoint &kp, const std::vector<int>& u_max)
-{
-    int m_01 = 0, m_10 = 0;
-
-    const uchar* center = &image.at<uchar>(cvRound(kp.pt.y), cvRound(kp.pt.x));
-
-    // Treat the center line differently, v=0
-    for (int u = -HALF_PATCH_SIZE; u <= HALF_PATCH_SIZE; ++u)
-        m_10 += u * center[u];
-
-    // Go line by line in the circular patch
-    int step = (int)image.step1();
-    for (int v = 1; v <= HALF_PATCH_SIZE; ++v)
-    {
-        // Proceed over the two lines
-        int v_sum = 0;
-        int d     = u_max[v];
-        for (int u = -d; u <= d; ++u)
-        {
-            int val_plus = center[u + v * step], val_minus = center[u - v * step];
-            v_sum += (val_plus - val_minus);
-            m_10 += u * (val_plus + val_minus);
-        }
-        m_01 += v * v_sum;
-    }
-
-    kp.angle = atan2((float)m_01, (float)m_10);
-}
 

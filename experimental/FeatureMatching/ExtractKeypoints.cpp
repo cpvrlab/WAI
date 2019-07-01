@@ -202,7 +202,6 @@ static std::vector<cv::KeyPoint> DistributeQuadTree(const std::vector<cv::KeyPoi
             }
         }
 
-        int asdasd = 1;
         // Finish if there are more nodes than required features
         // or all nodes contain just one point
         if ((int)lNodes.size() >= N || (int)lNodes.size() == prevSize)
@@ -274,8 +273,6 @@ static std::vector<cv::KeyPoint> DistributeQuadTree(const std::vector<cv::KeyPoi
             }
         }
     }
-
-    int i = 0;
 
     // Retain the best point in each node
     std::vector<cv::KeyPoint> vResultKeys;
@@ -437,6 +434,7 @@ void KeyPointExtract(std::vector<std::vector<cv::KeyPoint>>& allKeypoints, std::
             keypoints[i].pt.x += minBorderX;
             keypoints[i].pt.y += minBorderY;
             keypoints[i].octave = level;
+
             keypoints[i].size   = (float)scaledPatchSize;
         }
     }

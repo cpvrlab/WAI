@@ -3,7 +3,7 @@
 
 #include "tools.h"
 
-void ComputeORBDescriptor(std::vector<std::vector<Descriptor>> &descriptors, std::vector<cv::Mat> image_pyramid, PyramidParameters &p, std::vector<std::vector<cv::KeyPoint>>& allKeypoints);
+void ComputeORBDescriptor(Descriptor &descriptors, cv::Mat image, cv::KeyPoint kp);
 
 #endif
 

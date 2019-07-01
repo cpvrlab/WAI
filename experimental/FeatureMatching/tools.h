@@ -31,6 +31,8 @@ typedef struct Descriptor
     uchar mem[32];
 }Descriptor;
 
+
+
 void init_patch(std::vector<int> &umax);
 
 void init_pyramid_parameters(PyramidParameters &p, int nlevels, float scale_factor, int nfeatures);
@@ -50,10 +52,6 @@ unsigned int hamming_distance(Descriptor &a, Descriptor &b);
 void print_desc(Descriptor &d);
 
 void compute_three_maxima(std::vector<int>* histo, const int L, int& ind1, int& ind2, int& ind3);
-
-cv::KeyPoint get_middle_keypoint(cv::Mat image);
-
-void keypoint_angle(const cv::Mat& image, cv::KeyPoint &kp, const std::vector<int>& u_max);
 
 #endif
 
