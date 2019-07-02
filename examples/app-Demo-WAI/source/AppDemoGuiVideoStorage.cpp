@@ -85,12 +85,12 @@ void AppDemoGuiVideoStorage::saveVideo(std::string filename)
         AppWAISingleton::instance()->videoWriter.release();
     }
 
-    SLCVSize         size  = SLCVCapture::captureSize;
+    cv::Size         size  = cv::Size(SLCVCapture::lastFrame.cols, SLCVCapture::lastFrame.rows);
     std::cout << "size = " << size << std::endl;
     bool ret = AppWAISingleton::instance()->videoWriter.open(filename, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 30, size, true);
     if (ret)
     {
-        std::cout << "Open video writer sucess" << std::endl;
+        std::cout << "Open video writer success" << std::endl;
     }
     else
     {
