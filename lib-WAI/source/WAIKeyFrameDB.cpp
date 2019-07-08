@@ -276,7 +276,7 @@ vector<WAIKeyFrame*> WAIKeyFrameDB::DetectRelocalizationCandidates(WAIFrame* F)
             WAIKeyFrame* pKF2 = *vit;
 
             //TODO (luc)
-            //Evaluate which is the best between avoid bad neighbour or compute the reloc score for neighbours.
+            //Evaluate which is the best between avoid bad neighbour or compute the reloc score for all neighbours.
             if (pKF2->mnRelocQuery != F->mnId && pKF2->mnRelocWords <= minCommonWords)
                 continue;
 

@@ -141,7 +141,8 @@ JNIEXPORT void JNICALL Java_ch_fhnw_comgr_GLES3Lib_onInit(JNIEnv* env, jobject o
 
     // This load the GUI configs that are locally stored
     AppDemoGui::loadConfig(dpi);
-    auto videoStorageGUI = std::make_shared<AppDemoGuiVideoStorage>("VideoStorage", externalDir + "/videos/");
+
+    auto videoStorageGUI = std::make_shared<AppDemoGuiVideoStorage>("Video Storage", externalDir + "/videos/");
     AppDemoGui::addInfoDialog(videoStorageGUI);
 
     ////////////////////////////////////////////////////////////////////

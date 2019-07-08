@@ -237,11 +237,15 @@ void WAISceneView::updateTrackingVisualization(const bool iKnowWhereIAm)
 //-----------------------------------------------------------------------------
 void WAISceneView::updateCamera(WAI::CameraData* cameraData)
 {
+    if (AppWAISingleton::instance()->videoWriter.isOpened()) {
+        AppWAISingleton::instance()->videoWriter.write(*cameraData->imageRGB);
+    }
+
     WAI::WAI* wai = AppWAISingleton::instance()->wai;
     wai->updateSensor(WAI::SensorType_Camera, cameraData);
 
-    if (AppWAISingleton::instance()->videoWriter.isOpened()) {
-        AppWAISingleton::instance()->videoWriter.write(*cameraData->imageRGB);
+    if (AppWAISingleton::instance()->videoWriterInfo.isOpened()) {
+        AppWAISingleton::instance()->videoWriterInfo.write(*cameraData->imageRGB);
     }
 }
 //-----------------------------------------------------------------------------

@@ -22,8 +22,8 @@ AppDemoGuiVideoStorage::AppDemoGuiVideoStorage(const std::string& name, std::str
     _videoPrefix("video-"),
     _nextId(0)
 {
-    //_videoDir = Utils::unifySlashes(videoDir);
-    _videoDir = videoDir;
+    _videoDir = Utils::unifySlashes(videoDir);
+    //_videoDir = videoDir;
     _currentItem = "";
 
     _existingVideoNames.clear();
@@ -68,15 +68,31 @@ AppDemoGuiVideoStorage::AppDemoGuiVideoStorage(const std::string& name, std::str
 //-----------------------------------------------------------------------------
 void AppDemoGuiVideoStorage::saveVideo(std::string filename)
 {
+    std::string infoDir = _videoDir + "info/";
+    std::string infoPath = infoDir + filename;
+    std::string path = _videoDir + filename;
+
     if (!Utils::dirExists(_videoDir))
     {
         Utils::makeDir(_videoDir);
     }
     else
     {
-        if (Utils::fileExists(filename))
+        if (Utils::fileExists(path))
         {
-            Utils::deleteFile(filename);
+            Utils::deleteFile(path);
+        }
+    }
+
+    if (!Utils::dirExists(infoDir))
+    {
+        Utils::makeDir(infoDir);
+    }
+    else
+    {
+        if (Utils::fileExists(infoPath))
+        {
+            Utils::deleteFile(infoPath);
         }
     }
 
@@ -84,18 +100,16 @@ void AppDemoGuiVideoStorage::saveVideo(std::string filename)
     {
         AppWAISingleton::instance()->videoWriter.release();
     }
+    if (AppWAISingleton::instance()->videoWriterInfo.isOpened())
+    {
+        AppWAISingleton::instance()->videoWriterInfo.release();
+    }
 
-    cv::Size         size  = cv::Size(SLCVCapture::lastFrame.cols, SLCVCapture::lastFrame.rows);
-    std::cout << "size = " << size << std::endl;
-    bool ret = AppWAISingleton::instance()->videoWriter.open(filename, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 30, size, true);
-    if (ret)
-    {
-        std::cout << "Open video writer success" << std::endl;
-    }
-    else
-    {
-        std::cout << "Failed to open video writer" << std::endl;
-    }
+    cv::Size size  = cv::Size(SLCVCapture::lastFrame.cols, SLCVCapture::lastFrame.rows);
+
+    bool ret = AppWAISingleton::instance()->videoWriter.open(path, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 30, size, true);
+
+    ret = AppWAISingleton::instance()->videoWriterInfo.open(infoPath, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 30, size, true);
 }
 //-----------------------------------------------------------------------------
 void AppDemoGuiVideoStorage::buildInfos()
@@ -105,13 +119,12 @@ void AppDemoGuiVideoStorage::buildInfos()
         std::string filename;
         if (_currentItem.empty())
         {
-            filename = _videoDir + _videoPrefix + std::to_string(_nextId) + ".avi";
+            filename = _videoPrefix + std::to_string(_nextId) + ".avi";
         }
         else
         {
-            filename = _videoDir + _videoPrefix + _currentItem;
+            filename = _currentItem;
         }
-        std::cout << filename << std::endl;
         saveVideo(filename);
     }
 

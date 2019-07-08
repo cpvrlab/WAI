@@ -21,6 +21,7 @@ class AppWAISingleton
     int             scrHeight;
 
     cv::VideoWriter videoWriter;
+    cv::VideoWriter videoWriterInfo;
 
     private:
     AppWAISingleton();
