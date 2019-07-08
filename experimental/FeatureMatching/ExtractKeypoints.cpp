@@ -441,7 +441,10 @@ void KeyPointExtract(std::vector<std::vector<cv::KeyPoint>>& allKeypoints, std::
 
     // compute orientations
     for (int level = 0; level < p.scale_factors.size(); ++level)
+    {
         computeOrientation(image_pyramid[level], allKeypoints[level], umax);
+        std::cout << p.scale_factors[level] << std::endl;
+    }
 }
 
 

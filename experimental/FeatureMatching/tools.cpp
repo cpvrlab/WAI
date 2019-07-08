@@ -206,4 +206,166 @@ void compute_three_maxima(std::vector<int>* histo, const int L, int& ind1, int& 
     }
 }
 
+cv::Mat extract_patch(const cv::Mat& image, cv::KeyPoint &kp, const std::vector<int>& u_max)
+{
+    cv::Point pt = kp.pt / (kp.size / PATCH_SIZE);
+    const uchar* center = &image.at<uchar>(cvRound(pt.y), cvRound(pt.x));
+    cv::Mat patch = cv::Mat::zeros(PATCH_SIZE, PATCH_SIZE, CV_8UC1);
+    uchar * patch_center = &patch.at<uchar>(HALF_PATCH_SIZE, HALF_PATCH_SIZE);
+ 
+
+    for (int u = -HALF_PATCH_SIZE; u <= HALF_PATCH_SIZE; ++u)
+        patch_center[u] = center[u];
+
+    // Go line by line in the circular patch
+    int step = (int)image.step1();
+
+    for (int v = 1; v <= HALF_PATCH_SIZE; ++v)
+    {
+        int d = u_max[v];
+        for (int u = -d; u <= d; ++u)
+        {
+            int p = center[u + v * step];
+            int psym = center[u - v * step];
+            patch_center[u + v * patch.step] = p;
+            patch_center[u - v * patch.step] = psym;
+        }
+    }
+    return patch;
+}
+
+std::vector<int> get_inverted_matching(std::vector<int> matching, int size)
+{
+    std::vector<int> inverted_matching(size, -1);
+
+    for (int i = 0; i < matching.size(); i++)
+    {
+        int idx1 = matching[i];
+        inverted_matching[idx1] = i;
+    }
+    return inverted_matching;
+}
+
+float keypoint_degree(cv::KeyPoint kp)
+{
+    float angle = kp.angle * 360.0 / M_PI;
+    while (angle < 0.0) { angle += 360; }
+    return angle;
+}
+
+int select_closest_feature(std::vector<cv::KeyPoint> &keypoints, int x, int y)
+{
+    float min_dist = 10000000;
+    int min_idx = -1;
+
+    for (int i = 0; i < keypoints.size(); i++)
+    {
+        cv::Point2f p1 = keypoints[i].pt;
+        p1.x = p1.x - x;
+        p1.y = p1.y - y;
+
+        float dist = sqrt(p1.x * p1.x + p1.y * p1.y);
+
+        if (dist < min_dist)
+        {
+            min_dist = dist;
+            min_idx = i;
+        }
+    }
+    return min_idx;
+}
+
+int select_closest_feature(std::vector<cv::KeyPoint> &keypoints, std::vector<int> matches, int x, int y)
+{
+    float min_dist = 10000000;
+    int min_idx = -1;
+
+    for (int i = 0; i < keypoints.size(); i++)
+    {
+        cv::Point2f p1 = keypoints[i].pt;
+        p1.x = p1.x - x;
+        p1.y = p1.y - y;
+
+        float dist = sqrt(p1.x * p1.x + p1.y * p1.y);
+
+        if (dist < min_dist && matches[i] >= 0)
+        {
+            min_dist = dist;
+            min_idx = i;
+        }
+    }
+    return min_idx;
+}
+
+std::vector<int> select_closest_features(std::vector<cv::KeyPoint> &keypoints, float radius, int x, int y)
+{
+    std::vector<int> selection;
+    int idx = select_closest_feature(keypoints, x, y);
+
+    x = keypoints[idx].pt.x;
+    y = keypoints[idx].pt.y;
+
+    for (int i = 0; i < keypoints.size(); i++)
+    {
+        cv::Point2f p1 = keypoints[i].pt;
+        p1.x = p1.x - x;
+        p1.y = p1.y - y;
+
+        float dist = sqrt(p1.x * p1.x + p1.y * p1.y);
+
+        if (dist < radius)
+        {
+            selection.push_back(i);
+        }
+    }
+    return selection;
+}
+
+void compute_similarity(std::vector<cv::KeyPoint> &keypoints, std::vector<Descriptor> &descs, Descriptor &cur)
+{
+    float max_dist = 0;
+    float min_dist = 0;
+
+    for (int i = 0; i < keypoints.size(); i++)
+    {
+        float dist = hamming_distance(cur, descs[i]); 
+        if (dist > max_dist)
+            max_dist = dist;
+
+        if (dist < min_dist)
+            min_dist = dist;
+
+        keypoints[i].response = dist;
+    }
+
+    for (int i = 0; i < keypoints.size(); i++)
+    {
+        keypoints[i].response = (keypoints[i].response - min_dist) / max_dist; //Set bet. [0 1]
+        keypoints[i].response = 1.0 - keypoints[i].response;
+        keypoints[i].response *= keypoints[i].response;
+        keypoints[i].response = 1.0 - keypoints[i].response;
+    }
+}
+
+void reset_similarity_score(std::vector<cv::KeyPoint> &keypoints)
+{
+    for (int i = 0; i < keypoints.size(); i++)
+    {
+        keypoints[i].response = 1.0;
+    }
+}
+
+std::vector<std::string> str_split(const std::string& str, char delim)
+{
+    std::vector<std::string> cont;
+    std::size_t current, previous = 0;
+    current = str.find(delim);
+    while (current != std::string::npos) {
+        cont.push_back(str.substr(previous, current - previous));
+        previous = current + 1;
+        current = str.find(delim, previous);
+    }
+    cont.push_back(str.substr(previous, current - previous));
+    return cont;
+}
 

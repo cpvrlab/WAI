@@ -53,5 +53,23 @@ void print_desc(Descriptor &d);
 
 void compute_three_maxima(std::vector<int>* histo, const int L, int& ind1, int& ind2, int& ind3);
 
+cv::Mat extract_patch(const cv::Mat& image, cv::KeyPoint &kp, const std::vector<int>& u_max);
+
+std::vector<int> get_inverted_matching(std::vector<int> matching, int size);
+
+float keypoint_degree(cv::KeyPoint kp);
+
+int select_closest_feature(std::vector<cv::KeyPoint> &keypoints, int x, int y);
+
+int select_closest_feature(std::vector<cv::KeyPoint> &keypoints, std::vector<int> matches, int x, int y);
+
+std::vector<int> select_closest_features(std::vector<cv::KeyPoint> &keypoints, float radius, int x, int y);
+
+void compute_similarity(std::vector<cv::KeyPoint> &keypoints, std::vector<Descriptor> &descs, Descriptor &cur);
+
+void reset_similarity_score(std::vector<cv::KeyPoint> &keypoints);
+
+std::vector<std::string> str_split(const std::string& str, char delim = '\n');
+
 #endif
 

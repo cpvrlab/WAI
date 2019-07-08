@@ -1113,7 +1113,7 @@ void ComputeORBDescriptor(std::vector<std::vector<Descriptor>> &descriptors, std
     int offset = 0;
     for (int level = 0; level < nlevels; ++level)
     {
-        std::vector<cv::KeyPoint>& keypoints       = allKeypoints[level];
+        std::vector<cv::KeyPoint>& keypoints = allKeypoints[level];
         int               nkeypointsLevel = (int)keypoints.size();
 
         if (nkeypointsLevel == 0)
