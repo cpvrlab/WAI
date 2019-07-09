@@ -1,11 +1,18 @@
 #ifndef APP
 #define APP
 
+#define EQUALIZE_HIST   0
+#define MERGE_SIMILAR_LOCATION  0
+
 typedef struct App
 {
     std::string name;
+    std::string closeup_left;
+    std::string closeup_right;
     cv::Mat image1;
     cv::Mat image2;
+    int left_idx;
+    int right_idx;
 
     PyramidParameters pyramid_param;
     std::vector<cv::Mat> image1_pyramid;

@@ -7,6 +7,7 @@
 cv::Scalar red();
 cv::Scalar blue();
 cv::Scalar green();
+cv::Scalar white();
 
 cv::Scalar color_interpolate(cv::Scalar c1, cv::Scalar c2, float v);
 
@@ -20,7 +21,9 @@ void draw_matches_lines(App &app);
 
 void draw_by_similarity(App &app);
 
-void draw_closeup(cv::Mat &image, cv::KeyPoint &kp, std::string window_name, std::string text);
+void draw_closeup_right(App &app, int idx);
+
+void draw_closeup_left(App &app, int idx);
 
 void draw_main(App &app, std::string text);
 

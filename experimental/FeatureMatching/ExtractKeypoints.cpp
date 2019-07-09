@@ -395,6 +395,7 @@ void KeyPointExtract(std::vector<std::vector<cv::KeyPoint>>& allKeypoints, std::
                 cv::FAST(image_pyramid[level].rowRange(iniY, maxY).colRange(iniX, maxX),
                         vKeysCell, iniThFAST, true);
 
+
                 if (vKeysCell.empty())
                 {
                     cv::FAST(image_pyramid[level].rowRange(iniY, maxY).colRange(iniX, maxX),

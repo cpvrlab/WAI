@@ -1,9 +1,11 @@
 #include "gui_tools.h"
+#include "app.h"
 
 
 cv::Scalar red() { return cv::Scalar(0, 0, 255); }
 cv::Scalar blue() { return cv::Scalar(255, 0, 0); }
 cv::Scalar green() { return cv::Scalar(0, 255, 0); }
+cv::Scalar white() { return cv::Scalar(255, 255, 255); }
 
 cv::Scalar color_interpolate(cv::Scalar c1, cv::Scalar c2, float v)
 {
@@ -77,46 +79,5 @@ void draw_by_similarity(App &app)
         }
     }
 }
-
-void draw_closeup(cv::Mat &image, cv::KeyPoint &kp, std::string window_name, std::string text)
-{
-    cv::Mat closeup;
-    std::vector<int> umax;
-
-    init_patch(umax);
-    cv::resize(extract_patch(image, kp, umax), closeup, cv::Size(500, 500), cv::INTER_NEAREST);
-
-    cv::Mat out;
-    cv::copyMakeBorder(closeup, out, 0, 100, 0, 0, cv::BORDER_CONSTANT, 0);
-
-    if (text.length() > 0)
-    {
-        std::vector<std::string> strs = str_split(text);
-        for (int i = 0; i < strs.size(); i++)
-        {
-            cv::putText(out, strs[i], cv::Point(10, closeup.rows + 30 + 20 * i), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2, cv::LINE_AA);
-        }
-    }
-
-    imshow(window_name, out);
-}
-
-void draw_main(App &app, std::string text)
-{
-    cv::Mat out;
-    cv::copyMakeBorder(app.out_image, out, 0, 100, 0, 0, cv::BORDER_CONSTANT, 0);
-
-    if (text.length() > 0)
-    {
-        std::vector<std::string> strs = str_split(text);
-        for (int i = 0; i < strs.size(); i++)
-        {
-            cv::putText(out, strs[i], cv::Point(app.out_image.rows + 30 + 20 * i), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2, cv::LINE_AA);
-        }
-    }
-
-    imshow(app.name, out);
-}
-
 
 

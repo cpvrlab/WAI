@@ -1,4 +1,5 @@
 #include "matching.h"
+#include "app.h"
 
 
 void match_keypoints_0(std::vector<int> &indexes,
@@ -85,6 +86,7 @@ void match_keypoints_1(std::vector<int> &indexes,
         int bestDist  = INT_MAX;
         int bestDist2 = INT_MAX;
         int bestIdx  = -1;
+        int bestIdx2  = -1;
 
         for (int j = 0; j < kps2.size(); j++)
         {
@@ -97,17 +99,28 @@ void match_keypoints_1(std::vector<int> &indexes,
             {
                 bestDist2 = bestDist;
                 bestDist  = dist;
+                bestIdx2  = bestIdx;
                 bestIdx  = j;
             }
             else if (dist < bestDist2)
             {
                 bestDist2 = dist;
+                bestIdx2 = j;
             }
         }
 
         if (bestDist <= thres)
         {
+            //Test if point has similar position
+            float x = kps2[bestIdx].pt.x - kps2[bestIdx2].pt.x;
+            float y = kps2[bestIdx].pt.y - kps2[bestIdx2].pt.y;
+            float d = sqrt(x * x + y * y);
+
+#if MERGE_SIMILAR_LOCATION == 1
+            if (bestDist < nnratio * (float)bestDist2 || (d < 0.1 && kps2[bestIdx].octave != kps2[bestIdx2].octave))
+#else
             if (bestDist < nnratio * (float)bestDist2)
+#endif
             {
                 indexes[bestIdx]          = i;
                 distances[bestIdx]        = bestDist;
