@@ -1085,14 +1085,30 @@ static void get_pattern(std::vector<cv::Point> &pattern)
     std::copy(pattern0, pattern0 + npoints, std::back_inserter(pattern));
 }
 
-static void computeDescriptors(const cv::Mat& image, std::vector<cv::KeyPoint>& keypoints, std::vector<Descriptor> &descriptors, const std::vector<cv::Point>& pattern)
+void ComputeORBDescriptors(std::vector<Descriptor> &descriptors, const cv::Mat& image, std::vector<cv::KeyPoint>& keypoints,  const std::vector<cv::Point> * pattern)
 {
-    for (size_t i = 0; i < keypoints.size(); i++)
-        computeOrbDescriptor(keypoints[i], image, &pattern[0], descriptors[i]);
+    if (descriptors.size() == 0)
+    {
+        descriptors.resize(keypoints.size());
+    }
+
+    if (pattern == NULL)
+    {
+        std::vector<cv::Point> p;
+        get_pattern(p);
+        for (size_t i = 0; i < keypoints.size(); i++)
+            computeOrbDescriptor(keypoints[i], image, &p[0], descriptors[i]);
+    }
+    else
+    {
+        for (size_t i = 0; i < keypoints.size(); i++)
+            computeOrbDescriptor(keypoints[i], image, &(*pattern)[0], descriptors[i]);
+    }
+
 }
 
 
-void ComputeORBDescriptor(std::vector<std::vector<Descriptor>> &descriptors, std::vector<cv::Mat> image_pyramid, PyramidParameters &p, std::vector<std::vector<cv::KeyPoint>>& allKeypoints)
+void ComputeORBDescriptors(std::vector<std::vector<Descriptor>> &descriptors, std::vector<cv::Mat> image_pyramid, PyramidParameters &p, std::vector<std::vector<cv::KeyPoint>>& allKeypoints)
 {
     int nlevels = p.scale_factors.size();
     descriptors.resize(nlevels);
@@ -1123,7 +1139,7 @@ void ComputeORBDescriptor(std::vector<std::vector<Descriptor>> &descriptors, std
         cv::Mat workingMat = image_pyramid[level].clone();
         GaussianBlur(workingMat, workingMat, cv::Size(7, 7), 2, 2, cv::BORDER_REFLECT_101);
 
-        computeDescriptors(workingMat, keypoints, descriptors[level], pattern);
+        ComputeORBDescriptors(descriptors[level], workingMat, keypoints, &pattern);
     }
 }
 

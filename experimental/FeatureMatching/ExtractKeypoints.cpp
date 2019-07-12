@@ -1,4 +1,5 @@
 #include "ExtractKeypoints.h"
+#include "convert.h"
 #include <cstdlib>
 
 typedef struct QuadTreeNode
@@ -346,7 +347,7 @@ static void computeOrientation(const cv::Mat& image, std::vector<cv::KeyPoint>& 
 * 4. Compute orientation of keypoints
 * @param allKeypoints
 */
-void KeyPointExtract(std::vector<std::vector<cv::KeyPoint>>& allKeypoints, std::vector<cv::Mat> &image_pyramid, PyramidParameters &p, float iniThFAST, float minThFAST)
+void KPExtractOrbSlam(std::vector<std::vector<cv::KeyPoint>>& allKeypoints, std::vector<cv::Mat> &image_pyramid, PyramidParameters &p, float iniThFAST, float minThFAST)
 {
     allKeypoints.resize(image_pyramid.size());
     std::vector<int> umax;
@@ -448,4 +449,175 @@ void KeyPointExtract(std::vector<std::vector<cv::KeyPoint>>& allKeypoints, std::
     }
 }
 
+
+
+
+
+// TILDE
+
+
+class Parallel_process : public cv::ParallelLoopBody {
+
+private:
+    std::vector<float> &_param;
+    std::vector<float> &_bias;
+    std::vector<std::vector<float>> &_coeffs;
+    std::vector<cv::Mat> &_filters;
+    std::vector<cv::Mat> &_curRes;
+    const int _nbApproximatedFilters;
+    const std::vector<cv::Mat> &_vectorInput;
+
+public:
+    Parallel_process(const std::vector<cv::Mat> &conv, const int nb, std::vector<cv::Mat> &v, 
+                     std::vector<float> &param, std::vector<float> &bias, 
+                     std::vector<std::vector<float>> &coeffs, std::vector<cv::Mat> &filters)
+    :
+        _nbApproximatedFilters(nb),
+        _vectorInput(conv),
+        _curRes(v),
+        _param(param),
+        _bias(bias),
+        _coeffs(coeffs),
+        _filters(filters)
+    {
+    } 
+
+    virtual void operator() (const cv::Range & range)const {
+
+        for (int idxFilter = range.start; idxFilter < range.end; idxFilter++) {
+
+            cv::Mat kernelX = _filters[idxFilter * 2 + 1];	// IMPORTANT!
+            cv::Mat kernelY = _filters[idxFilter * 2];
+
+            // the channel this filter is supposed to be applied to
+            const int idxDim = idxFilter / _nbApproximatedFilters;
+            cv::Mat res;
+            cv::sepFilter2D(_vectorInput[idxDim], res, CV_32F, kernelX, kernelY, cv::Point(-1, -1), 0, cv::BORDER_REFLECT);
+            _curRes[idxFilter] = res.clone(); // not cloning causes wierd issues.
+        }
+    }
+};
+
+std::vector<std::vector<cv::Mat>> getScoresForApprox(std::vector<float> &param, std::vector<float> &bias,
+                                                     std::vector<std::vector<float>> &coeffs, 
+                                                     std::vector<cv::Mat> &filters,
+                                                     const std::vector<cv::Mat> &vectorInput)
+{
+    std::vector<std::vector<cv::Mat>>res;
+    int nbMax = param[1]; 
+    int nbSum = param[2];
+    int nbOriginalFilters = nbMax * nbSum;
+    int nbApproximatedFilters = param[3];
+    int nbChannels = param[4];
+    int sizeFilters = param[5];
+
+    // allocate res
+    res.resize(nbSum);
+    for (int idxSum = 0; idxSum < nbSum; ++idxSum) {
+        res[idxSum].resize(nbMax);
+    }
+
+    // calculate separable responses
+    int idxSum = 0;
+    int idxMax = 0;
+
+    std::vector<cv::Mat>curRes((int)filters.size() / 2, cv::Mat(vectorInput[0].size(), CV_32F));	// temp storage
+
+    cv::parallel_for_(cv::Range(0, (int)filters.size() / 2),
+            Parallel_process(vectorInput, nbApproximatedFilters, curRes, param, bias, coeffs, filters));
+
+    for (int idxFilter = 0; idxFilter < filters.size() / 2; idxFilter++) {
+        //int idxOrig = 0;
+        for (int idxOrig = 0; idxOrig < nbSum * nbMax; ++idxOrig) {
+            int idxSum = idxOrig / nbMax;
+            int idxMax = idxOrig % nbMax;
+
+            if (idxFilter == 0) {
+                res[idxSum][idxMax] = coeffs[idxOrig][idxFilter] * curRes[idxFilter].clone();
+            } else {
+                res[idxSum][idxMax] = res[idxSum][idxMax] + coeffs[idxOrig][idxFilter] * curRes[idxFilter];
+            }
+
+        }
+    }
+
+    // add the bias
+    int idxOrig = 0;
+    for (int idxSum = 0; idxSum < nbSum; ++idxSum) {
+        for (int idxMax = 0; idxMax < nbMax; ++idxMax) {
+            res[idxSum][idxMax] += bias[idxOrig];
+            idxOrig++;
+        }
+    }
+
+    return res;
+}
+
+
+void getCombinedScore(const std::vector<std::vector<cv::Mat>>& cascade_responses, const float threshold, cv::Mat *output)
+{
+    for (int idxCascade = 0; idxCascade < cascade_responses.size(); ++idxCascade)
+    {
+        cv::Mat respImageCascade = cascade_responses[idxCascade][0];
+
+        for (int idxDepth = 1; idxDepth < cascade_responses[idxCascade].size(); ++idxDepth)
+            respImageCascade = cv::max(respImageCascade, cascade_responses[idxCascade][idxDepth]);
+
+        respImageCascade = idxCascade % 2 == 0 ? -respImageCascade : respImageCascade;
+        if (idxCascade == 0)
+            *output = respImageCascade;
+        else
+            *output = respImageCascade + *output;
+    }
+
+    //post process
+    const float stdv = 2;
+    const int sizeSmooth = 5 * stdv * 2 + 1;
+    cv::GaussianBlur(*output, *output, cv::Size(sizeSmooth, sizeSmooth), stdv, stdv);
+
+    if (threshold > std::numeric_limits<float>::infinity())
+        *output = cv::max(*output, threshold);
+}
+
+
+void KPExtractTILDE(std::vector<cv::KeyPoint>& allKeypoints, cv::Mat image, float threshold)
+{
+    std::vector<float> param;
+    std::vector<float> bias;
+    std::vector<std::vector<float>> coeffs;
+    std::vector<cv::Mat> filters;
+    std::vector<std::string> tokens;
+
+    cv::Mat im_resized;
+    std::vector<cv::Mat> vectorInput;
+    std::vector<std::vector<cv::Mat>>cascade_responses;
+    cv::Mat outputScore;
+    float resizeRatio;
+
+    filters_open("filters/Chamonix24.txt", param, bias, coeffs, filters, tokens);
+    resizeRatio = param[0];
+
+    cv::resize(image, im_resized, cv::Size(0, 0), resizeRatio, resizeRatio);
+
+    std::vector<cv::Mat> grad = image_gradient(im_resized);
+    std::vector<cv::Mat> luv = rgb_to_luv(im_resized);
+
+    std::copy(grad.begin(), grad.end(), std::back_inserter(vectorInput));
+    std::copy(luv.begin(), luv.end(), std::back_inserter(vectorInput));
+
+    cascade_responses = getScoresForApprox(param, bias, coeffs, filters, vectorInput);
+
+    getCombinedScore(cascade_responses, threshold, &outputScore);
+
+    std::vector<cv::Point3f> res_with_score = NonMaxSup(outputScore);
+
+    // resize back
+    resizeRatio = 1. / resizeRatio;
+
+    for (int i = 0; i < res_with_score.size(); i++) {
+        cv::KeyPoint kp = cv::KeyPoint(res_with_score[i].x * resizeRatio, res_with_score[i].y * resizeRatio, 1.0, 0, res_with_score[i].z, 0);
+        kp.size = PATCH_SIZE;
+        allKeypoints.push_back(kp);
+    }
+}
 

@@ -14,6 +14,7 @@ file(GLOB headers
     ${CMAKE_CURRENT_SOURCE_DIR}/gui.h
     ${CMAKE_CURRENT_SOURCE_DIR}/matching.h
     ${CMAKE_CURRENT_SOURCE_DIR}/orb_descriptor.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/convert.h
     ${CMAKE_CURRENT_SOURCE_DIR}/tools.h
     )
 file(GLOB sources 
@@ -23,6 +24,7 @@ file(GLOB sources
     ${CMAKE_CURRENT_SOURCE_DIR}/gui.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/matching.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/orb_descriptor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/convert.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tools.cpp
     )
 

@@ -11,9 +11,11 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/features2d/features2d.hpp>
 
-const int PATCH_SIZE      = 31;
-const int HALF_PATCH_SIZE = 15;
-const int EDGE_THRESHOLD  = 19;
+//const int PATCH_SIZE      = 31;
+//const int HALF_PATCH_SIZE = 15;
+const int PATCH_SIZE      = 61;
+const int HALF_PATCH_SIZE = 30;
+const int EDGE_THRESHOLD  = 34;
 
 typedef struct PyramidParameters
 {
@@ -31,8 +33,6 @@ typedef struct Descriptor
     uchar mem[32];
 }Descriptor;
 
-
-
 void init_patch(std::vector<int> &umax);
 
 void init_pyramid_parameters(PyramidParameters &p, int nlevels, float scale_factor, int nfeatures);
@@ -42,8 +42,6 @@ void build_pyramid(std::vector<cv::Mat> &image_pyramid, cv::Mat &image, PyramidP
 void flatten_keypoints(std::vector<cv::KeyPoint> &keypoints, std::vector<std::vector<cv::KeyPoint>>& all_keypoints, PyramidParameters &p);
 
 void flatten_decriptors(std::vector<Descriptor> &desc, std::vector<std::vector<Descriptor>>& all_desc, PyramidParameters &p);
-
-cv::Mat to_grayscale(cv::Mat &img);
 
 unsigned int hamming_distance(unsigned int a, unsigned int b);
 
@@ -70,6 +68,12 @@ void compute_similarity(std::vector<cv::KeyPoint> &keypoints, std::vector<Descri
 void reset_similarity_score(std::vector<cv::KeyPoint> &keypoints);
 
 std::vector<std::string> str_split(const std::string& str, char delim = '\n');
+
+void filters_open(std::string path, std::vector<float> &param, std::vector<float> &bias, std::vector<std::vector<float>> &coeffs, std::vector<cv::Mat> &filters, std::vector<std::string> &tokens);
+
+std::vector<cv::Mat> image_gradient(const cv::Mat &input_rgb_image);
+
+std::vector<cv::Point3f> NonMaxSup(const cv::Mat &response);
 
 #endif
 

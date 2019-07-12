@@ -77,7 +77,6 @@ void match_keypoints_1(std::vector<int> &indexes,
         indexes.push_back(-1);
         distances.push_back(INT_MAX);
     }
-
     
     for (int i = 0; i < kps1.size(); i++)
     {

@@ -3,7 +3,10 @@
 
 #include "tools.h"
 
-void KeyPointExtract(std::vector<std::vector<cv::KeyPoint>>& allKeypoints, std::vector<cv::Mat> &image_pyramid, PyramidParameters &p, float iniThFAST, float minThFAST);
+void KPExtractOrbSlam(std::vector<std::vector<cv::KeyPoint>>& allKeypoints, std::vector<cv::Mat> &image_pyramid, PyramidParameters &p, float iniThFAST = 20, float minThFAST = 7);
+
+
+void KPExtractTILDE(std::vector<cv::KeyPoint>&allKeypoints, cv::Mat image, float threshold = 0.2);
 
 #endif
 
