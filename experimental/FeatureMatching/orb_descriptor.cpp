@@ -12,9 +12,15 @@ static void computeOrbDescriptor(const cv::KeyPoint& kpt,
     const uchar* center = &img.at<uchar>(cvRound(kpt.pt.y), cvRound(kpt.pt.x));
     const int    step   = (int)img.step;
 
+    /*
 #define GET_VALUE(idx) \
     center[cvRound(pattern[idx].x * b + pattern[idx].y * a) * step + \
            cvRound(pattern[idx].x * a - pattern[idx].y * b)]
+    */
+
+
+#define GET_VALUE(idx) \
+    center[cvRound(pattern[idx].x) * step + cvRound(pattern[idx].y)]
 
     for (int i = 0; i < 32; ++i, pattern += 16)
     {

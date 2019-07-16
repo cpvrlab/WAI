@@ -228,16 +228,22 @@ cv::Mat extract_patch(const cv::Mat& image, cv::KeyPoint &kp, const std::vector<
     return patch;
 }
 
-std::vector<int> get_inverted_matching(std::vector<int> matching, int size)
+void get_inverted_matching(std::vector<int> &inverted_matching, std::vector<int> &matching)
 {
-    std::vector<int> inverted_matching(size, -1);
+    for (int i = 0; i < inverted_matching.size(); i++)
+    {
+        inverted_matching[i] = -1;
+    }
 
     for (int i = 0; i < matching.size(); i++)
     {
         int idx1 = matching[i];
+
+        if (idx1 < 0 || idx1 >= inverted_matching.size())
+            continue;
+
         inverted_matching[idx1] = i;
     }
-    return inverted_matching;
 }
 
 float keypoint_degree(cv::KeyPoint kp)
@@ -335,9 +341,11 @@ void compute_similarity(std::vector<cv::KeyPoint> &keypoints, std::vector<Descri
     for (int i = 0; i < keypoints.size(); i++)
     {
         keypoints[i].response = (keypoints[i].response - min_dist) / max_dist; //Set bet. [0 1]
+        /*
         keypoints[i].response = 1.0 - keypoints[i].response;
         keypoints[i].response *= keypoints[i].response;
         keypoints[i].response = 1.0 - keypoints[i].response;
+        */
     }
 }
 
@@ -580,10 +588,56 @@ std::vector<cv::Point3f> NonMaxSup(const cv::Mat &response)
             {
                 res.push_back(cv::Point3f(j,i, response.at<float>(i,j)));
             }
-
         }            
     }
 
     return res;
+}
+
+float angle_from_gradiant(cv::Mat &image, cv::KeyPoint &kp)
+{
+    cv::Point pt = kp.pt / (kp.size / PATCH_SIZE);
+    const uchar* corner = &image.at<uchar>(cvRound(pt.y - HALF_PATCH_SIZE), cvRound(pt.x - HALF_PATCH_SIZE));
+    cv::Mat patch = cv::Mat::zeros(PATCH_SIZE, PATCH_SIZE, CV_8UC1);
+    uchar * patch_corner = &patch.at<uchar>(0, 0);
+
+    int step = (int)image.step1();
+
+    for (int v = 0; v < PATCH_SIZE; ++v)
+    {
+        for (int u = 0; u < PATCH_SIZE; ++u)
+        {
+            int p = corner[u + v * step];
+            patch_corner[u + v * patch.step] = p;
+        }
+    }
+    cv::imshow("patch", patch);
+
+    cv::Mat tmp = patch.clone();
+    tmp.convertTo(tmp, CV_32F, 1/255.0);
+
+    cv::Mat gx, gy; 
+    cv::Scharr(tmp, gx, CV_32F, 1, 0, 3, 0, cv::BORDER_REFLECT_101);
+    cv::Scharr(tmp, gy, CV_32F, 0, 1, 3, 0, cv::BORDER_REFLECT_101);
+
+    cv::Mat img_mag, img_angle;
+    cv::cartToPolar(gx, gy, img_mag, img_angle, true);
+
+    float angle = 0;
+    float max = 0;
+
+    for (int i = 0; i < img_mag.size().width; i++)
+    for (int j = 0; j < img_mag.size().height; j++)
+    {
+        float a = img_angle.at<float>(i, j);
+        float m = img_mag.at<float>(i, j);
+
+        if (m > max)
+        {
+            max = m;
+            angle = a;
+        }
+    }
+    return angle;
 }
 

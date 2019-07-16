@@ -445,13 +445,8 @@ void KPExtractOrbSlam(std::vector<std::vector<cv::KeyPoint>>& allKeypoints, std:
     for (int level = 0; level < p.scale_factors.size(); ++level)
     {
         computeOrientation(image_pyramid[level], allKeypoints[level], umax);
-        std::cout << p.scale_factors[level] << std::endl;
     }
 }
-
-
-
-
 
 // TILDE
 
@@ -554,7 +549,7 @@ std::vector<std::vector<cv::Mat>> getScoresForApprox(std::vector<float> &param, 
 }
 
 
-void getCombinedScore(const std::vector<std::vector<cv::Mat>>& cascade_responses, const float threshold, cv::Mat *output)
+void getCombinedScore(const std::vector<std::vector<cv::Mat>>& cascade_responses, cv::Mat *output)
 {
     for (int idxCascade = 0; idxCascade < cascade_responses.size(); ++idxCascade)
     {
@@ -574,13 +569,10 @@ void getCombinedScore(const std::vector<std::vector<cv::Mat>>& cascade_responses
     const float stdv = 2;
     const int sizeSmooth = 5 * stdv * 2 + 1;
     cv::GaussianBlur(*output, *output, cv::Size(sizeSmooth, sizeSmooth), stdv, stdv);
-
-    if (threshold > std::numeric_limits<float>::infinity())
-        *output = cv::max(*output, threshold);
 }
 
 
-void KPExtractTILDE(std::vector<cv::KeyPoint>& allKeypoints, cv::Mat image, float threshold)
+void KPExtractTILDE(std::vector<cv::KeyPoint>& allKeypoints, cv::Mat image)
 {
     std::vector<float> param;
     std::vector<float> bias;
@@ -607,17 +599,26 @@ void KPExtractTILDE(std::vector<cv::KeyPoint>& allKeypoints, cv::Mat image, floa
 
     cascade_responses = getScoresForApprox(param, bias, coeffs, filters, vectorInput);
 
-    getCombinedScore(cascade_responses, threshold, &outputScore);
+    getCombinedScore(cascade_responses, &outputScore);
 
     std::vector<cv::Point3f> res_with_score = NonMaxSup(outputScore);
 
     // resize back
     resizeRatio = 1. / resizeRatio;
 
-    for (int i = 0; i < res_with_score.size(); i++) {
-        cv::KeyPoint kp = cv::KeyPoint(res_with_score[i].x * resizeRatio, res_with_score[i].y * resizeRatio, 1.0, 0, res_with_score[i].z, 0);
+    for (int i = 0; i < res_with_score.size(); i++) 
+    {
+        //cv::KeyPoint kp = cv::KeyPoint(res_with_score[i].x * resizeRatio, res_with_score[i].y * resizeRatio, 1.0, 0, res_with_score[i].z, 0);
+        cv::KeyPoint kp = cv::KeyPoint(res_with_score[i].x * resizeRatio, res_with_score[i].y * resizeRatio, 1.0, 0, 1, 0);
         kp.size = PATCH_SIZE;
         allKeypoints.push_back(kp);
     }
 }
+
+void KPExtractSURF(std::vector<cv::KeyPoint>& allKeypoints, cv::Mat image)
+{
+    cv::Ptr<cv::xfeatures2d::SURF> surf_detector = cv::xfeatures2d::SURF::create(400);
+    surf_detector->detect(image, allKeypoints);
+}
+
 

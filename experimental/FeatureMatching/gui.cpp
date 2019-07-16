@@ -7,8 +7,8 @@ cv::Mat draw_closeup(cv::Mat &image, cv::KeyPoint &kp, std::string text)
     std::vector<int> umax;
 
     init_patch(umax);
-    cv::resize(extract_patch(image, kp, umax), closeup, cv::Size(500, 500), cv::INTER_NEAREST);
-
+    cv::Mat patch = extract_patch(image, kp, umax);
+    cv::resize(patch, closeup, cv::Size(500, 500), cv::INTER_NEAREST);
     cv::copyMakeBorder(closeup, out, 0, 200, 0, 0, cv::BORDER_CONSTANT, 0);
 
     if (text.length() > 0)
@@ -203,16 +203,31 @@ void main_mouse_events(int event, int x, int y, int flags, void *userdata)
 
 void start_gui(App &app)
 {
-    init_color(app.kp1_colors, app.keypoints1.size());
-    init_color(app.kp2_colors, app.keypoints2.size());
     cv::namedWindow(app.name, 1);
     cv::setMouseCallback(app.name, main_mouse_events, &app);
+
+    init_color(app.kp1_colors, app.keypoints1.size());
+    init_color(app.kp2_colors, app.keypoints2.size());
 
     for(;;)
     {
         int retval = cv::waitKey(0);
-        if (retval != 227)
+        if (retval == ' ')
+        {
+            app_reset(app);
+            app_next_method(app);
+            app_prepare(app);
+
+            init_color(app.kp1_colors, app.keypoints1.size());
+            init_color(app.kp2_colors, app.keypoints2.size());
+
+            draw_matches_lines(app);
+            draw_main(app, "draw matches");
+
+        }
+        else if (retval != 227)
             break;
     }
+    cv::destroyAllWindows();
 }
 

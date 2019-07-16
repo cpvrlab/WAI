@@ -5,8 +5,9 @@
 
 void KPExtractOrbSlam(std::vector<std::vector<cv::KeyPoint>>& allKeypoints, std::vector<cv::Mat> &image_pyramid, PyramidParameters &p, float iniThFAST = 20, float minThFAST = 7);
 
+void KPExtractTILDE(std::vector<cv::KeyPoint>&allKeypoints, cv::Mat image);
 
-void KPExtractTILDE(std::vector<cv::KeyPoint>&allKeypoints, cv::Mat image, float threshold = 0.2);
+void KPExtractSURF(std::vector<cv::KeyPoint>& allKeypoints, cv::Mat image);
 
 #endif
 

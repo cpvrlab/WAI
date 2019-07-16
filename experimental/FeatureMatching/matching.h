@@ -17,7 +17,7 @@ void match_keypoints_1(std::vector<int> &indexes,
                        //float factor = 0.08333333,
                        float factor = 0.03333333,
                        float nnratio = 0.70,
-                       float thres = 50);
+                       float thres = 70);
 
 #endif
 

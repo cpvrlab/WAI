@@ -26,7 +26,6 @@ void init_color(std::vector<cv::Scalar> &colors, int size)
     reset_color(colors, blue());
 }
 
-
 void set_color_by_value(std::vector<cv::Scalar> &colors, std::vector<cv::KeyPoint> &kps)
 {
     for (int i = 0; i < kps.size(); i++)
@@ -68,7 +67,7 @@ void draw_by_similarity(App &app)
         if (app.ordered_keypoints1[i].response < 0.5)
         {
             cv::circle(app.out_image, app.ordered_keypoints1[i].pt, 15, app.kp1_colors[i], 3);
-        }out
+        }
     }
     for (int i = 0; i < app.keypoints2.size(); i++)
     {

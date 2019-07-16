@@ -1,8 +1,15 @@
 #ifndef APP
 #define APP
 
+#include "tools.h"
+
 #define EQUALIZE_HIST   0
 #define MERGE_SIMILAR_LOCATION  0
+
+#define STOCK_ORBSLAM   0
+#define TILDE_BRIEF     1
+#define SURF_BRIEF      2
+#define END_METHOD      3
 
 typedef struct App
 {
@@ -36,7 +43,16 @@ typedef struct App
     cv::Point poi;
     int local_idx;
     float select_radius;
+
+    int method;
 }App;
+
+
+void app_next_method(App &app);
+
+void app_reset(App &app);
+
+void app_prepare(App &app);
 
 #endif
 

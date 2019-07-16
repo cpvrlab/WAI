@@ -10,6 +10,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/features2d/features2d.hpp>
+#include <opencv2/xfeatures2d.hpp>
 
 //const int PATCH_SIZE      = 31;
 //const int HALF_PATCH_SIZE = 15;
@@ -53,7 +54,7 @@ void compute_three_maxima(std::vector<int>* histo, const int L, int& ind1, int& 
 
 cv::Mat extract_patch(const cv::Mat& image, cv::KeyPoint &kp, const std::vector<int>& u_max);
 
-std::vector<int> get_inverted_matching(std::vector<int> matching, int size);
+void get_inverted_matching(std::vector<int> &inverted_matching, std::vector<int> &matching);
 
 float keypoint_degree(cv::KeyPoint kp);
 
@@ -74,6 +75,8 @@ void filters_open(std::string path, std::vector<float> &param, std::vector<float
 std::vector<cv::Mat> image_gradient(const cv::Mat &input_rgb_image);
 
 std::vector<cv::Point3f> NonMaxSup(const cv::Mat &response);
+
+float angle_from_gradiant(cv::Mat &image, cv::KeyPoint &kp);
 
 #endif
 
