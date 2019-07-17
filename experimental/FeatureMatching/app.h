@@ -9,7 +9,8 @@
 #define STOCK_ORBSLAM   0
 #define TILDE_BRIEF     1
 #define SURF_BRIEF      2
-#define END_METHOD      3
+#define SURF_ORB        3
+#define END_METHOD      4
 
 typedef struct App
 {

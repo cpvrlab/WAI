@@ -1,7 +1,12 @@
 #ifndef CONVERT_H
 #define CONVERT_H
 
-#include "tools.h"
+#include <stdlib.h>
+#include <math.h>
+#include <iostream>
+#include <vector>
+#include <opencv2/core/core.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 
 cv::Mat rgb_to_grayscale(cv::Mat &img);
 

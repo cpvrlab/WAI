@@ -11,6 +11,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/features2d/features2d.hpp>
 #include <opencv2/xfeatures2d.hpp>
+#include "convert.h"
 
 //const int PATCH_SIZE      = 31;
 //const int HALF_PATCH_SIZE = 15;
@@ -34,7 +35,7 @@ typedef struct Descriptor
     uchar mem[32];
 }Descriptor;
 
-void init_patch(std::vector<int> &umax);
+void init_patch(std::vector<int> &umax, int half_patch_size = HALF_PATCH_SIZE);
 
 void init_pyramid_parameters(PyramidParameters &p, int nlevels, float scale_factor, int nfeatures);
 
@@ -52,11 +53,9 @@ void print_desc(Descriptor &d);
 
 void compute_three_maxima(std::vector<int>* histo, const int L, int& ind1, int& ind2, int& ind3);
 
-cv::Mat extract_patch(const cv::Mat& image, cv::KeyPoint &kp, const std::vector<int>& u_max);
+cv::Mat extract_patch(cv::Mat& image, cv::KeyPoint &kp);
 
 void get_inverted_matching(std::vector<int> &inverted_matching, std::vector<int> &matching);
-
-float keypoint_degree(cv::KeyPoint kp);
 
 int select_closest_feature(std::vector<cv::KeyPoint> &keypoints, int x, int y);
 

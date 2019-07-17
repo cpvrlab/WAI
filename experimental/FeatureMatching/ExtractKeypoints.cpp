@@ -325,20 +325,8 @@ static void IC_Angle(const cv::Mat& image, cv::KeyPoint &kp, const std::vector<i
         m_01 += v * v_sum;
     }
 
-    kp.angle = atan2((float)m_01, (float)m_10);
+    kp.angle = 180.0 * atan2((float)m_01, (float)m_10) / M_PI;
 }
-
-static void computeOrientation(const cv::Mat& image, std::vector<cv::KeyPoint>& keypoints, const std::vector<int>& umax)
-{
-    for (std::vector<cv::KeyPoint>::iterator keypoint    = keypoints.begin(),
-                                             keypointEnd = keypoints.end();
-         keypoint != keypointEnd;
-         ++keypoint)
-    {
-        IC_Angle(image, *keypoint, umax);
-    }
-}
-
 
 /**
 * 1. Splits every level of the image into evenly sized cells
@@ -427,7 +415,7 @@ void KPExtractOrbSlam(std::vector<std::vector<cv::KeyPoint>>& allKeypoints, std:
                                        level,
                                        p.total_features);
 
-        const int scaledPatchSize = PATCH_SIZE * p.scale_factors[level];
+        const float scaledPatchSize = (float)PATCH_SIZE * p.scale_factors[level];
 
         // Add border to coordinates and scale information
         const int nkps = keypoints.size();
@@ -436,15 +424,11 @@ void KPExtractOrbSlam(std::vector<std::vector<cv::KeyPoint>>& allKeypoints, std:
             keypoints[i].pt.x += minBorderX;
             keypoints[i].pt.y += minBorderY;
             keypoints[i].octave = level;
+            keypoints[i].size = scaledPatchSize;
 
-            keypoints[i].size   = (float)scaledPatchSize;
+            IC_Angle(image_pyramid[level], keypoints[i], umax);
+            keypoints[i].pt *= p.scale_factors[level]; //Set position relative to level 0 image
         }
-    }
-
-    // compute orientations
-    for (int level = 0; level < p.scale_factors.size(); ++level)
-    {
-        computeOrientation(image_pyramid[level], allKeypoints[level], umax);
     }
 }
 
@@ -608,8 +592,8 @@ void KPExtractTILDE(std::vector<cv::KeyPoint>& allKeypoints, cv::Mat image)
 
     for (int i = 0; i < res_with_score.size(); i++) 
     {
-        //cv::KeyPoint kp = cv::KeyPoint(res_with_score[i].x * resizeRatio, res_with_score[i].y * resizeRatio, 1.0, 0, res_with_score[i].z, 0);
-        cv::KeyPoint kp = cv::KeyPoint(res_with_score[i].x * resizeRatio, res_with_score[i].y * resizeRatio, 1.0, 0, 1, 0);
+        cv::KeyPoint kp = cv::KeyPoint(res_with_score[i].x * resizeRatio, res_with_score[i].y * resizeRatio, 1.0, 0, res_with_score[i].z, 0);
+        //cv::KeyPoint kp = cv::KeyPoint(res_with_score[i].x * resizeRatio, res_with_score[i].y * resizeRatio, 1.0, 0, 1, 0);
         kp.size = PATCH_SIZE;
         allKeypoints.push_back(kp);
     }
@@ -617,7 +601,7 @@ void KPExtractTILDE(std::vector<cv::KeyPoint>& allKeypoints, cv::Mat image)
 
 void KPExtractSURF(std::vector<cv::KeyPoint>& allKeypoints, cv::Mat image)
 {
-    cv::Ptr<cv::xfeatures2d::SURF> surf_detector = cv::xfeatures2d::SURF::create(400);
+    cv::Ptr<cv::xfeatures2d::SURF> surf_detector = cv::xfeatures2d::SURF::create(1000);
     surf_detector->detect(image, allKeypoints);
 }
 

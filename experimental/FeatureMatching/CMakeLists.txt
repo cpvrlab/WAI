@@ -9,7 +9,7 @@ set(WAI_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../..")
 include(../../cmake/PlatformLinkLibs.cmake)
 include(../../cmake/DownloadPrebuilts.cmake)
 
-
+file(COPY filters/ DESTINATION filters/)
 
 file(GLOB headers
     ${CMAKE_CURRENT_SOURCE_DIR}/app.h
@@ -17,7 +17,9 @@ file(GLOB headers
     ${CMAKE_CURRENT_SOURCE_DIR}/gui_tools.h
     ${CMAKE_CURRENT_SOURCE_DIR}/gui.h
     ${CMAKE_CURRENT_SOURCE_DIR}/matching.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/bit_pattern.h
     ${CMAKE_CURRENT_SOURCE_DIR}/orb_descriptor.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/brief_descriptor.h
     ${CMAKE_CURRENT_SOURCE_DIR}/convert.h
     ${CMAKE_CURRENT_SOURCE_DIR}/tools.h
     )
@@ -29,6 +31,7 @@ file(GLOB sources
     ${CMAKE_CURRENT_SOURCE_DIR}/gui.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/matching.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/orb_descriptor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/brief_descriptor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/convert.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tools.cpp
     )

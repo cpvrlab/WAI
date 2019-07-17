@@ -1,10 +1,10 @@
 #include "bit_pattern.h"
 #include "orb_descriptor.h"
 
-static void computeOrbDescriptor(const cv::KeyPoint& kpt,
-                                 const cv::Mat&      img,
-                                 const cv::Point*    pattern,
-                                 Descriptor &desc)
+static void computeBRIEFDescriptor(const cv::KeyPoint& kpt,
+                                   const cv::Mat&      img,
+                                   const cv::Point*    pattern,
+                                   Descriptor &desc)
 {
     desc.p = desc.mem;
     float angle = kpt.angle;
@@ -14,8 +14,7 @@ static void computeOrbDescriptor(const cv::KeyPoint& kpt,
     const int    step   = (int)img.step;
 
 #define GET_VALUE(idx) \
-    center[cvRound(pattern[idx].x * b + pattern[idx].y * a) * step + \
-           cvRound(pattern[idx].x * a - pattern[idx].y * b)]
+    center[cvRound(pattern[idx].x) * step + cvRound(pattern[idx].y)]
 
     for (int i = 0; i < 32; ++i, pattern += 16)
     {
@@ -47,7 +46,6 @@ static void computeOrbDescriptor(const cv::KeyPoint& kpt,
 
         desc.p[i] = (uchar)val;
     }
-
 #undef GET_VALUE
 }
 
@@ -58,7 +56,7 @@ static void get_pattern(std::vector<cv::Point> &pattern)
     std::copy(pattern0, pattern0 + npoints, std::back_inserter(pattern));
 }
 
-void ComputeORBDescriptors(std::vector<Descriptor> &descriptors, const cv::Mat& image, std::vector<cv::KeyPoint>& keypoints,  const std::vector<cv::Point> * pattern)
+void ComputeBRIEFDescriptors(std::vector<Descriptor> &descriptors, const cv::Mat& image, std::vector<cv::KeyPoint>& keypoints,  const std::vector<cv::Point> * pattern)
 {
     if (descriptors.size() == 0)
     {
@@ -70,18 +68,18 @@ void ComputeORBDescriptors(std::vector<Descriptor> &descriptors, const cv::Mat& 
         std::vector<cv::Point> p;
         get_pattern(p);
         for (size_t i = 0; i < keypoints.size(); i++)
-            computeOrbDescriptor(keypoints[i], image, &p[0], descriptors[i]);
+            computeBRIEFDescriptor(keypoints[i], image, &p[0], descriptors[i]);
     }
     else
     {
         for (size_t i = 0; i < keypoints.size(); i++)
-            computeOrbDescriptor(keypoints[i], image, &(*pattern)[0], descriptors[i]);
+            computeBRIEFDescriptor(keypoints[i], image, &(*pattern)[0], descriptors[i]);
     }
 
 }
 
 
-void ComputeORBDescriptors(std::vector<std::vector<Descriptor>> &descriptors, std::vector<cv::Mat> image_pyramid, PyramidParameters &p, std::vector<std::vector<cv::KeyPoint>>& allKeypoints)
+void ComputeBRIEFDescriptors(std::vector<std::vector<Descriptor>> &descriptors, std::vector<cv::Mat> image_pyramid, PyramidParameters &p, std::vector<std::vector<cv::KeyPoint>>& allKeypoints)
 {
     int nlevels = p.scale_factors.size();
     descriptors.resize(nlevels);
@@ -112,7 +110,7 @@ void ComputeORBDescriptors(std::vector<std::vector<Descriptor>> &descriptors, st
         cv::Mat workingMat = image_pyramid[level].clone();
         GaussianBlur(workingMat, workingMat, cv::Size(7, 7), 2, 2, cv::BORDER_REFLECT_101);
 
-        ComputeORBDescriptors(descriptors[level], workingMat, keypoints, &pattern);
+        ComputeBRIEFDescriptors(descriptors[level], workingMat, keypoints, &pattern);
     }
 }
 

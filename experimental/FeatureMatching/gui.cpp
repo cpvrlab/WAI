@@ -7,7 +7,7 @@ cv::Mat draw_closeup(cv::Mat &image, cv::KeyPoint &kp, std::string text)
     std::vector<int> umax;
 
     init_patch(umax);
-    cv::Mat patch = extract_patch(image, kp, umax);
+    cv::Mat patch = extract_patch(image, kp);
     cv::resize(patch, closeup, cv::Size(500, 500), cv::INTER_NEAREST);
     cv::copyMakeBorder(closeup, out, 0, 200, 0, 0, cv::BORDER_CONSTANT, 0);
 
@@ -29,7 +29,8 @@ void draw_closeup_right(App &app, int idx)
     std::stringstream ss;
     ss << "Point idx: " << idx << std::endl;
     ss << "Octave: " << app.keypoints2[idx].octave << std::endl;
-    ss << "Angle " << keypoint_degree(app.keypoints2[idx]) << std::endl;
+    ss << "size: " << app.keypoints2[idx].size << std::endl;
+    ss << "Angle: " << app.keypoints2[idx].angle << std::endl;
     if (app.matching_2_1[idx] >= 0)
         ss << "Has matching to " << app.matching_2_1[idx] << std::endl;
     
@@ -38,8 +39,15 @@ void draw_closeup_right(App &app, int idx)
     if (prop >= 0)
         ss << "Distance " << hamming_distance(app.descs1[app.left_idx], app.descs2[app.right_idx]) << std::endl;
 
-    cv::Mat out = draw_closeup(app.image2_pyramid[app.keypoints2[idx].octave], app.keypoints2[idx], ss.str());
-
+    cv::Mat out;
+    if (app.method == STOCK_ORBSLAM)
+    {
+        out = draw_closeup(app.image2_pyramid[app.keypoints2[idx].octave], app.keypoints2[idx], ss.str());
+    }
+    else
+    {
+        out = draw_closeup(app.image2, app.keypoints2[idx], ss.str());
+    }
     imshow(app.closeup_right, out);
 }
 
@@ -49,7 +57,8 @@ void draw_closeup_left(App &app, int idx)
     std::stringstream ss;
     ss << "Point idx: " << idx << std::endl;
     ss << "octave: " << app.keypoints1[idx].octave << std::endl;
-    ss << "Angle " << keypoint_degree(app.keypoints1[idx]) << std::endl;
+    ss << "size: " << app.keypoints1[idx].size << std::endl;
+    ss << "Angle: " << app.keypoints1[idx].angle << std::endl;
     if (app.matching_1_2[idx] >= 0)
         ss << "Has matching to " << app.matching_1_2[idx] << std::endl;
 
@@ -58,23 +67,52 @@ void draw_closeup_left(App &app, int idx)
     if (prop >= 0)
         ss << "Distance " << hamming_distance(app.descs1[app.left_idx], app.descs2[app.right_idx]) << std::endl;
 
-    cv::Mat out = draw_closeup(app.image1_pyramid[app.keypoints1[idx].octave], app.keypoints1[idx], ss.str());
+    cv::Mat out;
+    if (app.method == STOCK_ORBSLAM)
+    {
+        out = draw_closeup(app.image1_pyramid[app.keypoints1[idx].octave], app.keypoints1[idx], ss.str());
+    }
+    else
+    {
+        out = draw_closeup(app.image1, app.keypoints1[idx], ss.str());
+    }
 
     imshow(app.closeup_left, out);
 }
+
 
 void draw_main(App &app, std::string text)
 {
     cv::Mat out;
     cv::copyMakeBorder(app.out_image, out, 0, 100, 0, 0, cv::BORDER_CONSTANT, 0);
+    cv::Point pos(30, app.out_image.rows + 30);
 
     if (text.length() > 0)
     {
         std::vector<std::string> strs = str_split(text);
         for (int i = 0; i < strs.size(); i++)
         {
-            cv::putText(out, strs[i], cv::Point(app.out_image.rows + 30 + 20 * i), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2, cv::LINE_AA);
+            cv::putText(out, strs[i], cv::Point(pos.x, pos.y + 20 + 20 * i), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2, cv::LINE_AA);
         }
+    }
+
+    switch(app.method)
+    {
+        case STOCK_ORBSLAM:
+            cv::putText(out, "ORB keypoint, ORB descrptor", pos, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2, cv::LINE_AA);
+            break;
+
+        case TILDE_BRIEF:
+            cv::putText(out, "TILDE keypoint, BRIEF descrptor", pos, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2, cv::LINE_AA);
+            break;
+
+        case SURF_BRIEF:
+            cv::putText(out, "SURF keypoint, BRIEF descrptor", pos, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2, cv::LINE_AA);
+            break;
+
+        case SURF_ORB:
+            cv::putText(out, "SURF keypoint, ORB descrptor", pos, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2, cv::LINE_AA);
+            break;
     }
 
     imshow(app.name, out);
@@ -132,6 +170,8 @@ void mouse_button_left(int x, int y, int flags, App * app)
 
 void mouse_button_right(int x, int y, int flags, App * app)
 {
+    reset_similarity(app->keypoints1);
+    reset_similarity(app->keypoints2);
     reset_color(app->kp1_colors, blue());
     reset_color(app->kp2_colors, blue());
 

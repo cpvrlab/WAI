@@ -2,19 +2,19 @@
 #include <fstream>
 #include "tools.h"
 
-void init_patch(std::vector<int> &umax)
+void init_patch(std::vector<int> &umax, int half_patch_size)
 {
     // pre-compute the end of a row in a circular patch
-    umax.resize(HALF_PATCH_SIZE + 1);
+    umax.resize(half_patch_size + 1);
 
-    int          v, v0, vmax = cvFloor(HALF_PATCH_SIZE * sqrt(2.f) / 2 + 1);
-    int          vmin = cvCeil(HALF_PATCH_SIZE * sqrt(2.f) / 2);
-    const double hp2  = HALF_PATCH_SIZE * HALF_PATCH_SIZE;
+    int          v, v0, vmax = cvFloor(half_patch_size * sqrt(2.f) / 2 + 1);
+    int          vmin = cvCeil(half_patch_size * sqrt(2.f) / 2);
+    const double hp2  = half_patch_size * half_patch_size;
     for (v = 0; v <= vmax; ++v)
         umax[v] = cvRound(sqrt(hp2 - v * v));
 
     // Make sure we are symmetric
-    for (v = HALF_PATCH_SIZE, v0 = 0; v >= vmin; --v)
+    for (v = half_patch_size, v0 = 0; v >= vmin; --v)
     {
         while (umax[v0] == umax[v0 + 1])
             ++v0;
@@ -91,11 +91,6 @@ void flatten_keypoints(std::vector<cv::KeyPoint> &keypoints, std::vector<std::ve
     for (int level = 1; level < p.scale_factors.size(); ++level)
     {
         std::vector<cv::KeyPoint>& kps = all_keypoints[level];
-        float scale = p.scale_factors[level];
-
-        for (auto kp = kps.begin(); kp != kps.end(); ++kp)
-            kp->pt *= scale;
-
         keypoints.insert(keypoints.end(), kps.begin(), kps.end());
     }
 }
@@ -200,23 +195,25 @@ void compute_three_maxima(std::vector<int>* histo, const int L, int& ind1, int& 
     }
 }
 
-cv::Mat extract_patch(const cv::Mat& image, cv::KeyPoint &kp, const std::vector<int>& u_max)
+cv::Mat extract_patch(cv::Mat& image, cv::KeyPoint &kp)
 {
-    cv::Point pt = kp.pt / (kp.size / PATCH_SIZE);
-    const uchar* center = &image.at<uchar>(cvRound(pt.y), cvRound(pt.x));
+    std::vector<int> umax;
+    init_patch(umax, HALF_PATCH_SIZE);
+    cv::Mat gray = rgb_to_grayscale (image);
+
+    const uchar* center = &gray.at<uchar>(cvRound(kp.pt.y), cvRound(kp.pt.x));
     cv::Mat patch = cv::Mat::zeros(PATCH_SIZE, PATCH_SIZE, CV_8UC1);
     uchar * patch_center = &patch.at<uchar>(HALF_PATCH_SIZE, HALF_PATCH_SIZE);
  
-
     for (int u = -HALF_PATCH_SIZE; u <= HALF_PATCH_SIZE; ++u)
         patch_center[u] = center[u];
 
     // Go line by line in the circular patch
-    int step = (int)image.step1();
+    int step = (int)gray.step1();
 
     for (int v = 1; v <= HALF_PATCH_SIZE; ++v)
     {
-        int d = u_max[v];
+        int d = umax[v];
         for (int u = -d; u <= d; ++u)
         {
             int p = center[u + v * step];
@@ -244,13 +241,6 @@ void get_inverted_matching(std::vector<int> &inverted_matching, std::vector<int>
 
         inverted_matching[idx1] = i;
     }
-}
-
-float keypoint_degree(cv::KeyPoint kp)
-{
-    float angle = kp.angle * 360.0 / M_PI;
-    while (angle < 0.0) { angle += 360; }
-    return angle;
 }
 
 int select_closest_feature(std::vector<cv::KeyPoint> &keypoints, int x, int y)
@@ -415,7 +405,6 @@ void filters_open(std::string path, std::vector<float> &param, std::vector<float
 
     tokens.clear();
     Tokenize(lineread, tokens);
-    std::cout << tokens.size() << std::endl;
 
     if (tokens.size() != 5) {
         std::cout << "Cannot open filter " << path << std::endl;

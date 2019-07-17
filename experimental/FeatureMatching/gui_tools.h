@@ -11,6 +11,8 @@ cv::Scalar white();
 
 cv::Scalar color_interpolate(cv::Scalar c1, cv::Scalar c2, float v);
 
+void reset_similarity(std::vector<cv::KeyPoint> &kps);
+
 void reset_color(std::vector<cv::Scalar> &colors, cv::Scalar col);
 
 void init_color(std::vector<cv::Scalar> &colors, int size);
