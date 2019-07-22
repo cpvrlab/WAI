@@ -5,7 +5,8 @@ WAI::ModeOrbSlam2::ModeOrbSlam2(SensorCamera* camera,
                                 bool          retainImg,
                                 bool          onlyTracking,
                                 bool          trackOptFlow,
-                                std::string   orbVocFile)
+                                std::string   orbVocFile,
+                                std::string   filterFile)
   : Mode(WAI::ModeType_ORB_SLAM2),
     _serial(serial),
     _retainImg(retainImg),
@@ -40,8 +41,9 @@ WAI::ModeOrbSlam2::ModeOrbSlam2(SensorCamera* camera,
     int   fMinThFAST   = 7;
 
     //instantiate Orb extractor
-    _extractor        = new ORB_SLAM2::ORBextractor(nFeatures, fScaleFactor, nLevels, fIniThFAST, fMinThFAST);
-    mpIniORBextractor = new ORB_SLAM2::ORBextractor(2 * nFeatures, fScaleFactor, nLevels, fIniThFAST, fMinThFAST);
+    //_extractor        = new ORB_SLAM2::ORBextractor(nFeatures, fScaleFactor, nLevels, fIniThFAST, fMinThFAST);
+    _extractor        = new ORB_SLAM2::TILDEextractor(filterFile);
+    //mpIniORBextractor = new ORB_SLAM2::ORBextractor(2 * nFeatures, fScaleFactor, nLevels, fIniThFAST, fMinThFAST);
     //instantiate local mapping
     mpLocalMapper = new ORB_SLAM2::LocalMapping(_map, 1, mpVocabulary);
     mpLoopCloser  = new ORB_SLAM2::LoopClosing(_map, mpKeyFrameDatabase, mpVocabulary, false, false);
@@ -77,10 +79,10 @@ WAI::ModeOrbSlam2::~ModeOrbSlam2()
     {
         delete _extractor;
     }
-    if (mpIniORBextractor)
+    /*if (mpIniORBextractor)
     {
         delete mpIniORBextractor;
-    }
+    }*/
     if (mpLocalMapper)
     {
         delete mpLocalMapper;
@@ -486,9 +488,9 @@ void WAI::ModeOrbSlam2::initialize()
 
     cv::Mat cameraMat     = _camera->getCameraMatrix();
     cv::Mat distortionMat = _camera->getDistortionMatrix();
-    mCurrentFrame         = WAIFrame(_camera->getImageGray(),
+    mCurrentFrame         = WAIFrame(_camera->getImageGray(),_camera->getImageRGB(),
                              0.0,
-                             mpIniORBextractor,
+                             _extractor,
                              cameraMat,
                              distortionMat,
                              mpVocabulary,
@@ -630,7 +632,7 @@ void WAI::ModeOrbSlam2::track3DPts()
 {
     cv::Mat cameraMat     = _camera->getCameraMatrix();
     cv::Mat distortionMat = _camera->getDistortionMatrix();
-    mCurrentFrame         = WAIFrame(_camera->getImageGray(),
+    mCurrentFrame         = WAIFrame(_camera->getImageGray(), _camera->getImageRGB(),
                              0.0,
                              _extractor,
                              cameraMat,

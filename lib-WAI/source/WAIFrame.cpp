@@ -57,7 +57,7 @@ WAIFrame::WAIFrame()
 //Copy Constructor
 WAIFrame::WAIFrame(const WAIFrame& frame)
   : mpORBvocabulary(frame.mpORBvocabulary),
-    mpORBextractorLeft(frame.mpORBextractorLeft),
+    mpTILDEextractorLeft(frame.mpTILDEextractorLeft),
     mTimeStamp(frame.mTimeStamp),
     mK(frame.mK.clone()),
     mDistCoef(frame.mDistCoef.clone()),
@@ -90,9 +90,15 @@ WAIFrame::WAIFrame(const WAIFrame& frame)
     if (!frame.imgGray.empty())
         imgGray = frame.imgGray.clone();
 }
+
+void WAIFrame::ExtractTILDE(const cv::Mat &imGray, const cv::Mat &imRGB)
+{
+    (*mpTILDEextractorLeft)(imGray, imRGB, mvKeys, mDescriptors);
+}
+
 //-----------------------------------------------------------------------------
-WAIFrame::WAIFrame(const cv::Mat& imGray, const double& timeStamp, ORBextractor* extractor, cv::Mat& K, cv::Mat& distCoef, ORBVocabulary* orbVocabulary, bool retainImg)
-  : mpORBextractorLeft(extractor), mTimeStamp(timeStamp), /*mK(K.clone()),*/ /*mDistCoef(distCoef.clone()),*/
+WAIFrame::WAIFrame(const cv::Mat& imGray, const cv::Mat& imRGB, const double& timeStamp, TILDEextractor* extractor, cv::Mat& K, cv::Mat& distCoef, ORBVocabulary* orbVocabulary, bool retainImg)
+  : mpTILDEextractorLeft(extractor), mTimeStamp(timeStamp), /*mK(K.clone()),*/ /*mDistCoef(distCoef.clone()),*/
     mpORBvocabulary(orbVocabulary)
 {
     //ghm1: ORB_SLAM uses float precision
@@ -103,16 +109,17 @@ WAIFrame::WAIFrame(const cv::Mat& imGray, const double& timeStamp, ORBextractor*
     mnId = nNextId++;
 
     // Scale Level Info
-    mnScaleLevels     = mpORBextractorLeft->GetLevels();
-    mfScaleFactor     = mpORBextractorLeft->GetScaleFactor();
+    mnScaleLevels     = mpTILDEextractorLeft->GetLevels();
+    mfScaleFactor     = mpTILDEextractorLeft->GetScaleFactor();
     mfLogScaleFactor  = log(mfScaleFactor);
-    mvScaleFactors    = mpORBextractorLeft->GetScaleFactors();
-    mvInvScaleFactors = mpORBextractorLeft->GetInverseScaleFactors();
-    mvLevelSigma2     = mpORBextractorLeft->GetScaleSigmaSquares();
-    mvInvLevelSigma2  = mpORBextractorLeft->GetInverseScaleSigmaSquares();
+    mvScaleFactors    = mpTILDEextractorLeft->GetScaleFactors();
+    mvInvScaleFactors = mpTILDEextractorLeft->GetInverseScaleFactors();
+    mvLevelSigma2     = mpTILDEextractorLeft->GetScaleSigmaSquares();
+    mvInvLevelSigma2  = mpTILDEextractorLeft->GetInverseScaleSigmaSquares();
 
     // ORB extraction
-    ExtractORB(imGray);
+    //ExtractORB(imGray);
+    ExtractTILDE(imGray, imRGB);
 
     N = (int)mvKeys.size();
 
@@ -145,8 +152,10 @@ WAIFrame::WAIFrame(const cv::Mat& imGray, const double& timeStamp, ORBextractor*
     AssignFeaturesToGrid();
 
     //store image reference if required
+    /*
     if (retainImg)
         imgGray = imGray.clone();
+    */
 }
 //-----------------------------------------------------------------------------
 void WAIFrame::AssignFeaturesToGrid()
@@ -166,10 +175,12 @@ void WAIFrame::AssignFeaturesToGrid()
     }
 }
 //-----------------------------------------------------------------------------
+/*
 void WAIFrame::ExtractORB(const cv::Mat& im)
 {
     (*mpORBextractorLeft)(im, cv::Mat(), mvKeys, mDescriptors);
 }
+*/
 //-----------------------------------------------------------------------------
 void WAIFrame::SetPose(cv::Mat Tcw)
 {

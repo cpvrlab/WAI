@@ -1,9 +1,130 @@
-#include "orb_descriptor.h"
+/**
+* This file is part of ORB-SLAM2.
+* This file is based on the file orb.cpp from the OpenCV library (see BSD license below).
+*
+* Copyright (C) 2014-2016 Raúl Mur-Artal <raulmur at unizar dot es> (University of Zaragoza)
+* For more information see <https://github.com/raulmur/ORB_SLAM2>
+*
+* ORB-SLAM2 is free software: you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+*
+* ORB-SLAM2 is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with ORB-SLAM2. If not, see <http://www.gnu.org/licenses/>.
+*/
+/**
+* Software License Agreement (BSD License)
+*
+*  Copyright (c) 2009, Willow Garage, Inc.
+*  All rights reserved.
+*
+*  Redistribution and use in source and binary forms, with or without
+*  modification, are permitted provided that the following conditions
+*  are met:
+*
+*   * Redistributions of source code must retain the above copyright
+*     notice, this list of conditions and the following disclaimer.
+*   * Redistributions in binary form must reproduce the above
+*     copyright notice, this list of conditions and the following
+*     disclaimer in the documentation and/or other materials provided
+*     with the distribution.
+*   * Neither the name of the Willow Garage nor the names of its
+*     contributors may be used to endorse or promote products derived
+*     from this software without specific prior written permission.
+*
+*  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+*  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+*  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+*  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+*  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+*  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+*  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+*  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+*  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+*  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+*  POSSIBILITY OF SUCH DAMAGE.
+*
+*/
 
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/features2d/features2d.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <vector>
+#include <WAITools.h>
 
+#include "TILDEextractor.h"
+
+#ifdef _WINDOWS
+#    include <iterator>
+#endif
+
+#include <iostream>
+
+using namespace cv;
+using namespace std;
+
+namespace ORB_SLAM2
+{
+
+const int PATCH_SIZE      = 31;
+const int HALF_PATCH_SIZE = 15;
+const int EDGE_THRESHOLD  = 19;
+
+static void computeBRIEFDescriptor(const KeyPoint& kpt,
+                                 const Mat&      img,
+                                 const Point*    pattern,
+                                 uchar*          desc)
+{
+    const uchar* center = &img.at<uchar>(cvRound(kpt.pt.y), cvRound(kpt.pt.x));
+    const int    step   = (int)img.step;
+
+#define GET_VALUE(idx) \
+    center[cvRound(pattern[idx].x) * step + cvRound(pattern[idx].y)]
+
+    for (int i = 0; i < 32; ++i, pattern += 16)
+    {
+        int t0, t1, val;
+        t0  = GET_VALUE(0);
+        t1  = GET_VALUE(1);
+        val = t0 < t1;
+        t0  = GET_VALUE(2);
+        t1  = GET_VALUE(3);
+        val |= (t0 < t1) << 1;
+        t0 = GET_VALUE(4);
+        t1 = GET_VALUE(5);
+        val |= (t0 < t1) << 2;
+        t0 = GET_VALUE(6);
+        t1 = GET_VALUE(7);
+        val |= (t0 < t1) << 3;
+        t0 = GET_VALUE(8);
+        t1 = GET_VALUE(9);
+        val |= (t0 < t1) << 4;
+        t0 = GET_VALUE(10);
+        t1 = GET_VALUE(11);
+        val |= (t0 < t1) << 5;
+        t0 = GET_VALUE(12);
+        t1 = GET_VALUE(13);
+        val |= (t0 < t1) << 6;
+        t0 = GET_VALUE(14);
+        t1 = GET_VALUE(15);
+        val |= (t0 < t1) << 7;
+
+        desc[i] = (uchar)val;
+    }
+
+#undef GET_VALUE
+}
 
 static int bit_pattern_31_[256 * 4] =
-{
+  {
     8,
     -3,
     9,
@@ -1030,60 +1151,268 @@ static int bit_pattern_31_[256 * 4] =
     -11 /*mean (0.127148), correlation (0.547401)*/
 };
 
-static void get_pattern(std::vector<cv::Point> &pattern)
+TILDEextractor::TILDEextractor(std::string filterpath)
 {
+    mvScaleFactor.resize(1);
+    mvLevelSigma2.resize(1);
+    mvScaleFactor[0] = 1.0f;
+    mvLevelSigma2[0] = 1.0f;
+
+    mvInvScaleFactor.resize(1);
+    mvInvLevelSigma2.resize(1);
+    mvInvScaleFactor[0] = 1.0f;
+    mvInvLevelSigma2[0] = 1.0f;
+    nlevels = 1;
+    scaleFactor = 1.0;
+
+    mvImagePyramid.resize(1);
+
+    path = filterpath;
+
     const int    npoints  = 512;
-    const cv::Point* pattern0 = (const cv::Point*)bit_pattern_31_;
+    const Point* pattern0 = (const Point*)bit_pattern_31_;
     std::copy(pattern0, pattern0 + npoints, std::back_inserter(pattern));
+
+    //This is for orientation
+    // pre-compute the end of a row in a circular patch
+    umax.resize(HALF_PATCH_SIZE + 1);
+
+    int          v, v0, vmax = cvFloor(HALF_PATCH_SIZE * sqrt(2.f) / 2 + 1);
+    int          vmin = cvCeil(HALF_PATCH_SIZE * sqrt(2.f) / 2);
+    const double hp2  = HALF_PATCH_SIZE * HALF_PATCH_SIZE;
+    for (v = 0; v <= vmax; ++v)
+        umax[v] = cvRound(sqrt(hp2 - v * v));
+
+    // Make sure we are symmetric
+    for (v = HALF_PATCH_SIZE, v0 = 0; v >= vmin; --v)
+    {
+        while (umax[v0] == umax[v0 + 1])
+            ++v0;
+        umax[v] = v0;
+        ++v0;
+    }
 }
 
-static void computeOrbDescriptor(const cv::KeyPoint& kpt,
-                                 const cv::Mat&      img,
-                                 const cv::Point*    pattern,
-                                 Descriptor &desc)
+
+static void computeDescriptors(const Mat& image, vector<KeyPoint>& keypoints, Mat& descriptors, const vector<Point>& pattern)
 {
-    desc.p = desc.mem;
-    float angle = (float)kpt.angle * (float)(CV_PI / 180.f);
-    float a = (float)cos(angle), b = (float)sin(angle);
+    for (size_t i = 0; i < keypoints.size(); i++)
+        computeBRIEFDescriptor(keypoints[i], image, &pattern[0], descriptors.ptr((int)i));
+}
 
-    const uchar* center = &img.at<uchar>(cvRound(kpt.pt.y), cvRound(kpt.pt.x));
-    const int    step   = (int)img.step;
+class Parallel_process : public cv::ParallelLoopBody {
 
-#define GET_VALUE(idx) \
-    center[cvRound(pattern[idx].x * b + pattern[idx].y * a) * step + \
-           cvRound(pattern[idx].x * a - pattern[idx].y * b)]
+private:
+    std::vector<float> &_param;
+    std::vector<float> &_bias;
+    std::vector<std::vector<float>> &_coeffs;
+    std::vector<cv::Mat> &_filters;
+    std::vector<cv::Mat> &_curRes;
+    const int _nbApproximatedFilters;
+    const std::vector<cv::Mat> &_vectorInput;
 
-    for (int i = 0; i < 32; ++i, pattern += 16)
+public:
+    Parallel_process(const std::vector<cv::Mat> &conv, const int nb, std::vector<cv::Mat> &v,
+                     std::vector<float> &param, std::vector<float> &bias,
+                     std::vector<std::vector<float>> &coeffs, std::vector<cv::Mat> &filters)
+    :
+        _nbApproximatedFilters(nb),
+        _vectorInput(conv),
+        _curRes(v),
+        _param(param),
+        _bias(bias),
+        _coeffs(coeffs),
+        _filters(filters)
     {
-        int t0, t1, val;
-        t0  = GET_VALUE(0);
-        t1  = GET_VALUE(1);
-        val = t0 < t1;
-        t0  = GET_VALUE(2);
-        t1  = GET_VALUE(3);
-        val |= (t0 < t1) << 1;
-        t0 = GET_VALUE(4);
-        t1 = GET_VALUE(5);
-        val |= (t0 < t1) << 2;
-        t0 = GET_VALUE(6);
-        t1 = GET_VALUE(7);
-        val |= (t0 < t1) << 3;
-        t0 = GET_VALUE(8);
-        t1 = GET_VALUE(9);
-        val |= (t0 < t1) << 4;
-        t0 = GET_VALUE(10);
-        t1 = GET_VALUE(11);
-        val |= (t0 < t1) << 5;
-        t0 = GET_VALUE(12);
-        t1 = GET_VALUE(13);
-        val |= (t0 < t1) << 6;
-        t0 = GET_VALUE(14);
-        t1 = GET_VALUE(15);
-        val |= (t0 < t1) << 7;
-
-        desc.p[i] = (uchar)val;
     }
 
-#undef GET_VALUE
+    virtual void operator() (const cv::Range & range)const {
+
+        for (int idxFilter = range.start; idxFilter < range.end; idxFilter++) {
+
+            cv::Mat kernelX = _filters[idxFilter * 2 + 1];	// IMPORTANT!
+            cv::Mat kernelY = _filters[idxFilter * 2];
+
+            // the channel this filter is supposed to be applied to
+            const int idxDim = idxFilter / _nbApproximatedFilters; //   idx / 4
+            cv::Mat res;
+            cv::sepFilter2D(_vectorInput[idxDim], res, CV_32F, kernelX, kernelY, cv::Point(-1, -1), 0, cv::BORDER_REFLECT);
+            _curRes[idxFilter] = res.clone(); // not cloning causes wierd issues.
+        }
+    }
+};
+
+
+std::vector<std::vector<cv::Mat>> getScoresForApprox(std::vector<float> &param, std::vector<float> &bias,
+                                                     std::vector<std::vector<float>> &coeffs,
+                                                     std::vector<cv::Mat> &filters,
+                                                     const std::vector<cv::Mat> &vectorInput)
+{
+    std::vector<std::vector<cv::Mat>>res;
+    int nbMax = param[1];  // 4
+    int nbSum = param[2];  // 4
+    int nbOriginalFilters = nbMax * nbSum; // 16 original non separable filters
+    int nbApproximatedFilters = param[3]; // 4
+    int nbChannels = param[4]; // 6
+    int sizeFilters = param[5]; // 21
+
+    // allocate res
+    res.resize(nbSum);
+    for (int idxSum = 0; idxSum < nbSum; ++idxSum) {
+        res[idxSum].resize(nbMax);
+    }
+
+    // calculate separable responses
+    int idxSum = 0;
+    int idxMax = 0;
+
+    //6 channels, 2 filters per channels => 12 separable filters
+    std::vector<cv::Mat>curRes((int)filters.size() / 2, cv::Mat(vectorInput[0].size(), CV_32F));	// temp storage
+
+    //Compute the response of these 12 filters into curRes
+    cv::parallel_for_(cv::Range(0, (int)filters.size() / 2),
+            Parallel_process(vectorInput, nbApproximatedFilters, curRes, param, bias, coeffs, filters));
+
+    for (int idxFilter = 0; idxFilter < filters.size() / 2; idxFilter++)  //For each response, apply weight
+    {
+        for (int idxOrig = 0; idxOrig < nbSum * nbMax; ++idxOrig)
+        {
+            int idxSum = idxOrig / nbMax;
+            int idxMax = idxOrig % nbMax;
+
+            if (idxFilter == 0) {
+                res[idxSum][idxMax] = coeffs[idxOrig][idxFilter] * curRes[idxFilter].clone();
+            } else {
+                res[idxSum][idxMax] = res[idxSum][idxMax] + coeffs[idxOrig][idxFilter] * curRes[idxFilter];
+            }
+
+        }
+    }
+
+    // add the bias
+    int idxOrig = 0;
+    for (int idxSum = 0; idxSum < nbSum; ++idxSum)
+    {
+        for (int idxMax = 0; idxMax < nbMax; ++idxMax)
+        {
+            res[idxSum][idxMax] += bias[idxOrig];
+            idxOrig++;
+        }
+    }
+
+    return res;
 }
 
+
+void getCombinedScore(const std::vector<std::vector<cv::Mat>>& cascade_responses, cv::Mat *output)
+{
+    for (int idxCascade = 0; idxCascade < cascade_responses.size(); ++idxCascade)
+    {
+        cv::Mat respImageCascade = cascade_responses[idxCascade][0];
+
+        for (int idxDepth = 1; idxDepth < cascade_responses[idxCascade].size(); ++idxDepth)
+            respImageCascade = cv::max(respImageCascade, cascade_responses[idxCascade][idxDepth]);
+
+        respImageCascade = idxCascade % 2 == 0 ? -respImageCascade : respImageCascade;
+        if (idxCascade == 0)
+            *output = respImageCascade;
+        else
+            *output = respImageCascade + *output;
+    }
+
+    //post process
+    const float stdv = 2;
+    const int sizeSmooth = 5 * stdv * 2 + 1;
+    cv::GaussianBlur(*output, *output, cv::Size(sizeSmooth, sizeSmooth), stdv, stdv);
+}
+
+void TILDEextractor::computeKeyPoint(std::vector<cv::KeyPoint>& allKeypoints, cv::Mat image)
+{
+    std::vector<float> param;
+    std::vector<float> bias;
+    std::vector<std::vector<float>> coeffs;
+    std::vector<cv::Mat> filters;
+    std::vector<std::string> tokens;
+
+    cv::Mat im_resized;
+    std::vector<cv::Mat> vectorInput;
+    std::vector<std::vector<cv::Mat>>cascade_responses;
+    cv::Mat outputScore;
+    float resizeRatio;
+
+    filters_open(path, param, bias, coeffs, filters, tokens);
+    resizeRatio = param[0];
+
+    cv::resize(image, im_resized, cv::Size(0, 0), resizeRatio, resizeRatio);
+
+    std::vector<cv::Mat> grad = image_gradient(im_resized); //gx gy magnitude
+    std::vector<cv::Mat> luv = rgb_to_luv(im_resized);
+
+    std::copy(grad.begin(), grad.end(), std::back_inserter(vectorInput));
+    std::copy(luv.begin(), luv.end(), std::back_inserter(vectorInput));
+
+    cascade_responses = getScoresForApprox(param, bias, coeffs, filters, vectorInput);
+
+    getCombinedScore(cascade_responses, &outputScore);
+
+    std::vector<cv::Point3f> res_with_score = NonMaxSup(outputScore);
+
+    // resize back
+    resizeRatio = 1. / resizeRatio;
+
+    if (res_with_score.size() < 100)
+    {
+        for (int i = 0; i < res_with_score.size(); i++)
+        {
+            cv::KeyPoint kp = cv::KeyPoint(res_with_score[i].x * resizeRatio, res_with_score[i].y * resizeRatio, 1.0, 0, res_with_score[i].z, 0);
+            //cv::KeyPoint kp = cv::KeyPoint(res_with_score[i].x * resizeRatio, res_with_score[i].y * resizeRatio, 1.0, 0, 1, 0);
+            kp.size = PATCH_SIZE;
+            allKeypoints.push_back(kp);
+        }
+    }
+    else
+    {
+        for (int i = 0; i < res_with_score.size(); i++)
+        {
+            if (res_with_score[i].z > 0.0)
+            {
+                cv::KeyPoint kp = cv::KeyPoint(res_with_score[i].x * resizeRatio, res_with_score[i].y * resizeRatio, 1.0, 0, res_with_score[i].z, 0);
+                //cv::KeyPoint kp = cv::KeyPoint(res_with_score[i].x * resizeRatio, res_with_score[i].y * resizeRatio, 1.0, 0, 1, 0);
+                kp.size = PATCH_SIZE;
+                allKeypoints.push_back(kp);
+            }
+        }
+    }
+}
+
+//Add RGB and grayscale image
+void TILDEextractor::operator()(InputArray _image, InputArray _imageRGB, vector<KeyPoint>& _keypoints, OutputArray _descriptors)
+{
+    if (_image.empty())
+        return;
+
+    Mat image = _image.getMat();
+    Mat imageRGB = _imageRGB.getMat();
+    Mat descriptors;
+
+    _keypoints.clear();
+
+    computeKeyPoint(_keypoints, imageRGB);
+
+    if (_keypoints.size() == 0)
+        _descriptors.release();
+    else
+    {
+        _descriptors.create(_keypoints.size(), 32, CV_8U);
+        descriptors = _descriptors.getMat();
+    }
+
+    Mat workingMat;
+    GaussianBlur(image, workingMat, Size(7, 7), 2, 2, BORDER_REFLECT_101);
+
+    // Compute the descriptors
+    Mat desc = descriptors.rowRange(0, _keypoints.size());
+    computeDescriptors(workingMat, _keypoints, desc, pattern);
+}
+
+}

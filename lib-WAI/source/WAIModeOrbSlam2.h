@@ -33,7 +33,8 @@ class WAI_API ModeOrbSlam2 : public Mode
                  bool          retainImg,
                  bool          onlyTracking,
                  bool          trackOptFlow,
-                 std::string   orbVocFile);
+                 std::string   orbVocFile,
+                 std::string   filterFile);
     ~ModeOrbSlam2();
     bool getPose(cv::Mat* pose);
     void notifyUpdate();
@@ -156,8 +157,10 @@ class WAI_API ModeOrbSlam2 : public Mode
     WAIMap*        _map               = nullptr;
 
     ORB_SLAM2::ORBVocabulary* mpVocabulary      = nullptr;
-    ORB_SLAM2::ORBextractor*  _extractor        = nullptr;
-    ORB_SLAM2::ORBextractor*  mpIniORBextractor = nullptr;
+    //ORB_SLAM2::ORBextractor*  _extractor        = nullptr;
+    //ORB_SLAM2::ORBextractor*  mpIniORBextractor = nullptr;
+    ORB_SLAM2::TILDEextractor*  _extractor        = nullptr;
+    ORB_SLAM2::TILDEextractor*  mpIniTILDEextractor = nullptr;
     ORB_SLAM2::LocalMapping*  mpLocalMapper     = nullptr;
     ORB_SLAM2::LoopClosing*   mpLoopCloser      = nullptr;
     ORB_SLAM2::Initializer*   mpInitializer     = nullptr;

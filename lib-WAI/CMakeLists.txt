@@ -1,4 +1,4 @@
-# 
+#
 # CMake congifuration for lib-WAI
 #
 
@@ -21,12 +21,14 @@ file(GLOB headers
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIModeOrbSlam2DataOriented.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAISensor.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAISensorCamera.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAITools.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/Converter.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/Initializer.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/LocalMapping.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/LoopClosing.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/Optimizer.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/ORBextractor.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/TILDEextractor.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/ORBmatcher.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/ORBVocabulary.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/PnPsolver.h
@@ -49,6 +51,7 @@ file(GLOB sources
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAIModeOrbSlam2DataOriented.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAISensor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/WAISensorCamera.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/WAITools.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/Converter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/Initializer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/LocalMapping.cpp
@@ -56,6 +59,7 @@ file(GLOB sources
     ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/Optimizer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/ORBmatcher.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/ORBextractor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/TILDEextractor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/PnPsolver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/Sim3Solver.cpp
     )

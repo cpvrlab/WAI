@@ -469,7 +469,7 @@ public:
             cv::Mat kernelY = _filters[idxFilter * 2];
 
             // the channel this filter is supposed to be applied to
-            const int idxDim = idxFilter / _nbApproximatedFilters;
+            const int idxDim = idxFilter / _nbApproximatedFilters; //   idx / 4
             cv::Mat res;
             cv::sepFilter2D(_vectorInput[idxDim], res, CV_32F, kernelX, kernelY, cv::Point(-1, -1), 0, cv::BORDER_REFLECT);
             _curRes[idxFilter] = res.clone(); // not cloning causes wierd issues.
@@ -483,12 +483,12 @@ std::vector<std::vector<cv::Mat>> getScoresForApprox(std::vector<float> &param, 
                                                      const std::vector<cv::Mat> &vectorInput)
 {
     std::vector<std::vector<cv::Mat>>res;
-    int nbMax = param[1]; 
-    int nbSum = param[2];
-    int nbOriginalFilters = nbMax * nbSum;
-    int nbApproximatedFilters = param[3];
-    int nbChannels = param[4];
-    int sizeFilters = param[5];
+    int nbMax = param[1];  // 4
+    int nbSum = param[2];  // 4
+    int nbOriginalFilters = nbMax * nbSum; // 16 original non separable filters
+    int nbApproximatedFilters = param[3]; // 4
+    int nbChannels = param[4]; // 6
+    int sizeFilters = param[5]; // 21
 
     // allocate res
     res.resize(nbSum);
@@ -500,14 +500,17 @@ std::vector<std::vector<cv::Mat>> getScoresForApprox(std::vector<float> &param, 
     int idxSum = 0;
     int idxMax = 0;
 
+    //6 channels, 2 filters per channels => 12 separable filters
     std::vector<cv::Mat>curRes((int)filters.size() / 2, cv::Mat(vectorInput[0].size(), CV_32F));	// temp storage
 
+    //Compute the response of these 12 filters into curRes
     cv::parallel_for_(cv::Range(0, (int)filters.size() / 2),
             Parallel_process(vectorInput, nbApproximatedFilters, curRes, param, bias, coeffs, filters));
 
-    for (int idxFilter = 0; idxFilter < filters.size() / 2; idxFilter++) {
-        //int idxOrig = 0;
-        for (int idxOrig = 0; idxOrig < nbSum * nbMax; ++idxOrig) {
+    for (int idxFilter = 0; idxFilter < filters.size() / 2; idxFilter++)  //For each response, apply weight
+    {
+        for (int idxOrig = 0; idxOrig < nbSum * nbMax; ++idxOrig) 
+        {
             int idxSum = idxOrig / nbMax;
             int idxMax = idxOrig % nbMax;
 
@@ -522,8 +525,10 @@ std::vector<std::vector<cv::Mat>> getScoresForApprox(std::vector<float> &param, 
 
     // add the bias
     int idxOrig = 0;
-    for (int idxSum = 0; idxSum < nbSum; ++idxSum) {
-        for (int idxMax = 0; idxMax < nbMax; ++idxMax) {
+    for (int idxSum = 0; idxSum < nbSum; ++idxSum) 
+    {
+        for (int idxMax = 0; idxMax < nbMax; ++idxMax) 
+        {
             res[idxSum][idxMax] += bias[idxOrig];
             idxOrig++;
         }
@@ -575,7 +580,7 @@ void KPExtractTILDE(std::vector<cv::KeyPoint>& allKeypoints, cv::Mat image)
 
     cv::resize(image, im_resized, cv::Size(0, 0), resizeRatio, resizeRatio);
 
-    std::vector<cv::Mat> grad = image_gradient(im_resized);
+    std::vector<cv::Mat> grad = image_gradient(im_resized); //gx gy magnitude
     std::vector<cv::Mat> luv = rgb_to_luv(im_resized);
 
     std::copy(grad.begin(), grad.end(), std::back_inserter(vectorInput));

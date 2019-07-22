@@ -114,6 +114,10 @@ file(GLOB_RECURSE CALIBRATIONS
     ${WAI_ROOT}/data/calibrations/ORBvoc.bin
     )
 
+file(GLOB_RECURSE FILTERS
+    ${WAI_ROOT}/data/filters/*
+    )
+
 set(APK_ASSETS
     ${CMAKE_CURRENT_LIST_DIR}/src/main/assets)
 
@@ -125,6 +129,7 @@ file(MAKE_DIRECTORY
     ${APK_ASSETS}/shaders
     ${APK_ASSETS}/calibrations
     ${APK_ASSETS}/config
+    ${APK_ASSETS}/filters
     )
 
 file(COPY ${FONTS}          DESTINATION ${APK_ASSETS}/fonts)
@@ -134,3 +139,4 @@ file(COPY ${MODELS}         DESTINATION ${APK_ASSETS}/models)
 file(COPY ${SHADERS}        DESTINATION ${APK_ASSETS}/shaders)
 file(COPY ${CALIBRATIONS}   DESTINATION ${APK_ASSETS}/calibrations)
 file(COPY ${CONFIG}         DESTINATION ${APK_ASSETS}/config)
+file(COPY ${FILTERS}        DESTINATION ${APK_ASSETS}/filters)

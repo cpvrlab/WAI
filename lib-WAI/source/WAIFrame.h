@@ -35,6 +35,7 @@
 #include <DBoW2/FeatureVector.h>
 
 #include <OrbSlam/ORBextractor.h>
+#include <OrbSlam/TILDEextractor.h>
 #include <OrbSlam/ORBVocabulary.h>
 
 class WAIMapPoint;
@@ -52,10 +53,11 @@ class WAIFrame
     //!copy constructor
     WAIFrame(const WAIFrame& frame);
     //!constructor used for detection in tracking
-    WAIFrame(const cv::Mat& imGray, const double& timeStamp, ORBextractor* extractor, cv::Mat& K, cv::Mat& distCoef, ORBVocabulary* orbVocabulary, bool retainImg = false);
+    WAIFrame(const cv::Mat& imGray, const cv::Mat& rgb, const double& timeStamp, TILDEextractor* extractor, cv::Mat& K, cv::Mat& distCoef, ORBVocabulary* orbVocabulary, bool retainImg = false);
 
     // Extract ORB on the image
-    void ExtractORB(const cv::Mat& im);
+    //void ExtractORB(const cv::Mat& im);
+    void ExtractTILDE(const cv::Mat& im, const cv::Mat &rgb);
 
     // Compute Bag of Words representation.
     void ComputeBoW();
@@ -103,7 +105,8 @@ class WAIFrame
     ORBVocabulary* mpORBvocabulary = NULL;
 
     // Feature extractor. The right is used only in the stereo case.
-    ORBextractor* mpORBextractorLeft = NULL;
+    //ORBextractor* mpORBextractorLeft = NULL;
+    TILDEextractor* mpTILDEextractorLeft = NULL;
 
     // Frame timestamp.
     double mTimeStamp;

@@ -800,20 +800,27 @@ cv::Mat LocalMapping::SkewSymmetricMatrix(const cv::Mat& v)
 
 void LocalMapping::RequestReset()
 {
+    if(isStopped())
     {
-        unique_lock<mutex> lock(mMutexReset);
-        mbResetRequested = true;
+        reset();
     }
-    loopContinue();
-
-    while (1)
+    else
     {
         {
-            unique_lock<mutex> lock2(mMutexReset);
-            if (!mbResetRequested)
-                break;
+            unique_lock<mutex> lock(mMutexReset);
+            mbResetRequested = true;
         }
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        loopContinue();
+
+        while (1)
+        {
+            {
+                unique_lock<mutex> lock2(mMutexReset);
+                if (!mbResetRequested)
+                    break;
+            }
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
     }
 }
 

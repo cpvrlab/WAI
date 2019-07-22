@@ -35,7 +35,8 @@ WAI::Mode* WAI::WAI::setMode(ModeType modeType)
                                          false,
                                          false,
                                          false,
-                                         _dataRoot + "/calibrations/ORBvoc.bin");
+                                         _dataRoot + "/calibrations/ORBvoc.bin",
+                                         _dataRoot + "/filters/Chamonix24.txt");
             }
         }
         break;
