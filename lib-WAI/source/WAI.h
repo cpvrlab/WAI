@@ -10,6 +10,7 @@
 #include <WAIModeAruco.h>
 #include <WAIModeOrbSlam2.h>
 #include <WAIModeOrbSlam2DataOriented.h>
+#include <KPextractor.h>
 
 namespace WAI
 {
@@ -29,6 +30,7 @@ class WAI_API WAI
     std::string                   _dataRoot;
     Mode*                         _mode = nullptr;
     std::map<SensorType, Sensor*> _sensors;
+    KPextractor                   *_extractor;
 };
 }
 

@@ -1198,12 +1198,13 @@ ORBextractor::ORBextractor(int   _nfeatures,
                            int   _nlevels,
                            int   _iniThFAST,
                            int   _minThFAST)
-  : nfeatures(_nfeatures),
-    scaleFactor(_scaleFactor),
-    nlevels(_nlevels),
+    :
     iniThFAST(_iniThFAST),
     minThFAST(_minThFAST)
 {
+    nfeatures = _nfeatures;
+    scaleFactor = _scaleFactor;
+    nlevels = _nlevels;
     mvScaleFactor.resize(nlevels);
     mvLevelSigma2.resize(nlevels);
     mvScaleFactor[0] = 1.0f;

@@ -39,7 +39,7 @@
 
 //-----------------------------------------------------------------------------
 //! AR Keyframe database class
-/*! 
+/*!
 */
 class WAI_API WAIKeyFrameDB
 {
@@ -61,6 +61,7 @@ class WAI_API WAIKeyFrameDB
     std::vector<WAIKeyFrame*> DetectLoopCandidates(WAIKeyFrame* pKF, float minScore, int* errorCode);
 
     // Relocalization
+
     std::vector<WAIKeyFrame*> DetectRelocalizationCandidates(WAIFrame* F);
 
     protected:

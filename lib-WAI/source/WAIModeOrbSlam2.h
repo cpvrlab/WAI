@@ -18,6 +18,7 @@
 #include <OrbSlam/ORBmatcher.h>
 #include <OrbSlam/Optimizer.h>
 #include <OrbSlam/PnPsolver.h>
+#include <OrbSlam/KPextractor.h>
 
 #define OPTFLOW_GRID_COLS 7
 #define OPTFLOW_GRID_ROWS 4
@@ -34,7 +35,7 @@ class WAI_API ModeOrbSlam2 : public Mode
                  bool          onlyTracking,
                  bool          trackOptFlow,
                  std::string   orbVocFile,
-                 std::string   filterFile);
+                 KPextractor * extractor);
     ~ModeOrbSlam2();
     bool getPose(cv::Mat* pose);
     void notifyUpdate();
@@ -159,8 +160,8 @@ class WAI_API ModeOrbSlam2 : public Mode
     ORB_SLAM2::ORBVocabulary* mpVocabulary      = nullptr;
     //ORB_SLAM2::ORBextractor*  _extractor        = nullptr;
     //ORB_SLAM2::ORBextractor*  mpIniORBextractor = nullptr;
-    ORB_SLAM2::TILDEextractor*  _extractor        = nullptr;
-    ORB_SLAM2::TILDEextractor*  mpIniTILDEextractor = nullptr;
+    ORB_SLAM2::KPextractor*  _extractor        = nullptr;
+    //ORB_SLAM2::TILDEextractor*  mpIniTILDEextractor = nullptr;
     ORB_SLAM2::LocalMapping*  mpLocalMapper     = nullptr;
     ORB_SLAM2::LoopClosing*   mpLoopCloser      = nullptr;
     ORB_SLAM2::Initializer*   mpInitializer     = nullptr;

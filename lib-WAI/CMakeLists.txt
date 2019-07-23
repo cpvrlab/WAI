@@ -27,6 +27,8 @@ file(GLOB headers
     ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/LocalMapping.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/LoopClosing.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/Optimizer.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/KPextractor.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/SURFextractor.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/ORBextractor.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/TILDEextractor.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/ORBmatcher.h
@@ -58,6 +60,7 @@ file(GLOB sources
     ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/LoopClosing.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/Optimizer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/ORBmatcher.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/SURFextractor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/ORBextractor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/TILDEextractor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/OrbSlam/PnPsolver.cpp

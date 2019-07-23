@@ -18,45 +18,65 @@
 * along with ORB-SLAM2. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef TILDEEXTRACTOR_H
-#define TILDEEXTRACTOR_H
+#ifndef KPEXTRACTOR_H
+#define KPEXTRACTOR_H
 
 #include <vector>
 #include <list>
 #include <opencv/cv.h>
-#include <KPextractor.h>
 
 
 namespace ORB_SLAM2
 {
 
-class TILDEextractor : public KPextractor
+class KPextractor
 {
 public:
-
-    TILDEextractor(std::string filterpath);
-
-    ~TILDEextractor(){}
 
     // Compute the ORB features and descriptors on an image.
     // ORB are dispersed on the image using an octree.
     // Mask is ignored in the current implementation.
-    void operator()( cv::InputArray image, cv::InputArray _imageRGB,
-      std::vector<cv::KeyPoint>& keypoints,
-      cv::OutputArray descriptors);
+    virtual void operator()( cv::InputArray image, cv::InputArray imageRGB,
+                             std::vector<cv::KeyPoint>& keypoints,
+                             cv::OutputArray descriptors ) = 0;
+
+    int GetLevels(){
+        return nlevels;
+    }
+
+    float GetScaleFactor(){
+        return scaleFactor;
+    }
+
+    std::vector<float> GetScaleFactors(){
+        return mvScaleFactor;
+    }
+
+    std::vector<float> GetInverseScaleFactors(){
+        return mvInvScaleFactor;
+    }
+
+    std::vector<float> GetScaleSigmaSquares(){
+        return mvLevelSigma2;
+    }
+
+    std::vector<float> GetInverseScaleSigmaSquares(){
+        return mvInvLevelSigma2;
+    }
 
     std::vector<cv::Mat> mvImagePyramid;
 
 protected:
 
-    void computeKeyPoint(std::vector<cv::KeyPoint>& allKeypoints, cv::Mat image);
-    std::vector<cv::Point> pattern;
-
-    std::vector<float> param;
-    std::vector<float> bias;
-    std::vector<std::vector<float>> coeffs;
-    std::vector<cv::Mat> filters;
-    std::vector<std::string> tokens;
+    int nfeatures;
+    double scaleFactor;
+    int nlevels;
+    std::vector<int> mnFeaturesPerLevel;
+    std::vector<int> umax;
+    std::vector<float> mvScaleFactor;
+    std::vector<float> mvInvScaleFactor;
+    std::vector<float> mvLevelSigma2;
+    std::vector<float> mvInvLevelSigma2;
 };
 
 } //namespace ORB_SLAM

@@ -200,8 +200,8 @@ void filters_open(std::string path, std::vector<float> &param, std::vector<float
     std::string lineread;
 
     if (!fic.is_open()) {
-
-       WAI_LOG("AAAAAAAAAA %s", path);
+        WAI_LOG("Can't open filter %s\n", path);
+        return;
     }
 
     getline(fic, lineread);
@@ -220,7 +220,7 @@ void filters_open(std::string path, std::vector<float> &param, std::vector<float
     Tokenize(lineread, tokens);
 
     if (tokens.size() != 5) {
-        std::cout << "Cannot open filter " << path << std::endl;
+        WAI_LOG("Can't open filter %s\n", path);
     }
     int nbMax = stoi(delSpaces(tokens[0]));
     int nbSum = stoi(delSpaces(tokens[1]));

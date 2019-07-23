@@ -1,5 +1,7 @@
 #include <WAI.h>
 #include <WAIHelper.h>
+#include <TILDEextractor.h>
+#include <SURFextractor.h>
 
 WAI::WAI::WAI(std::string dataRoot)
 {
@@ -30,13 +32,16 @@ WAI::Mode* WAI::WAI::setMode(ModeType modeType)
             }
             else
             {
+
+                //_extractor = new TILDEextractor(_dataRoot + std::string("/filters/Chamonix24.txt"));
+                _extractor = new SURFextractor();
                 _mode = new ModeOrbSlam2((SensorCamera*)_sensors[SensorType_Camera],
                                          false,
                                          false,
                                          false,
                                          false,
                                          _dataRoot + "/calibrations/ORBvoc.bin",
-                                         _dataRoot + "/filters/Chamonix24.txt");
+                                         _extractor);
             }
         }
         break;

@@ -199,6 +199,7 @@ vector<WAIKeyFrame*> WAIKeyFrameDB::DetectLoopCandidates(WAIKeyFrame* pKF, float
     *errorCode = LOOP_DETECTION_ERROR_NONE;
     return vpLoopCandidates;
 }
+
 //-----------------------------------------------------------------------------
 vector<WAIKeyFrame*> WAIKeyFrameDB::DetectRelocalizationCandidates(WAIFrame* F)
 {

@@ -6,7 +6,7 @@ WAI::ModeOrbSlam2::ModeOrbSlam2(SensorCamera* camera,
                                 bool          onlyTracking,
                                 bool          trackOptFlow,
                                 std::string   orbVocFile,
-                                std::string   filterFile)
+                                KPextractor  *extractor)
   : Mode(WAI::ModeType_ORB_SLAM2),
     _serial(serial),
     _retainImg(retainImg),
@@ -40,9 +40,10 @@ WAI::ModeOrbSlam2::ModeOrbSlam2(SensorCamera* camera,
     int   fIniThFAST   = 20;
     int   fMinThFAST   = 7;
 
+    _extractor = extractor;
     //instantiate Orb extractor
     //_extractor        = new ORB_SLAM2::ORBextractor(nFeatures, fScaleFactor, nLevels, fIniThFAST, fMinThFAST);
-    _extractor        = new ORB_SLAM2::TILDEextractor(filterFile);
+    //_extractor        = new ORB_SLAM2::TILDEextractor(filterFile);
     //mpIniORBextractor = new ORB_SLAM2::ORBextractor(2 * nFeatures, fScaleFactor, nLevels, fIniThFAST, fMinThFAST);
     //instantiate local mapping
     mpLocalMapper = new ORB_SLAM2::LocalMapping(_map, 1, mpVocabulary);
@@ -1337,11 +1338,12 @@ void WAI::ModeOrbSlam2::findMatches(std::vector<cv::Point2f>& vP2D, std::vector<
 bool WAI::ModeOrbSlam2::relocalization()
 {
     // Compute Bag of Words Vector
-    mCurrentFrame.ComputeBoW();
+    //mCurrentFrame.ComputeBoW();
 
     // Relocalization is performed when tracking is lost
     // Track Lost: Query WAIKeyFrame Database for keyframe candidates for relocalisation
-    vector<WAIKeyFrame*> vpCandidateKFs = mpKeyFrameDatabase->DetectRelocalizationCandidates(&mCurrentFrame);
+    vector<WAIKeyFrame*> vpCandidateKFs = _map->GetAllKeyFrames();
+    //vector<WAIKeyFrame*> vpCandidateKFs = mpKeyFrameDatabase->DetectRelocalizationCandidates(&mCurrentFrame);
 
     if (vpCandidateKFs.empty())
         return false;
@@ -1372,8 +1374,8 @@ bool WAI::ModeOrbSlam2::relocalization()
             vbDiscarded[i] = true;
         else
         {
-            int nmatches = matcher.SearchByBoW(pKF, mCurrentFrame, vvpMapPointMatches[i]);
-            //cout << "Num matches: " << nmatches << endl;
+            int nmatches = matcher.MatchFeature(pKF, mCurrentFrame, vvpMapPointMatches[i]);
+            //int nmatches = matcher.SearchByBoW(pKF, mCurrentFrame, vvpMapPointMatches[i]);
             if (nmatches < 15)
             {
                 vbDiscarded[i] = true;

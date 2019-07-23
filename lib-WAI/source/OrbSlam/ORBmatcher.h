@@ -62,6 +62,9 @@ class ORBmatcher
     int SearchByBoW(WAIKeyFrame* pKF, WAIFrame& F, std::vector<WAIMapPoint*>& vpMapPointMatches);
     int SearchByBoW(WAIKeyFrame* pKF1, WAIKeyFrame* pKF2, std::vector<WAIMapPoint*>& vpMatches12);
 
+
+    int MatchFeature(WAIKeyFrame* pKF, WAIFrame& F, vector<WAIMapPoint*>& vpMapPointMatches);
+
     // Matching for the Map Initialization (only used in the monocular case)
     int SearchForInitialization(WAIFrame& F1, WAIFrame& F2, std::vector<cv::Point2f>& vbPrevMatched, std::vector<int>& vnMatches12, int windowSize = 10);
 

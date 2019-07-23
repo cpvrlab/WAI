@@ -31,6 +31,7 @@
 #include <WAIMapPoint.h>
 #include <OrbSlam/Converter.h>
 
+
 using namespace cv;
 
 //static data members
@@ -57,7 +58,7 @@ WAIFrame::WAIFrame()
 //Copy Constructor
 WAIFrame::WAIFrame(const WAIFrame& frame)
   : mpORBvocabulary(frame.mpORBvocabulary),
-    mpTILDEextractorLeft(frame.mpTILDEextractorLeft),
+    mpKPextractorLeft(frame.mpKPextractorLeft),
     mTimeStamp(frame.mTimeStamp),
     mK(frame.mK.clone()),
     mDistCoef(frame.mDistCoef.clone()),
@@ -91,14 +92,14 @@ WAIFrame::WAIFrame(const WAIFrame& frame)
         imgGray = frame.imgGray.clone();
 }
 
-void WAIFrame::ExtractTILDE(const cv::Mat &imGray, const cv::Mat &imRGB)
+void WAIFrame::ExtractKP(const cv::Mat &imGray, const cv::Mat &imRGB)
 {
-    (*mpTILDEextractorLeft)(imGray, imRGB, mvKeys, mDescriptors);
+    (*mpKPextractorLeft)(imGray, imRGB, mvKeys, mDescriptors);
 }
 
 //-----------------------------------------------------------------------------
-WAIFrame::WAIFrame(const cv::Mat& imGray, const cv::Mat& imRGB, const double& timeStamp, TILDEextractor* extractor, cv::Mat& K, cv::Mat& distCoef, ORBVocabulary* orbVocabulary, bool retainImg)
-  : mpTILDEextractorLeft(extractor), mTimeStamp(timeStamp), /*mK(K.clone()),*/ /*mDistCoef(distCoef.clone()),*/
+WAIFrame::WAIFrame(const cv::Mat& imGray, const cv::Mat& imRGB, const double& timeStamp, KPextractor* extractor, cv::Mat& K, cv::Mat& distCoef, ORBVocabulary* orbVocabulary, bool retainImg)
+  : mpKPextractorLeft(extractor), mTimeStamp(timeStamp), /*mK(K.clone()),*/ /*mDistCoef(distCoef.clone()),*/
     mpORBvocabulary(orbVocabulary)
 {
     //ghm1: ORB_SLAM uses float precision
@@ -109,17 +110,16 @@ WAIFrame::WAIFrame(const cv::Mat& imGray, const cv::Mat& imRGB, const double& ti
     mnId = nNextId++;
 
     // Scale Level Info
-    mnScaleLevels     = mpTILDEextractorLeft->GetLevels();
-    mfScaleFactor     = mpTILDEextractorLeft->GetScaleFactor();
+    mnScaleLevels     = mpKPextractorLeft->GetLevels();
+    mfScaleFactor     = mpKPextractorLeft->GetScaleFactor();
     mfLogScaleFactor  = log(mfScaleFactor);
-    mvScaleFactors    = mpTILDEextractorLeft->GetScaleFactors();
-    mvInvScaleFactors = mpTILDEextractorLeft->GetInverseScaleFactors();
-    mvLevelSigma2     = mpTILDEextractorLeft->GetScaleSigmaSquares();
-    mvInvLevelSigma2  = mpTILDEextractorLeft->GetInverseScaleSigmaSquares();
+    mvScaleFactors    = mpKPextractorLeft->GetScaleFactors();
+    mvInvScaleFactors = mpKPextractorLeft->GetInverseScaleFactors();
+    mvLevelSigma2     = mpKPextractorLeft->GetScaleSigmaSquares();
+    mvInvLevelSigma2  = mpKPextractorLeft->GetInverseScaleSigmaSquares();
 
     // ORB extraction
-    //ExtractORB(imGray);
-    ExtractTILDE(imGray, imRGB);
+    ExtractKP(imGray, imRGB);
 
     N = (int)mvKeys.size();
 

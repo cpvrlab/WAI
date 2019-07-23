@@ -156,6 +156,60 @@ bool ORBmatcher::CheckDistEpipolarLine(const cv::KeyPoint& kp1, const cv::KeyPoi
     return dsqr < 3.84 * pKF2->mvLevelSigma2[kp2.octave];
 }
 
+int ORBmatcher::MatchFeature(WAIKeyFrame* pKF, WAIFrame& F, vector<WAIMapPoint*>& vpMapPointMatches)
+{
+    const vector<WAIMapPoint*> vpMapPointsKF = pKF->GetMapPointMatches();
+    cv::Mat dsF = F.mDescriptors;
+
+    vpMapPointMatches = vector<WAIMapPoint*>(F.N, static_cast<WAIMapPoint*>(NULL));
+
+    int nmatches = 0;
+
+    for (WAIMapPoint * p : vpMapPointsKF)
+    {
+        if (!p)
+            continue;
+
+        if (p->isBad())
+            continue;
+
+        cv::Mat dKF = p->GetDescriptor();
+
+        int bestDist1 = 256;
+        int bestIdxF  = -1;
+        int bestDist2 = 256;
+
+        for (int i = 0; i < dsF.rows; i++)
+        {
+            const cv::Mat &dF = dsF.row(i);
+
+            const int dist = DescriptorDistance(dKF, dF);
+
+            if (dist < bestDist1)
+            {
+                bestDist2 = bestDist1;
+                bestDist1 = dist;
+                bestIdxF = i;
+            }
+            else if (dist < bestDist2)
+            {
+                bestDist2 = dist;
+            }
+        }
+
+        if (bestDist1 <= TH_LOW)
+        {
+            if (static_cast<float>(bestDist1) < mfNNratio * static_cast<float>(bestDist2))
+            {
+                vpMapPointMatches[bestIdxF] = p;
+                nmatches++;
+            }
+        }
+    }
+
+    return nmatches;
+}
+
 int ORBmatcher::SearchByBoW(WAIKeyFrame* pKF, WAIFrame& F, vector<WAIMapPoint*>& vpMapPointMatches)
 {
     const vector<WAIMapPoint*> vpMapPointsKF = pKF->GetMapPointMatches();
