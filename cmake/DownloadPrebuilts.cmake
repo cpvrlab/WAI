@@ -41,7 +41,6 @@ set(g2o_LINK_LIBS
     g2o_types_sim3
     g2o_types_slam3d
     g2o_types_slam3d_addons
-    g2o_opengl_helper
     )
 
 set(PREBUILT_PATH "${WAI_ROOT}/thirdparty/prebuilt")
