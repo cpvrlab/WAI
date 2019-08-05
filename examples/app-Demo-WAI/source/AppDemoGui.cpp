@@ -408,7 +408,7 @@ void AppDemoGui::build(SLScene* s, SLSceneView* sv)
         sprintf(m + strlen(m), "Video Type    : %s\n", vt == VT_NONE ? "None" : vt == VT_MAIN ? "Main Camera" : vt == VT_FILE ? "File" : "Secondary Camera");
         sprintf(m + strlen(m), "Display size  : %d x %d\n", SLCVCapture::lastFrame.cols, SLCVCapture::lastFrame.rows);
         sprintf(m + strlen(m), "Capture size  : %d x %d\n", capSize.width, capSize.height);
-        sprintf(m + strlen(m), "Requested size: %d\n", SLCVCapture::requestedSizeIndex);
+        //sprintf(m + strlen(m), "Requested size: %d\n", SLCVCapture::requestedSizeIndex);
         //sprintf(m + strlen(m), "Mirrored      : %s\n", mirrored.c_str());
 
         if (wc != nullptr)

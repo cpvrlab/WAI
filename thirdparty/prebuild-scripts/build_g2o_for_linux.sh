@@ -31,7 +31,7 @@ cmake \
     ../..
 
 # finally build it
-make -j8
+make -j100
 
 # copy all into install folder
 make install
@@ -52,23 +52,30 @@ cmake \
     ../..
 
 # finally build it
-make -j8
+make -j10
 
 # copy all into install folder
 make install
 cd ../.. # back to g2o
 
+
+#linux_debug/install/lib/
+
 # Create zip folder for debug and release version
 rm -rf $ZIPFOLDER
 mkdir $ZIPFOLDER
-cp -R $BUILD_R/install/include   $ZIPFOLDER/include
+
+echo $ZIPFOLDER
+echo $(pwd)
+
+cp -R $BUILD_R/install/include   $ZIPFOLDER/
 cp -R $BUILD_R/install/lib       $ZIPFOLDER/Release
 cp -R $BUILD_D/install/lib       $ZIPFOLDER/Debug
-cp doc/license* $ZIPFOLDER
-cp README.md $ZIPFOLDER
+#cp doc/license* $ZIPFOLDER
+#cp README.md $ZIPFOLDER
 
 if [ -d "../prebuilt/$ZIPFILE" ]; then
     rm -rf ../prebuilt/$ZIPFILE
 fi
 
-mv $ZIPFOLDER ../prebuilt
+mv $ZIPFOLDER ../prebuilt/

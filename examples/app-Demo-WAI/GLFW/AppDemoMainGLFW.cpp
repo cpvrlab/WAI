@@ -563,7 +563,7 @@ int main(int argc, char* argv[])
     SLstring slRoot    = SLstring(WAI_ROOT) + "/thirdparty/SLProject";
     SLstring waiRoot   = SLstring(WAI_ROOT);
     SLstring configDir = Utils::getAppsWritableDir();
-    slSetupExternalDirectories(waiRoot + "/data");
+    //slSetupExternalDirectories(waiRoot + "/data");
 
     /////////////////////////////////////////////////////////
     AppWAISingleton::instance()->load(640, 480, waiRoot + "/data", new AutoCalibration(640, 480));

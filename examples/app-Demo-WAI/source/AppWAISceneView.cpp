@@ -1,3 +1,4 @@
+#include <atomic>
 #include <SLApplication.h>
 #include <SLBox.h>
 #include <SLLightSpot.h>
