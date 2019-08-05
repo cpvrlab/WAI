@@ -64,12 +64,12 @@ static SLfloat       lastMouseDownTime = 0.0f;   //!< Last mouse press time
 static SLKey         modifiers         = K_none; //!< last modifier keys
 static SLbool        fullscreen        = false;  //!< flag if window is in fullscreen mode
 static WAISceneView* sceneView         = nullptr;
-
 //-----------------------------------------------------------------------------
 //! Alternative SceneView creation function passed by slCreateSceneView
 SLuint createNewWAISceneView()
 {
-    sceneView = new WAISceneView(std::string(WAI_ROOT) + "/data/",
+    sceneView = new WAISceneView(SLApplication::scene,
+                                 std::string(WAI_ROOT) + "/data/",
                                  std::string(WAI_ROOT) + "/data/");
     return sceneView->index();
 }
@@ -90,7 +90,80 @@ SLbool onPaint()
 {
     //////////////////////////////////////////////////
     bool viewNeedsRepaint;
-    viewNeedsRepaint = slUpdateAndPaint(svIndex);
+
+    SLSceneView* sv = sceneView;
+
+    SLApplication::handleParallelJob();
+
+    //bool sceneGotUpdated = SLApplication::scene->onUpdate();
+    SLbool sceneHasChanged = false;
+    {
+        // Return if not all sceneview got repainted: This check if necessary if
+        // this function is called for multiple SceneViews. In this way we only
+        // update the geometric representations if all SceneViews got painted once.
+
+        //for (auto sv : _sceneViews)
+        if (sv != nullptr && !sv->gotPainted())
+            return false;
+
+        //// Reset all _gotPainted flags
+        //for (auto sv : _sceneViews)
+        if (sv != nullptr)
+            sv->gotPainted(false);
+
+        /////////////////////////////
+        // 1) Calculate frame time //
+        /////////////////////////////
+
+        SLApplication::scene->calculateFrameTime(sv);
+
+        //////////////////////////////
+        // 2) Process queued events //
+        //////////////////////////////
+
+        std::vector<SLSceneView*> svs;
+        svs.push_back(sv);
+        // Process queued up system events and poll custom input devices
+        sceneHasChanged = SLApplication::inputManager.pollAndProcessEvents(svs);
+
+        //////////////////////////////
+        // 3) Update all animations //
+        //////////////////////////////
+
+        SLbool renderTypeIsRT = false;
+        SLbool voxelsAreShown = false;
+        //for (auto sv : _sceneViews)
+        //{
+        if (sv != nullptr)
+        {
+            if (!renderTypeIsRT && sv->renderType() == RT_rt)
+                renderTypeIsRT = true;
+            if (!voxelsAreShown && sv->drawBit(SL_DB_VOXELS))
+                voxelsAreShown = true;
+        }
+        SLApplication::scene->updateAnimations(sceneHasChanged, renderTypeIsRT, voxelsAreShown);
+
+        ////////////////////
+        // 4) AR Tracking //
+        ////////////////////
+
+        /////////////////////
+        // 5) Update AABBs //
+        /////////////////////
+
+        SLApplication::scene->updateAABBs();
+
+        //SL_LOG("SLScene::onUpdate\n");
+        //return sceneHasChanged;
+    }
+
+    bool viewNeedsUpdate = sv->onPaint();
+
+    viewNeedsRepaint = (sceneHasChanged ||
+                        viewNeedsUpdate ||
+                        SLApplication::jobIsRunning);
+
+    //viewNeedsRepaint = slUpdateAndPaint(svIndex);
     //////////////////////////////////////////////////
 
     // Fast copy the back buffer to the front buffer. This is OS dependent.
@@ -568,16 +641,76 @@ int main(int argc, char* argv[])
     /////////////////////////////////////////////////////////
     AppWAISingleton::instance()->load(640, 480, waiRoot + "/data", new AutoCalibration(640, 480));
 
-    slCreateAppAndScene(cmdLineArgs,
-                        slRoot + "/data/shaders/",
-                        waiRoot + "/data/models/",
-                        slRoot + "/data/images/textures/",
-                        waiRoot + "/data/videos/",
-                        slRoot + "/data/images/fonts/",
-                        waiRoot + "/data/calibrations/",
-                        configDir,
-                        "AppDemoGLFW",
-                        (void*)onLoadWAISceneView);
+    //slCreateAppAndScene(cmdLineArgs,
+    //                    slRoot + "/data/shaders/",
+    //                    waiRoot + "/data/models/",
+    //                    slRoot + "/data/images/textures/",
+    //                    waiRoot + "/data/videos/",
+    //                    slRoot + "/data/images/fonts/",
+    //                    waiRoot + "/data/calibrations/",
+    //                    configDir,
+    //                    "AppDemoGLFW",
+    //                    (void*)onLoadWAISceneView);
+
+    assert(SLApplication::scene == nullptr && "SLScene is already created!");
+
+    // Default paths for all loaded resources
+    SLGLProgram::defaultPath      = slRoot + "/data/shaders/";
+    SLGLTexture::defaultPath      = slRoot + "/data/images/textures/";
+    SLGLTexture::defaultPathFonts = slRoot + "/data/images/fonts/";
+    //SLAssimpImporter::defaultPath = modelPath;
+    SLCVCapture::videoDefaultPath = waiRoot + "/data/videos/";
+    SLCVCalibration::calibIniPath = waiRoot + "/data/calibrations/";
+    SLApplication::configPath     = configDir;
+
+    SLGLState* stateGL = SLGLState::getInstance();
+
+    //Utils::logAppName = "SLProject";
+    //SL_LOG("Path to Models  : %s\n", modelPath.c_str());
+    //SL_LOG("Path to Shaders : %s\n", shaderPath.c_str());
+    //SL_LOG("Path to Textures: %s\n", texturePath.c_str());
+    //SL_LOG("Path to Textures: %s\n", videoPath.c_str());
+    //SL_LOG("Path to Fonts   : %s\n", fontPath.c_str());
+    //SL_LOG("Path to Calibr. : %s\n", calibrationPath.c_str());
+    //SL_LOG("Path to Config. : %s\n", configPath.c_str());
+    //SL_LOG("OpenCV Version  : %d.%d.%d\n", CV_MAJOR_VERSION, CV_MINOR_VERSION, CV_VERSION_REVISION);
+    //SL_LOG("CV has OpenCL   : %s\n", cv::ocl::haveOpenCL() ? "yes" : "no");
+    //SL_LOG("OpenGL Version  : %s\n", stateGL->glVersion().c_str());
+    //SL_LOG("Vendor          : %s\n", stateGL->glVendor().c_str());
+    //SL_LOG("Renderer        : %s\n", stateGL->glRenderer().c_str());
+    //SL_LOG("GLSL Version    : %s (%s) \n", stateGL->glSLVersion().c_str(), stateGL->getSLVersionNO().c_str());
+    //SL_LOG("------------------------------------------------------------------\n");
+
+    //assert(SLApplication::scene == nullptr &&
+    //       "You can create only one SLApplication");
+
+    //name = appName;
+
+    SLApplication::scene = new SLScene("AppDemoGLFW", (cbOnSceneLoad)onLoadWAISceneView);
+
+    //    // This gets computerUser,-Name,-Brand,-Model,-OS,-OSVer,-Arch,-ID
+    //    SLstring deviceString = SLApplication::getComputerInfos();
+    //
+    //    SLstring mainCalibFilename = "camCalib_" + deviceString + "_main.xml";
+    //    SLstring scndCalibFilename = "camCalib_" + deviceString + "_scnd.xml";
+    //
+    //    // load opencv camera calibration for main and secondary camera
+    //#if defined(SL_USES_CVCAPTURE)
+    //    calibMainCam.load(SLApplication::configPath, mainCalibFilename, true, false);
+    //    calibMainCam.loadCalibParams();
+    //    activeCalib                     = &calibMainCam;
+    //    SLCVCapture::hasSecondaryCamera = false;
+    //#else
+    //    calibMainCam.load(SLApplication::configPath, mainCalibFilename, false, false);
+    //    calibMainCam.loadCalibParams();
+    //    calibScndCam.load(SLApplication::configPath, scndCalibFilename, true, false);
+    //    calibScndCam.loadCalibParams();
+    //    activeCalib                     = &calibMainCam;
+    //    SLCVCapture::hasSecondaryCamera = true;
+    //#endif
+
+    //SLApplication::createAppAndScene("AppDemoGLFW", (void*)onLoadWAISceneView);
+
     /////////////////////////////////////////////////////////
 
     // This load the GUI configs that are locally stored
@@ -588,15 +721,39 @@ int main(int argc, char* argv[])
 
     SLApplication::sceneID = (SLSceneID)Scene_WAI;
 
+    sceneView = new WAISceneView(SLApplication::scene,
+                                 std::string(WAI_ROOT) + "/data/",
+                                 std::string(WAI_ROOT) + "/data/");
+    sceneView->init("SceneView",
+                    (int)(scrWidth * scr2fbX),
+                    (int)(scrHeight * scr2fbY),
+                    (void*)&onPaint,
+                    nullptr,
+                    (void*)AppDemoGui::build);
+
+    // Set default font sizes depending on the dpi no matter if ImGui is used
+    if (!SLApplication::dpi) SLApplication::dpi = dpi;
+
+    // Load GUI fonts depending on the resolution
+    sceneView->gui().loadFonts(SLGLImGui::fontPropDots, SLGLImGui::fontFixedDots);
+
+    // Set active sceneview and load scene. This is done for the first sceneview
+    if (!SLApplication::scene->root3D())
+    {
+        onLoadWAISceneView(SLApplication::scene, sceneView, SLApplication::sceneID);
+    }
+    else
+        sceneView->onInitialize();
+
     /////////////////////////////////////////////////////////
-    svIndex = slCreateSceneView((int)(scrWidth * scr2fbX),
-                                (int)(scrHeight * scr2fbY),
-                                dpi,
-                                (SLSceneID)SL_STARTSCENE,
-                                (void*)&onPaint,
-                                nullptr,
-                                (void*)createNewWAISceneView,
-                                (void*)AppDemoGui::build);
+    //svIndex = slCreateSceneView((int)(scrWidth * scr2fbX),
+    //                            (int)(scrHeight * scr2fbY),
+    //                            dpi,
+    //                            (SLSceneID)SL_STARTSCENE,
+    //                            (void*)&onPaint,
+    //                            nullptr,
+    //                            (void*)createNewWAISceneView,
+    //                            (void*)AppDemoGui::build);
     /////////////////////////////////////////////////////////
 
     // Set GLFW callback functions
@@ -626,7 +783,7 @@ int main(int argc, char* argv[])
         // If live video image is requested grab it and copy it
         if (slGetVideoType() != VT_NONE)
         {
-            SLCVCapture::grabAndAdjustForSL();
+            SLCVCapture::grabAndAdjustForSL(sceneView->scrWdivH());
 
             WAI::CameraData cameraData = {};
             cameraData.imageGray       = &SLCVCapture::lastFrameGray;

@@ -24,7 +24,7 @@
 
 #include <WAI.h>
 
-#define LIVE_VIDEO 0
+#define LIVE_VIDEO 1
 
 void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid);
 
@@ -44,7 +44,7 @@ demonstrates all transform possibilities in SLNode
 class WAISceneView : public SLSceneView
 {
     public:
-    WAISceneView(std::string externalDir, std::string dataRoot);
+    WAISceneView(SLScene* scene, std::string externalDir, std::string dataRoot);
     void update();
     void updateCamera(WAI::CameraData* cameraData);
     void updateMinNumOfCovisibles(int n);
