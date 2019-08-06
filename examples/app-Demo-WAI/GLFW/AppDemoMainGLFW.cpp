@@ -147,6 +147,159 @@ SLbool onPaint()
         // 4) AR Tracking //
         ////////////////////
 
+        //if (_videoType != VT_NONE && !SLCVCapture::lastFrame.empty())
+        //{
+        //    SLfloat          trackingTimeStartMS = timeMilliSec();
+        //    SLCVCalibration* ac                  = SLApplication::activeCalib;
+
+        //    // Invalidate calibration if camera input aspect doesn't match output
+        //    SLfloat calibWdivH              = ac->imageAspectRatio();
+        //    SLbool  aspectRatioDoesNotMatch = SL_abs(_sceneViews[0]->scrWdivH() - calibWdivH) > 0.01f;
+        //    if (aspectRatioDoesNotMatch && ac->state() == CS_calibrated)
+        //    {
+        //        ac->clear();
+        //    }
+
+        //    stringstream ss; // info line text
+
+        //    //.....................................................................
+        //    if (ac->state() == CS_uncalibrated)
+        //    {
+        //        if (SLApplication::sceneID == SID_VideoCalibrateMain ||
+        //            SLApplication::sceneID == SID_VideoCalibrateScnd)
+        //        {
+        //            ac->state(CS_calibrateStream);
+        //        }
+        //        else
+        //        { // Changes the state to CS_guessed
+        //            ac->createFromGuessedFOV(SLCVCapture::lastFrame.cols,
+        //                                     SLCVCapture::lastFrame.rows);
+        //            _sceneViews[0]->camera()->fov(ac->cameraFovVDeg());
+        //        }
+        //    }
+        //    else //..............................................................
+        //      if (ac->state() == CS_calibrateStream || ac->state() == CS_calibrateGrab)
+        //    {
+        //        ac->findChessboard(SLCVCapture::lastFrame, SLCVCapture::lastFrameGray, true);
+        //        int imgsToCap = ac->numImgsToCapture();
+        //        int imgsCaped = ac->numCapturedImgs();
+
+        //        //update info line
+        //        if (imgsCaped < imgsToCap)
+        //            ss << "Click on the screen to create a calibration photo. Created "
+        //               << imgsCaped << " of " << imgsToCap;
+        //        else
+        //        {
+        //            ss << "Calculating calibration, please wait ...";
+        //            ac->state(CS_startCalculating);
+        //        }
+        //        _info = ss.str();
+        //    }
+        //    else //..............................................................
+        //      if (ac->state() == CS_startCalculating)
+        //    {
+        //        if (ac->calculate())
+        //        {
+        //            _sceneViews[0]->camera()->fov(ac->cameraFovVDeg());
+        //            if (SLApplication::sceneID == SID_VideoCalibrateMain)
+        //                onLoad(this, _sceneViews[0], SID_VideoTrackChessMain);
+        //            else
+        //                onLoad(this, _sceneViews[0], SID_VideoTrackChessScnd);
+        //        }
+        //    }
+        //    else if (ac->state() == CS_calibrated || ac->state() == CS_guessed) //......
+        //    {
+        //        SLCVTrackedAruco::trackAllOnce = true;
+
+        //        // track all trackers in the first sceneview
+        //        for (auto tracker : _trackers)
+        //        {
+        //            tracker->track(SLCVCapture::lastFrameGray,
+        //                           SLCVCapture::lastFrame,
+        //                           ac,
+        //                           _showDetection,
+        //                           _sceneViews[0]);
+        //        }
+
+        //        // Update info text only for chessboard scene
+        //        if (SLApplication::sceneID == SID_VideoCalibrateMain ||
+        //            SLApplication::sceneID == SID_VideoCalibrateScnd ||
+        //            SLApplication::sceneID == SID_VideoTrackChessMain ||
+        //            SLApplication::sceneID == SID_VideoTrackChessScnd)
+        //        {
+        //            SLfloat fovH = ac->cameraFovHDeg();
+        //            SLfloat err = ac->reprojectionError();
+        //            ss << "Tracking Chessboard on " << (_videoType == VT_MAIN ? "main " : "scnd. ") << "camera. ";
+        //            if (ac->state() == CS_calibrated)
+        //                ss << "FOVH: " << fovH << ", error: " << err;
+        //            else
+        //                ss << "Not calibrated. FOVH guessed: " << fovH << " degrees.";
+        //            _info = ss.str();
+        //        }
+        //    } //...................................................................
+
+        if (!SLCVCapture::lastFrame.empty())
+        {
+            SLApplication::scene->setVideoTexture(SLCVCapture::lastFrame.cols,
+                                                  SLCVCapture::lastFrame.rows,
+                                                  SLCVCapture::format,
+                                                  SLCVCapture::lastFrame.data,
+                                                  SLCVCapture::lastFrame.isContinuous(),
+                                                  true);
+        }
+        //    //copy image to video texture
+        //    if (ac->state() == CS_calibrated && ac->showUndistorted())
+        //    {
+        //        SLCVMat undistorted;
+        //        ac->remap(SLCVCapture::lastFrame, undistorted);
+
+        //        _videoTexture.copyVideoImage(undistorted.cols,
+        //                                     undistorted.rows,
+        //                                     SLCVCapture::format,
+        //                                     undistorted.data,
+        //                                     undistorted.isContinuous(),
+        //                                     true);
+        //    }
+        //    else
+        //    {
+        //        _videoTexture.copyVideoImage(SLCVCapture::lastFrame.cols,
+        //                                     SLCVCapture::lastFrame.rows,
+        //                                     SLCVCapture::format,
+        //                                     SLCVCapture::lastFrame.data,
+        //                                     SLCVCapture::lastFrame.isContinuous(),
+        //                                     true);
+        //    }
+
+        //    _trackingTimesMS.set(timeMilliSec() - trackingTimeStartMS);
+        //}
+
+        /////////////////////
+        // copy image only instead of ar tracking //
+        /////////////////////
+
+        ////copy image to video texture
+        //if (ac->state() == CS_calibrated && ac->showUndistorted())
+        //{
+        //    SLCVMat undistorted;
+        //    ac->remap(SLCVCapture::lastFrame, undistorted);
+
+        //    _videoTexture.copyVideoImage(undistorted.cols,
+        //                                 undistorted.rows,
+        //                                 SLCVCapture::format,
+        //                                 undistorted.data,
+        //                                 undistorted.isContinuous(),
+        //                                 true);
+        //}
+        //else
+        //{
+        //    _videoTexture.copyVideoImage(SLCVCapture::lastFrame.cols,
+        //                                 SLCVCapture::lastFrame.rows,
+        //                                 SLCVCapture::format,
+        //                                 SLCVCapture::lastFrame.data,
+        //                                 SLCVCapture::lastFrame.isContinuous(),
+        //                                 true);
+        //}
+
         /////////////////////
         // 5) Update AABBs //
         /////////////////////
