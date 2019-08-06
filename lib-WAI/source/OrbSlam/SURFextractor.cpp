@@ -1,3 +1,57 @@
+/**
+* This file is part of ORB-SLAM2.
+* This file is based on the file orb.cpp from the OpenCV library (see BSD license below).
+*
+* Copyright (C) 2014-2016 Raúl Mur-Artal <raulmur at unizar dot es> (University of Zaragoza)
+* For more information see <https://github.com/raulmur/ORB_SLAM2>
+*
+* ORB-SLAM2 is free software: you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+*
+* ORB-SLAM2 is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with ORB-SLAM2. If not, see <http://www.gnu.org/licenses/>.
+*/
+/**
+* Software License Agreement (BSD License)
+*
+*  Copyright (c) 2009, Willow Garage, Inc.
+*  All rights reserved.
+*
+*  Redistribution and use in source and binary forms, with or without
+*  modification, are permitted provided that the following conditions
+*  are met:
+*
+*   * Redistributions of source code must retain the above copyright
+*     notice, this list of conditions and the following disclaimer.
+*   * Redistributions in binary form must reproduce the above
+*     copyright notice, this list of conditions and the following
+*     disclaimer in the documentation and/or other materials provided
+*     with the distribution.
+*   * Neither the name of the Willow Garage nor the names of its
+*     contributors may be used to endorse or promote products derived
+*     from this software without specific prior written permission.
+*
+*  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+*  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+*  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+*  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+*  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+*  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+*  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+*  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+*  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+*  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+*  POSSIBILITY OF SUCH DAMAGE.
+*
+*/
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -15,6 +69,9 @@
 
 using namespace cv;
 using namespace std;
+
+namespace ORB_SLAM2
+{
 
 const int PATCH_SIZE      = 31;
 const int HALF_PATCH_SIZE = 15;
@@ -1093,9 +1150,23 @@ static int bit_pattern_31_[256 * 4] =
     -11 /*mean (0.127148), correlation (0.547401)*/
 };
 
-SURFextractor::SURFextractor()
+SURFextractor::SURFextractor(double threshold)
 {
-    surf_detector = cv::xfeatures2d::SURF::create(500);
+    mvScaleFactor.resize(1);
+    mvLevelSigma2.resize(1);
+    mvScaleFactor[0] = 1.0f;
+    mvLevelSigma2[0] = 1.0f;
+
+    mvInvScaleFactor.resize(1);
+    mvInvLevelSigma2.resize(1);
+    mvInvScaleFactor[0] = 1.0f;
+    mvInvLevelSigma2[0] = 1.0f;
+    nlevels = 1;
+    scaleFactor = 1.0;
+
+    mvImagePyramid.resize(1);
+
+    surf_detector = cv::xfeatures2d::SURF::create(threshold);
 
     const int    npoints  = 512;
     const Point* pattern0 = (const Point*)bit_pattern_31_;
@@ -1103,7 +1174,6 @@ SURFextractor::SURFextractor()
 
     //This is for orientation
     // pre-compute the end of a row in a circular patch
-    /*
     umax.resize(HALF_PATCH_SIZE + 1);
 
     int          v, v0, vmax = cvFloor(HALF_PATCH_SIZE * sqrt(2.f) / 2 + 1);
@@ -1119,7 +1189,7 @@ SURFextractor::SURFextractor()
             ++v0;
         umax[v] = v0;
         ++v0;
-    }*/
+    }
 }
 
 
@@ -1154,3 +1224,4 @@ void SURFextractor::operator()(InputArray _image, vector<KeyPoint>& _keypoints, 
     computeDescriptors(workingMat, _keypoints, desc, pattern);;
 }
 
+}

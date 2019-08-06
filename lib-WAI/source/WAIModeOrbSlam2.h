@@ -12,6 +12,7 @@
 #include <WAIMap.h>
 #include <WAIOrbVocabulary.h>
 
+#include <SURFextractor.h>
 #include <OrbSlam/LocalMapping.h>
 #include <OrbSlam/LoopClosing.h>
 #include <OrbSlam/Initializer.h>
@@ -156,8 +157,8 @@ class WAI_API ModeOrbSlam2 : public Mode
     WAIMap*        _map               = nullptr;
 
     ORB_SLAM2::ORBVocabulary* mpVocabulary      = nullptr;
-    ORB_SLAM2::ORBextractor*  _extractor        = nullptr;
-    ORB_SLAM2::ORBextractor*  mpIniORBextractor = nullptr;
+    ORB_SLAM2::KPextractor*   _extractor        = nullptr;
+    ORB_SLAM2::KPextractor*   mpIniORBextractor = nullptr;
     ORB_SLAM2::LocalMapping*  mpLocalMapper     = nullptr;
     ORB_SLAM2::LoopClosing*   mpLoopCloser      = nullptr;
     ORB_SLAM2::Initializer*   mpInitializer     = nullptr;

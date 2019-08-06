@@ -70,6 +70,9 @@
 using namespace cv;
 using namespace std;
 
+#define BRIEF 1
+#define TILDE 1
+
 namespace ORB_SLAM2
 {
 
@@ -117,6 +120,7 @@ static void computeOrbDescriptor(const KeyPoint& kpt,
 
     const uchar* center = &img.at<uchar>(cvRound(kpt.pt.y), cvRound(kpt.pt.x));
     const int    step   = (int)img.step;
+
 
 #define GET_VALUE(idx) \
     center[cvRound(pattern[idx].x * b + pattern[idx].y * a) * step + \
@@ -1189,12 +1193,13 @@ ORBextractor::ORBextractor(int   _nfeatures,
                            int   _nlevels,
                            int   _iniThFAST,
                            int   _minThFAST)
-  : nfeatures(_nfeatures),
-    scaleFactor(_scaleFactor),
-    nlevels(_nlevels),
+    :
     iniThFAST(_iniThFAST),
     minThFAST(_minThFAST)
 {
+    nfeatures = _nfeatures;
+    scaleFactor = _scaleFactor;
+    nlevels = _nlevels;
     mvScaleFactor.resize(nlevels);
     mvLevelSigma2.resize(nlevels);
     mvScaleFactor[0] = 1.0f;
@@ -1827,7 +1832,7 @@ static void computeDescriptors(const Mat& image, vector<KeyPoint>& keypoints, Ma
         computeOrbDescriptor(keypoints[i], image, &pattern[0], descriptors.ptr((int)i));
 }
 
-void ORBextractor::operator()(InputArray _image, InputArray _mask, vector<KeyPoint>& _keypoints, OutputArray _descriptors)
+void ORBextractor::operator()(InputArray _image, vector<KeyPoint>& _keypoints, OutputArray _descriptors)
 {
     if (_image.empty())
         return;
@@ -1840,6 +1845,9 @@ void ORBextractor::operator()(InputArray _image, InputArray _mask, vector<KeyPoi
 
     vector<vector<KeyPoint>> allKeypoints;
     ComputeKeyPointsOctTree(allKeypoints);
+
+
+
     //ComputeKeyPointsOld(allKeypoints);
 
     Mat descriptors;
