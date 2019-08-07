@@ -4,7 +4,7 @@
 WAI::WAI::WAI(std::string dataRoot)
 {
     _dataRoot = dataRoot;
-    _mode = nullptr;
+    _mode     = nullptr;
 }
 
 void WAI::WAI::setDataRoot(std::string dataRoot)
@@ -26,15 +26,16 @@ WAI::Mode* WAI::WAI::setMode(ModeType modeType)
         {
             if (_sensors.find(SensorType_Camera) == _sensors.end())
             {
-                WAI_LOG("Cannot switch to mode ORB_SLAM2 since camera sensor is not activated. Please call activate sensor with AstrolabeSensorType_Camera first.\n");
+                WAI_LOG("Cannot switch to mode ORB_SLAM2 since camera sensor is not activated. Please call activate sensor with SensorType_Camera first.\n");
             }
             else
             {
                 _mode = new ModeOrbSlam2((SensorCamera*)_sensors[SensorType_Camera],
                                          false,
+                                         true,
                                          false,
                                          false,
-                                         false,
+                                         true,
                                          _dataRoot + "/calibrations/ORBvoc.bin");
             }
         }

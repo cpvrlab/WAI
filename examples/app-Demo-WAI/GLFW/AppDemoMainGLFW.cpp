@@ -40,7 +40,7 @@
 
 #include <WAI.h>
 
-#define AUTO_CALIBRATION 1
+#define AUTO_CALIBRATION 0
 
 //-----------------------------------------------------------------------------
 // GLobal application variables

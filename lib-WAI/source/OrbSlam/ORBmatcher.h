@@ -65,6 +65,8 @@ class ORBmatcher
     // Matching for the Map Initialization (only used in the monocular case)
     int SearchForInitialization(WAIFrame& F1, WAIFrame& F2, std::vector<cv::Point2f>& vbPrevMatched, std::vector<int>& vnMatches12, int windowSize = 10);
 
+    int SearchForInitializationTriangulation(WAIFrame& F1, WAIFrame& F2, cv::Mat F12, std::vector<int>& vnMatches12, const bool bOnlyStereo);
+
     // Matching to triangulate new MapPoints. Check Epipolar Constraint.
     int SearchForTriangulation(WAIKeyFrame* pKF1, WAIKeyFrame* pKF2, cv::Mat F12, std::vector<pair<size_t, size_t>>& vMatchedPairs, const bool bOnlyStereo);
 
@@ -85,6 +87,7 @@ class ORBmatcher
 
     protected:
     bool CheckDistEpipolarLine(const cv::KeyPoint& kp1, const cv::KeyPoint& kp2, const cv::Mat& F12, const WAIKeyFrame* pKF);
+    bool CheckDistEpipolarLine(const cv::KeyPoint& kp1, const cv::KeyPoint& kp2, const cv::Mat& F12, const std::vector<float>& levelSigma2Frame2);
 
     float RadiusByViewingCos(const float& viewCos);
 

@@ -1,0 +1,70 @@
+# 
+# CMake configuration for app-Demo-WAI application
+#
+
+set(target app-test-initialization)
+
+file(GLOB headers
+    )
+
+file(GLOB sources
+    ${WAI_ROOT}/experimental/Initialization/sl_initializationTest.cpp
+    )
+
+add_executable(${target}
+    ${headers}
+    ${sources}
+    )
+
+set_target_properties(${target}
+    PROPERTIES
+    ${DEFAULT_PROJECT_OPTIONS}
+    FOLDER "experimental"
+    )
+
+target_include_directories(${target}
+    PRIVATE
+    ${WAI_ROOT}/experimental/Initialization
+
+    PUBLIC
+    ${OpenCV_INCLUDE_DIR}
+
+    INTERFACE
+    )
+
+target_link_libraries(${target}
+    PRIVATE
+
+    PUBLIC
+    ${META_PROJECT_NAME}::lib-WAI
+    lib-SLProject
+
+    INTERFACE
+    )
+
+target_compile_definitions(${target}
+    PRIVATE
+    ${compile_definitions}
+
+    PUBLIC
+    ${DEFAULT_COMPILE_DEFINITIONS}
+
+    INTERFACE
+    )
+
+target_compile_options(${target}
+    PRIVATE
+
+    PUBLIC
+    ${DEFAULT_COMPILE_OPTIONS}
+
+    INTERFACE
+    )
+
+target_link_libraries(${target}
+    PRIVATE
+
+    PUBLIC
+
+    INTERFACE
+    )

@@ -57,9 +57,10 @@ void cv_extractAndDrawKeyPoints(OrbExtractionState*    state,
 
 int main(int argc, char** argv)
 {
-    cv::Mat image1, image2;
-    image1 = cv::imread("/home/jdellsperger/projects/WAI/data/images/textures/Lena.tiff", CV_LOAD_IMAGE_COLOR);
-    image2 = cv::imread("/home/jdellsperger/projects/WAI/data/images/textures/Lena_s.tiff", CV_LOAD_IMAGE_COLOR);
+    std::string dataRoot = std::string(WAI_ROOT) + "/experimental/Initialization/testdata/";
+    cv::Mat     image1, image2;
+    image1 = cv::imread(dataRoot + "chessboard_logitech_01.jpg", CV_LOAD_IMAGE_COLOR);
+    image2 = cv::imread(dataRoot + "chessboard_logitech_02.jpg", CV_LOAD_IMAGE_COLOR);
 
     if (!image1.data || !image2.data)
     {

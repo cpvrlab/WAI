@@ -305,7 +305,7 @@ void LocalMapping::CreateNewMapPoints()
     Rcw1.copyTo(Tcw1.colRange(0, 3));
     tcw1.copyTo(Tcw1.col(3));
     cv::Mat Ow1 = mpCurrentKeyFrame->GetCameraCenter();
-    std::cout << Ow1 << std::endl;
+    //std::cout << Ow1 << std::endl;
 
     const float& fx1    = mpCurrentKeyFrame->fx;
     const float& fy1    = mpCurrentKeyFrame->fy;
@@ -330,7 +330,7 @@ void LocalMapping::CreateNewMapPoints()
         cv::Mat Ow2       = pKF2->GetCameraCenter();
         cv::Mat vBaseline = Ow2 - Ow1;
 
-        std::cout << Ow2 << std::endl;
+        //std::cout << Ow2 << std::endl;
 
         const float baseline = cv::norm(vBaseline);
 
@@ -813,7 +813,7 @@ void LocalMapping::RequestReset()
             if (!mbResetRequested)
                 break;
         }
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
 }
 

@@ -21,13 +21,14 @@
 #define INITIALIZER_H
 
 #include <opencv2/opencv.hpp>
+#include <WAIHelper.h>
 #include <WAIFrame.h>
 
 namespace ORB_SLAM2
 {
 
 // THIS IS THE INITIALIZER FOR MONOCULAR SLAM. NOT USED IN THE STEREO OR RGBD CASE.
-class Initializer
+class WAI_API Initializer
 {
     typedef std::pair<int, int> Match;
 
@@ -38,6 +39,8 @@ class Initializer
     // Computes in parallel a fundamental matrix and a homography
     // Selects a model and tries to recover the motion and the structure from motion
     bool Initialize(const WAIFrame& CurrentFrame, const vector<int>& vMatches12, cv::Mat& R21, cv::Mat& t21, vector<cv::Point3f>& vP3D, vector<bool>& vbTriangulated);
+    bool InitializeWithKnownPose(const WAIFrame& InitialFrame, const WAIFrame& CurrentFrame, const vector<int>& vMatches12, cv::Mat& R21, cv::Mat& t21, vector<cv::Point3f>& vP3D, vector<bool>& vbTriangulated);
+    bool InitializeWithKnownPose(const std::vector<cv::KeyPoint>& mvKeysUnInitialFrame, const std::vector<cv::KeyPoint>& mvKeysUnCurrentFrame, const cv::Mat& mTcwInitialFrame, const cv::Mat& mTcwCurrentFrame, const cv::Mat& cameraMatInitialFrame, const cv::Mat& cameraMatCurrentFrame, const vector<int>& vMatches12, cv::Mat& R21, cv::Mat& t21, vector<cv::Point3f>& vP3D, vector<bool>& vbTriangulated);
 
     private:
     void FindHomography(vector<bool>& vbMatchesInliers, float& score, cv::Mat& H21);

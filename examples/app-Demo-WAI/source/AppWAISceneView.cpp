@@ -47,7 +47,7 @@ static void onLoadScenePoseEstimation(SLScene* s, SLSceneView* sv)
 
     //always equal for tracking
     //setup tracking camera
-    waiScene->cameraNode = new SLCamera("Camera 1");
+    //waiScene->cameraNode = new SLCamera("This is a Camera");
     waiScene->cameraNode->translation(0, 0, 0.1f);
     waiScene->cameraNode->lookAt(0, 0, 0);
     //for tracking we have to use the field of view from calibration
@@ -63,14 +63,14 @@ static void onLoadScenePoseEstimation(SLScene* s, SLSceneView* sv)
 
     //add yellow box and axis for augmentation
     SLMaterial* yellow = new SLMaterial("mY", SLCol4f(1, 1, 0, 0.5f));
-    SLfloat     l = 0.593f, b = 0.466f, h = 0.257f;
-    SLBox*      box1     = new SLBox(0.0f, 0.0f, 0.0f, l, h, b, "Box 1", yellow);
-    SLNode*     boxNode  = new SLNode(box1, "boxNode");
-    SLNode*     axisNode = new SLNode(new SLCoordAxis(), "axis node");
-    boxNode->addChild(axisNode);
+    SLfloat     l = 0.071f, b = 0.071f, h = 0.071f;
+    SLBox*      box1    = new SLBox(-l / 2, -h / 2, 0.0f, l / 2, h / 2, b, "Box 1", yellow);
+    SLNode*     boxNode = new SLNode(box1, "boxNode");
+    //SLNode*     axisNode = new SLNode(new SLCoordAxis(), "axis node");
+    //boxNode->addChild(axisNode);
     //boxNode->translation(0.0f, 0.0f, -2.0f);
     waiScene->mapNode->rotate(180, 1, 0, 0);
-    waiScene->mapNode->addChild(waiScene->cameraNode);
+    //waiScene->mapNode->addChild(waiScene->cameraNode);
 
     //setup scene
     SLNode* scene = new SLNode("scene");
@@ -110,6 +110,10 @@ void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
     s->init();
 
 #if LIVE_VIDEO
+    SLstring calibFileName = "cam_calibration_main.xml";
+    SLApplication::calibVideoFile.load(WAIMapStorage::externalDir() + "config/", calibFileName, false, false);
+    SLApplication::calibVideoFile.loadCalibParams();
+
     s->videoType(VT_MAIN);
     onLoadScenePoseEstimation(s, sv);
 #else
@@ -168,7 +172,6 @@ void WAISceneView::update()
 //-----------------------------------------------------------------------------
 void WAISceneView::updateTrackingVisualization(const bool iKnowWhereIAm)
 {
-
     AppWAIScene* waiScene = AppWAISingleton::instance()->appWaiScene;
     //update keypoints visualization (2d image points):
     //TODO: 2d visualization is still done in mode... do we want to keep it there?
@@ -237,14 +240,16 @@ void WAISceneView::updateTrackingVisualization(const bool iKnowWhereIAm)
 //-----------------------------------------------------------------------------
 void WAISceneView::updateCamera(WAI::CameraData* cameraData)
 {
-    if (AppWAISingleton::instance()->videoWriter.isOpened()) {
+    if (AppWAISingleton::instance()->videoWriter.isOpened())
+    {
         AppWAISingleton::instance()->videoWriter.write(*cameraData->imageRGB);
     }
 
     WAI::WAI* wai = AppWAISingleton::instance()->wai;
     wai->updateSensor(WAI::SensorType_Camera, cameraData);
 
-    if (AppWAISingleton::instance()->videoWriterInfo.isOpened()) {
+    if (AppWAISingleton::instance()->videoWriterInfo.isOpened())
+    {
         AppWAISingleton::instance()->videoWriterInfo.write(*cameraData->imageRGB);
     }
 }

@@ -58,7 +58,7 @@
 namespace ORB_SLAM2
 {
 
-class PnPsolver
+class WAI_API PnPsolver
 {
     public:
     PnPsolver(const WAIFrame& F, const vector<WAIMapPoint*>& vpMapPointMatches);

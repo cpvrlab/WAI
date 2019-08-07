@@ -139,6 +139,13 @@ float ORBmatcher::RadiusByViewingCos(const float& viewCos)
 
 bool ORBmatcher::CheckDistEpipolarLine(const cv::KeyPoint& kp1, const cv::KeyPoint& kp2, const cv::Mat& F12, const WAIKeyFrame* pKF2)
 {
+    bool result = CheckDistEpipolarLine(kp1, kp2, F12, pKF2->mvLevelSigma2);
+
+    return result;
+}
+
+bool ORBmatcher::CheckDistEpipolarLine(const cv::KeyPoint& kp1, const cv::KeyPoint& kp2, const cv::Mat& F12, const std::vector<float>& levelSigma2Frame2)
+{
     // Epipolar line in second image l = x1'F12 = [a b c]
     const float a = kp1.pt.x * F12.at<float>(0, 0) + kp1.pt.y * F12.at<float>(1, 0) + F12.at<float>(2, 0);
     const float b = kp1.pt.x * F12.at<float>(0, 1) + kp1.pt.y * F12.at<float>(1, 1) + F12.at<float>(2, 1);
@@ -153,7 +160,7 @@ bool ORBmatcher::CheckDistEpipolarLine(const cv::KeyPoint& kp1, const cv::KeyPoi
 
     const float dsqr = num * num / den;
 
-    return dsqr < 3.84 * pKF2->mvLevelSigma2[kp2.octave];
+    return dsqr < 3.84 * levelSigma2Frame2[kp2.octave];
 }
 
 int ORBmatcher::SearchByBoW(WAIKeyFrame* pKF, WAIFrame& F, vector<WAIMapPoint*>& vpMapPointMatches)
@@ -829,6 +836,157 @@ int ORBmatcher::SearchForTriangulation(WAIKeyFrame* pKF1, WAIKeyFrame* pKF2, cv:
         if (vMatches12[i] < 0)
             continue;
         vMatchedPairs.push_back(make_pair(i, vMatches12[i]));
+    }
+
+    return nmatches;
+}
+
+int ORBmatcher::SearchForInitializationTriangulation(WAIFrame& F1, WAIFrame& F2, cv::Mat F12, std::vector<int>& vnMatches12, const bool bOnlyStereo)
+{
+    const DBoW2::FeatureVector& vFeatVec1 = F1.mFeatVec;
+    const DBoW2::FeatureVector& vFeatVec2 = F2.mFeatVec;
+
+    //Compute epipole in second image
+    cv::Mat Cw  = F1.GetCameraCenter();
+    cv::Mat R2w = F2.GetRotationCW();
+    cv::Mat t2w = F2.GetTranslationCW();
+    cv::Mat C2  = R2w * Cw + t2w;
+
+    const float invz = 1.0f / C2.at<float>(2);
+    const float ex   = F2.fx * C2.at<float>(0) * invz + F2.cx;
+    const float ey   = F2.fy * C2.at<float>(1) * invz + F2.cy;
+
+    // Find matches between not tracked keypoints
+    // Matching speed-up by ORB Vocabulary
+    // Compare only ORB that share the same node
+
+    int          nmatches = 0;
+    vector<bool> vbMatched2(F2.N, false);
+    vnMatches12 = std::vector<int>(F1.N, -1);
+
+    vector<int> rotHist[HISTO_LENGTH];
+    for (int i = 0; i < HISTO_LENGTH; i++)
+        rotHist[i].reserve(500);
+
+    const float factor = 1.0f / HISTO_LENGTH;
+
+    DBoW2::FeatureVector::const_iterator f1it  = vFeatVec1.begin();
+    DBoW2::FeatureVector::const_iterator f2it  = vFeatVec2.begin();
+    DBoW2::FeatureVector::const_iterator f1end = vFeatVec1.end();
+    DBoW2::FeatureVector::const_iterator f2end = vFeatVec2.end();
+
+    while (f1it != f1end && f2it != f2end)
+    {
+        if (f1it->first == f2it->first)
+        {
+            for (size_t i1 = 0, iend1 = f1it->second.size(); i1 < iend1; i1++)
+            {
+                const size_t idx1 = f1it->second[i1];
+
+                //const bool bStereo1 = pKF1->mvuRight[idx1]>=0;
+                const bool bStereo1 = false;
+
+                if (bOnlyStereo)
+                    if (!bStereo1)
+                        continue;
+
+                const cv::KeyPoint& kp1 = F1.mvKeysUn[idx1];
+
+                const cv::Mat& d1 = F1.mDescriptors.row(idx1);
+
+                int bestDist = TH_LOW;
+                int bestIdx2 = -1;
+
+                for (size_t i2 = 0, iend2 = f2it->second.size(); i2 < iend2; i2++)
+                {
+                    size_t idx2 = f2it->second[i2];
+
+                    // If we have already matched or there is a WAIMapPoint skip
+                    if (vbMatched2[idx2])
+                        continue;
+
+                    //const bool bStereo2 = pKF2->mvuRight[idx2]>=0;
+                    const bool bStereo2 = false;
+
+                    if (bOnlyStereo)
+                        if (!bStereo2)
+                            continue;
+
+                    const cv::Mat& d2 = F2.mDescriptors.row(idx2);
+
+                    const int dist = DescriptorDistance(d1, d2);
+
+                    if (dist > TH_LOW || dist > bestDist)
+                        continue;
+
+                    const cv::KeyPoint& kp2 = F2.mvKeysUn[idx2];
+
+                    if (!bStereo1 && !bStereo2)
+                    {
+                        const float distex = ex - kp2.pt.x;
+                        const float distey = ey - kp2.pt.y;
+                        if (distex * distex + distey * distey < 100 * F2.mvScaleFactors[kp2.octave])
+                            continue;
+                    }
+
+                    if (CheckDistEpipolarLine(kp1, kp2, F12, F2.mvLevelSigma2))
+                    {
+                        bestIdx2 = idx2;
+                        bestDist = dist;
+                    }
+                }
+
+                if (bestIdx2 >= 0)
+                {
+                    const cv::KeyPoint& kp2 = F2.mvKeysUn[bestIdx2];
+                    vnMatches12[idx1]       = bestIdx2;
+                    nmatches++;
+
+                    if (mbCheckOrientation)
+                    {
+                        float rot = kp1.angle - kp2.angle;
+                        if (rot < 0.0)
+                            rot += 360.0f;
+                        int bin = round(rot * factor);
+                        if (bin == HISTO_LENGTH)
+                            bin = 0;
+                        assert(bin >= 0 && bin < HISTO_LENGTH);
+                        rotHist[bin].push_back(idx1);
+                    }
+                }
+            }
+
+            f1it++;
+            f2it++;
+        }
+        else if (f1it->first < f2it->first)
+        {
+            f1it = vFeatVec1.lower_bound(f2it->first);
+        }
+        else
+        {
+            f2it = vFeatVec2.lower_bound(f1it->first);
+        }
+    }
+
+    if (mbCheckOrientation)
+    {
+        int ind1 = -1;
+        int ind2 = -1;
+        int ind3 = -1;
+
+        ComputeThreeMaxima(rotHist, HISTO_LENGTH, ind1, ind2, ind3);
+
+        for (int i = 0; i < HISTO_LENGTH; i++)
+        {
+            if (i == ind1 || i == ind2 || i == ind3)
+                continue;
+            for (size_t j = 0, jend = rotHist[i].size(); j < jend; j++)
+            {
+                vnMatches12[rotHist[i][j]] = -1;
+                nmatches--;
+            }
+        }
     }
 
     return nmatches;
