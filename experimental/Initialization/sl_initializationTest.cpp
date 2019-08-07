@@ -166,12 +166,20 @@ int main()
             std::vector<cv::Point3f> vP3De;
             std::vector<bool>        triangulated;
             ORB_SLAM2::Initializer   initializer(frame1, 1.0f, 200);
-            initializer.InitializeWithKnownPose(kp1, kp2, frame1.mTcw, frame2.mTcw, frame1.mK, frame2.mK, matches, r21, t21, vP3De, triangulated);
+            bool                     initializationSuccess = initializer.InitializeWithKnownPose(kp1, kp2, frame1.mTcw, frame2.mTcw, frame1.mK, frame2.mK, matches, r21, t21, vP3De, triangulated);
 
+            int triangulatedCount = 0;
             for (int i = 0; i < vP3De.size(); i++)
             {
                 std::cout << vP3De[i] << std::endl;
+
+                if (triangulated[i])
+                {
+                    triangulatedCount++;
+                }
             }
+
+            printf("triangulated %i points (of %i)\n", triangulatedCount, matches.size());
         }
     }
 
