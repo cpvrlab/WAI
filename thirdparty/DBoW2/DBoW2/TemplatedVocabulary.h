@@ -9,7 +9,7 @@
  * File: TemplatedVocabulary.h
  * Date: February 2011
  * Author: Dorian Galvez-Lopez
- * Description: templated vocabulary 
+ * Description: templated vocabulary
  * License: see the LICENSE.txt file
  *
  */
@@ -66,7 +66,7 @@ class TemplatedVocabulary
    */
     TemplatedVocabulary(const char* filename);
 
-    /** 
+    /**
    * Copy constructor
    * @param voc
    */
@@ -77,7 +77,7 @@ class TemplatedVocabulary
    */
     virtual ~TemplatedVocabulary();
 
-    /** 
+    /**
    * Assigns the given vocabulary to this by copying its data and removing
    * all the data contained by this vocabulary before
    * @param voc
@@ -86,7 +86,7 @@ class TemplatedVocabulary
     TemplatedVocabulary<TDescriptor, F>& operator=(
       const TemplatedVocabulary<TDescriptor, F>& voc);
 
-    /** 
+    /**
    * Creates a vocabulary from the training features with the already
    * defined parameters
    * @param training_features
@@ -186,7 +186,7 @@ class TemplatedVocabulary
    */
     inline int getBranchingFactor() const { return m_k; }
 
-    /** 
+    /**
    * Returns the depth levels of the tree (L)
    * @return L
    */
@@ -212,13 +212,13 @@ class TemplatedVocabulary
    */
     virtual inline WordValue getWordWeight(WordId wid) const;
 
-    /** 
+    /**
    * Returns the weighting method
    * @return weighting method
    */
     inline WeightingType getWeightingType() const { return m_weighting; }
 
-    /** 
+    /**
    * Returns the scoring method
    * @return scoring method
    */
@@ -264,7 +264,7 @@ class TemplatedVocabulary
    */
     void load(const std::string& filename);
 
-    /** 
+    /**
    * Saves the vocabulary to a file storage structure
    * @param fn node in file storage
    */
@@ -280,15 +280,15 @@ class TemplatedVocabulary
     virtual void load(const cv::FileStorage& fs,
                       const std::string&     name = "vocabulary");
 
-    /** 
+    /**
    * Stops those words whose weight is below minWeight.
    * Words are stopped by setting their weight to 0. There are not returned
    * later when transforming image features into vectors.
    * Note that when using IDF or TF_IDF, the weight is the idf part, which
    * is equivalent to -log(f), where f is the frequency of the word
-   * (f = Ni/N, Ni: number of training images where the word is present, 
+   * (f = Ni/N, Ni: number of training images where the word is present,
    * N: number of training images).
-   * Note that the old weight is forgotten, and subsequent calls to this 
+   * Note that the old weight is forgotten, and subsequent calls to this
    * function with a lower minWeight have no effect.
    * @return number of words stopped now
    */
@@ -400,7 +400,7 @@ class TemplatedVocabulary
     /**
    * Creates k clusters from the given descriptor sets by running the
    * initial step of kmeans++
-   * @param descriptors 
+   * @param descriptors
    * @param clusters resulting clusters
    */
     void initiateClustersKMpp(const vector<pDescriptor>& descriptors,
@@ -1354,28 +1354,7 @@ bool TemplatedVocabulary<TDescriptor, F>::saveToBinaryFile(const std::string& fi
         bN->parent = n.parent;
         bN->weight = n.weight;
         bN->isLeaf = n.isLeaf();
-
-        int channels = n.descriptor.channels();
-        int nRows    = n.descriptor.rows;
-        int nCols    = n.descriptor.cols * channels;
-
-        if (n.descriptor.isContinuous())
-        {
-            nCols *= nRows;
-            nRows = 1;
-        }
-
-        uint8_t* p;
-        int      dIndex = 0;
-        for (int row = 0; row < nRows; row++)
-        {
-            p = n.descriptor.ptr(row);
-            for (int col = 0; col < nCols; col++)
-            {
-                bN->descriptor[dIndex++] = p[col];
-            }
-        }
-
+        memcpy(bN->descriptor, n.descriptor.ptr(0), sizeof(uint8_t) * F::L);
         bN++;
     }
 
@@ -1448,7 +1427,7 @@ bool TemplatedVocabulary<TDescriptor, F>::loadFromBinaryFile(const std::string& 
     m_nodes.resize(nodeCount + 1);
     m_nodes[0].id = 0;
 
-    for (int i = 1; i <= nodeCount; i++)
+    for (int i = 1; i < nodeCount; i++)
     {
         int   nid = i;
         Node* n   = &m_nodes[nid];
@@ -1461,10 +1440,6 @@ bool TemplatedVocabulary<TDescriptor, F>::loadFromBinaryFile(const std::string& 
         // NOTE(jan): since we initialize the mat with a size of 1xF::L, it is always continuous in memory
         // according to https://docs.opencv.org/2.4/modules/core/doc/basic_structures.html#bool%20Mat::isContinuous()%20const
         n->descriptor = cv::Mat(1, F::L, CV_8U);
-        //int channels  = n->descriptor.channels();
-        //int nRows = n->descriptor.rows;
-        //int nCols = n->descriptor.cols * channels;
-
         memcpy(n->descriptor.ptr(0), bN->descriptor, sizeof(uint8_t) * F::L);
 
         n->weight = bN->weight;
