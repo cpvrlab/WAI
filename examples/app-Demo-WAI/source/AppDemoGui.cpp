@@ -400,10 +400,10 @@ void AppDemoGui::build(SLScene* s, SLSceneView* sv)
         SLchar m[2550]; // message character array
         m[0] = 0;       // set zero length
 
-        WAICalibration * wc = AppWAISingleton::instance()->wc;
+        WAICalibration* wc = AppWAISingleton::instance()->wc;
 
-        SLCVSize         capSize  = SLCVCapture::captureSize;
-        SLVideoType      vt       = s->videoType();
+        SLCVSize    capSize = SLCVCapture::captureSize;
+        SLVideoType vt      = SLCVCapture::videoType();
 
         sprintf(m + strlen(m), "Video Type    : %s\n", vt == VT_NONE ? "None" : vt == VT_MAIN ? "Main Camera" : vt == VT_FILE ? "File" : "Secondary Camera");
         sprintf(m + strlen(m), "Display size  : %d x %d\n", SLCVCapture::lastFrame.cols, SLCVCapture::lastFrame.rows);

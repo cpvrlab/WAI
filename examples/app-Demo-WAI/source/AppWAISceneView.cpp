@@ -31,6 +31,9 @@ WAISceneView::WAISceneView(SLScene* scene, std::string externalDir, std::string 
 //-----------------------------------------------------------------------------
 static void onLoadScenePoseEstimation(SLScene* s, SLSceneView* sv)
 {
+    SLCVCapture::videoType(SLVideoType::VT_MAIN);
+    SLCVCapture::init();
+
     WAISceneView* waiSceneView = (WAISceneView*)sv;
 
     AppWAIScene* waiScene = AppWAISingleton::instance()->appWaiScene;
@@ -57,7 +60,7 @@ static void onLoadScenePoseEstimation(SLScene* s, SLSceneView* sv)
     waiScene->cameraNode->clipNear(0.001f);
     waiScene->cameraNode->clipFar(1000000.0f); // Increase to infinity?
     waiScene->cameraNode->setInitialState();
-    waiScene->cameraNode->background().texture(s->videoTexture());
+    waiScene->cameraNode->background().texture(SLCVCapture::videoTexture());
 
     // Save no energy
     sv->doWaitOnIdle(false); //for constant video feed
@@ -83,7 +86,6 @@ static void onLoadScenePoseEstimation(SLScene* s, SLSceneView* sv)
     s->root3D(scene);
 
     sv->onInitialize();
-    s->onAfterLoad(sv);
 
     WAI::WAI* wai = AppWAISingleton::instance()->wai;
 
@@ -110,9 +112,9 @@ static void onLoadScenePoseEstimation(SLScene* s, SLSceneView* sv)
 void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
 {
     s->init();
+    SLApplication::init();
 
 #if LIVE_VIDEO
-    s->videoType(VT_MAIN);
     onLoadScenePoseEstimation(s, sv);
 #else
     SLstring calibFileName = "cam_calibration_main_huawei_p10_640_360.xml";
