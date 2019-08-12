@@ -146,15 +146,19 @@ int main()
 
             std::vector<int> matches;
 
+            std::vector<cv::Point2f> p2D1u, p2D2u;
+            cv::undistortPoints(p2D1, p2D1u, cameraMat, distortionMat, cv::Mat(), cameraMat);
+            cv::undistortPoints(p2D2, p2D2u, cameraMat, distortionMat, cv::Mat(), cameraMat);
+
             std::vector<cv::KeyPoint> kp1, kp2;
-            for (int i = 0; i < p2D1.size(); i++)
+            for (int i = 0; i < p2D1u.size(); i++)
             {
-                kp1.push_back(cv::KeyPoint(p2D1[i], 2.0f));
+                kp1.push_back(cv::KeyPoint(p2D1u[i], 1.0f));
             }
 
-            for (int i = 0; i < p2D2.size(); i++)
+            for (int i = 0; i < p2D2u.size(); i++)
             {
-                kp2.push_back(cv::KeyPoint(p2D2[i], 2.0f));
+                kp2.push_back(cv::KeyPoint(p2D2u[i], 1.0f));
             }
 
             for (int i = 0; i < p2D1.size(); i++)
@@ -171,7 +175,7 @@ int main()
             int triangulatedCount = 0;
             for (int i = 0; i < vP3De.size(); i++)
             {
-                std::cout << vP3De[i] << std::endl;
+                std::cout << vP3De[i] << " : " << p3Dw[i] << " : " << cv::norm(vP3De[i] - p3Dw[i]) << std::endl;
 
                 if (triangulated[i])
                 {
@@ -183,13 +187,13 @@ int main()
         }
     }
 
-    cv::Mat imgConcat;
-    cv::hconcat(img1, img2, imgConcat);
+    //cv::Mat imgConcat;
+    //cv::hconcat(img1, img2, imgConcat);
 
-    cv::namedWindow("initialization", CV_WINDOW_AUTOSIZE);
-    cv::imshow("initialization", imgConcat);
+    //cv::namedWindow("initialization", CV_WINDOW_AUTOSIZE);
+    //cv::imshow("initialization", imgConcat);
 
-    cv::waitKey(0);
+    //cv::waitKey(0);
 
     return 0;
 }

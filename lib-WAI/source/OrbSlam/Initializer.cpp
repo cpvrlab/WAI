@@ -215,7 +215,7 @@ bool Initializer::InitializeWithKnownPose(const std::vector<cv::KeyPoint>& mvKey
             {
                 N++;
 
-#if 0
+#if 1
                 cv::Mat P4D         = cv::Mat(4, 1, CV_32F);
                 P4D.at<float>(0, 0) = vP3D[i].x;
                 P4D.at<float>(1, 0) = vP3D[i].y;
