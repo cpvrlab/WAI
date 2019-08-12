@@ -1,8 +1,5 @@
 #include <atomic>
 #include <SLApplication.h>
-#include <SLBox.h>
-#include <SLLightSpot.h>
-#include <SLCoordAxis.h>
 #include <SLPoints.h>
 
 #include <SLCVTrackedChessboard.h>
@@ -39,51 +36,17 @@ static void onLoadScenePoseEstimation(SLScene* s, SLSceneView* sv)
     AppWAIScene* waiScene = AppWAISingleton::instance()->appWaiScene;
     waiScene->rebuild();
 
+    waiScene->cameraNode->fov(AppWAISingleton::instance()->wc->calcCameraFOV());
+    waiScene->cameraNode->background().texture(SLCVCapture::videoTexture());
+
     // Set scene name and info string
     s->name("Track Keyframe based Features");
     s->info("Example for loading an existing pose graph with map points.");
 
-    //make some light
-    SLLightSpot* light1 = new SLLightSpot(1, 1, 1, 0.3f);
-    light1->ambient(SLCol4f(0.2f, 0.2f, 0.2f));
-    light1->diffuse(SLCol4f(0.8f, 0.8f, 0.8f));
-    light1->specular(SLCol4f(1, 1, 1));
-    light1->attenuation(1, 0, 0);
-
-    //always equal for tracking
-    //setup tracking camera
-    waiScene->cameraNode = new SLCamera("Camera 1");
-    waiScene->cameraNode->translation(0, 0, 0.1f);
-    waiScene->cameraNode->lookAt(0, 0, 0);
-    //for tracking we have to use the field of view from calibration
-    waiScene->cameraNode->fov(AppWAISingleton::instance()->wc->calcCameraFOV());
-    waiScene->cameraNode->clipNear(0.001f);
-    waiScene->cameraNode->clipFar(1000000.0f); // Increase to infinity?
-    waiScene->cameraNode->setInitialState();
-    waiScene->cameraNode->background().texture(SLCVCapture::videoTexture());
-
     // Save no energy
     sv->doWaitOnIdle(false); //for constant video feed
     sv->camera(waiScene->cameraNode);
-
-    //add yellow box and axis for augmentation
-    SLMaterial* yellow = new SLMaterial("mY", SLCol4f(1, 1, 0, 0.5f));
-    SLfloat     l = 0.593f, b = 0.466f, h = 0.257f;
-    SLBox*      box1     = new SLBox(0.0f, 0.0f, 0.0f, l, h, b, "Box 1", yellow);
-    SLNode*     boxNode  = new SLNode(box1, "boxNode");
-    SLNode*     axisNode = new SLNode(new SLCoordAxis(), "axis node");
-    boxNode->addChild(axisNode);
-    //boxNode->translation(0.0f, 0.0f, -2.0f);
-    waiScene->mapNode->rotate(180, 1, 0, 0);
-    waiScene->mapNode->addChild(waiScene->cameraNode);
-
-    //setup scene
-    SLNode* scene = new SLNode("scene");
-    scene->addChild(light1);
-    scene->addChild(boxNode);
-    scene->addChild(waiScene->mapNode);
-
-    s->root3D(scene);
+    s->root3D(waiScene->rootNode);
 
     sv->onInitialize();
 
