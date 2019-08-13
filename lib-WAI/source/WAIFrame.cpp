@@ -148,6 +148,64 @@ WAIFrame::WAIFrame(const cv::Mat& imGray, const double& timeStamp, ORBextractor*
     if (retainImg)
         imgGray = imGray.clone();
 }
+
+WAIFrame::WAIFrame(const cv::Mat& imGray, ORBextractor* extractor, cv::Mat& K, cv::Mat& distCoef, std::vector<cv::KeyPoint> vKeys, ORBVocabulary* orbVocabulary, bool retainImg)
+  : mpORBextractorLeft(extractor), mvKeys(vKeys), mpORBvocabulary(orbVocabulary)
+{
+    //ghm1: ORB_SLAM uses float precision
+    K.convertTo(mK, CV_32F);
+    distCoef.convertTo(mDistCoef, CV_32F);
+
+    // Frame ID
+    mnId = nNextId++;
+
+    // Scale Level Info
+    mnScaleLevels     = 1;
+    mfScaleFactor     = 1.0f;
+    mfLogScaleFactor  = log(mfScaleFactor);
+    mvScaleFactors    = {1.0f};
+    mvInvScaleFactors = {1.0f};
+    mvLevelSigma2     = {1.0f};
+    mvInvLevelSigma2  = {1.0f};
+
+    // ORB extraction
+    //ExtractORB(imGray);
+    mpORBextractorLeft->computeKeyPointDescriptors(imGray, mvKeys, mDescriptors);
+
+    N = (int)mvKeys.size();
+
+    if (mvKeys.empty())
+        return;
+
+    UndistortKeyPoints();
+
+    mvpMapPoints = vector<WAIMapPoint*>(N, static_cast<WAIMapPoint*>(NULL));
+    mvbOutlier   = vector<bool>(N, false);
+
+    // This is done only for the first Frame (or after a change in the calibration)
+    if (mbInitialComputations)
+    {
+        ComputeImageBounds(imGray);
+
+        mfGridElementWidthInv  = static_cast<float>(FRAME_GRID_COLS) / static_cast<float>(mnMaxX - mnMinX);
+        mfGridElementHeightInv = static_cast<float>(FRAME_GRID_ROWS) / static_cast<float>(mnMaxY - mnMinY);
+
+        fx    = mK.at<float>(0, 0);
+        fy    = mK.at<float>(1, 1);
+        cx    = mK.at<float>(0, 2);
+        cy    = mK.at<float>(1, 2);
+        invfx = 1.0f / fx;
+        invfy = 1.0f / fy;
+
+        mbInitialComputations = false;
+    }
+
+    AssignFeaturesToGrid();
+
+    //store image reference if required
+    if (retainImg)
+        imgGray = imGray.clone();
+}
 //-----------------------------------------------------------------------------
 void WAIFrame::AssignFeaturesToGrid()
 {

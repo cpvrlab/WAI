@@ -34,7 +34,7 @@
 namespace ORB_SLAM2
 {
 
-class Optimizer
+class WAI_API Optimizer
 {
     public:
     void static BundleAdjustment(const std::vector<WAIKeyFrame*>& vpKF, const std::vector<WAIMapPoint*>& vpMP, int nIterations = 5, bool* pbStopFlag = NULL, const unsigned long nLoopKF = 0, const bool bRobust = true);

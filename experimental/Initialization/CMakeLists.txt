@@ -65,6 +65,7 @@ target_link_libraries(${target}
     PRIVATE
 
     PUBLIC
+    ${DEFAULT_LINKER_OPTIONS}
 
     INTERFACE
     )

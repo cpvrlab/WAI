@@ -76,6 +76,7 @@ static void onLoadScenePoseEstimation(SLScene* s, SLSceneView* sv)
     SLNode* scene = new SLNode("scene");
     scene->addChild(light1);
     scene->addChild(boxNode);
+    scene->addChild(waiScene->cameraNode);
     scene->addChild(waiScene->mapNode);
 
     s->root3D(scene);

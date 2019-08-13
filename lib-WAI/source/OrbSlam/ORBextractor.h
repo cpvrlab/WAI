@@ -60,6 +60,7 @@ class WAI_API ORBextractor
     // ORB are dispersed on the image using an octree.
     // Mask is ignored in the current implementation.
     void operator()(cv::InputArray image, cv::InputArray mask, std::vector<cv::KeyPoint>& keypoints, cv::OutputArray descriptors);
+    void computeKeyPointDescriptors(const cv::Mat& image, std::vector<cv::KeyPoint>& keypoints, cv::Mat& descriptors);
 
     int inline GetLevels()
     {

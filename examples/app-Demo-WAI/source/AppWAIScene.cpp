@@ -2,7 +2,6 @@
 
 AppWAIScene::AppWAIScene()
 {
-
 }
 
 void AppWAIScene::rebuild()
@@ -38,5 +37,5 @@ void AppWAIScene::rebuild()
     mapNode->addChild(covisibilityGraph);
     mapNode->addChild(spanningTree);
     mapNode->addChild(loopEdges);
-    mapNode->addChild(cameraNode);
+    //mapNode->addChild(cameraNode);
 }

@@ -55,6 +55,7 @@ class WAI_API WAIFrame
     WAIFrame(const WAIFrame& frame);
     //!constructor used for detection in tracking
     WAIFrame(const cv::Mat& imGray, const double& timeStamp, ORBextractor* extractor, cv::Mat& K, cv::Mat& distCoef, ORBVocabulary* orbVocabulary, bool retainImg = false);
+    WAIFrame(const cv::Mat& imGray, ORBextractor* extractor, cv::Mat& K, cv::Mat& distCoef, std::vector<cv::KeyPoint> vKeys, ORBVocabulary* orbVocabulary, bool retainImg = false);
 
     // Extract ORB on the image
     void ExtractORB(const cv::Mat& im);

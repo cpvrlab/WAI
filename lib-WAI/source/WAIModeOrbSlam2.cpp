@@ -144,7 +144,8 @@ void WAI::ModeOrbSlam2::notifyUpdate()
         {
             if (_markerCorrected)
             {
-                initializeWithMarkerCorrection();
+                //initializeWithArucoMarkerCorrection();
+                initializeWithChessboardCorrection();
             }
             else
             {
@@ -1208,6 +1209,45 @@ void WAI::ModeOrbSlam2::initializeWithKnownPose(const cv::Mat& knownPose)
 
         if (mpInitializer->InitializeWithKnownPose(mInitialFrame, mCurrentFrame, mvIniMatches, Rcw, tcw, mvIniP3D, vbTriangulated))
         {
+#    if 0
+            {
+                cv::Mat imGray1, imGray2, imRgb1, imRgb2, imConcat;
+                imGray1 = mInitialFrame.imgGray.clone();
+                imGray2 = mCurrentFrame.imgGray.clone();
+
+                std::vector<cv::Mat> images1(3);
+                images1.at(0) = imGray1;
+                images1.at(1) = imGray1;
+                images1.at(2) = imGray1;
+
+                std::vector<cv::Mat> images2(3);
+                images2.at(0) = imGray2;
+                images2.at(1) = imGray2;
+                images2.at(2) = imGray2;
+
+                cv::merge(images1, imRgb1);
+                cv::merge(images2, imRgb2);
+
+                cv::hconcat(imRgb1, imRgb2, imConcat);
+
+                for (unsigned int i = 0; i < mvIniMatches.size(); i++)
+                {
+                    if (mvIniMatches[i] >= 0)
+                    {
+                        cv::Mat img = imConcat.clone();
+                        cv::line(img,
+                                 mInitialFrame.mvKeys[i].pt,
+                                 {mCurrentFrame.mvKeys[mvIniMatches[i]].pt.x + imGray1.cols, mCurrentFrame.mvKeys[mvIniMatches[i]].pt.y},
+                                 cv::Scalar(0, 255, 0));
+
+                        cv::namedWindow("test", cv::WINDOW_AUTOSIZE);
+                        cv::imshow("test", img);
+                        cv::waitKey(0);
+                    }
+                }
+            }
+#    endif
+
             for (size_t i = 0, iend = mvIniMatches.size(); i < iend; i++)
             {
                 if (mvIniMatches[i] >= 0 && !vbTriangulated[i])
@@ -1223,9 +1263,9 @@ void WAI::ModeOrbSlam2::initializeWithKnownPose(const cv::Mat& knownPose)
                 //mark tracking as initialized
                 _initialized = true;
                 _bOK         = true;
-                //_state       = TrackingState_TrackingOK;
+                _state       = TrackingState_None; // TODO(jan): set to tracking ok
 
-                _onlyTracking = true;
+                _onlyTracking = true; // TODO(jan): set to false
             }
 
             //ghm1: in the original implementation the initialization is defined in the track() function and this part is always called at the end!
@@ -1251,7 +1291,7 @@ void WAI::ModeOrbSlam2::initializeWithKnownPose(const cv::Mat& knownPose)
 }
 #endif
 
-void WAI::ModeOrbSlam2::initializeWithMarkerCorrection()
+void WAI::ModeOrbSlam2::initializeWithArucoMarkerCorrection()
 {
     std::vector<int>                      arucoIDs = std::vector<int>();
     std::vector<std::vector<cv::Point2f>> corners, rejected;
@@ -1297,6 +1337,59 @@ void WAI::ModeOrbSlam2::initializeWithMarkerCorrection()
         cv::aruco::drawAxis(_camera->getImageRGB(), cameraMat, distortionMat, cv::Mat(rVecs[0]), cv::Mat(tVecs[0]), 0.1f);
 
         initializeWithKnownPose(knownPose);
+    }
+}
+
+void WAI::ModeOrbSlam2::initializeWithChessboardCorrection()
+{
+    int flags =
+      //CALIB_CB_ADAPTIVE_THRESH |
+      //CALIB_CB_NORMALIZE_IMAGE |
+      cv::CALIB_CB_FAST_CHECK;
+    cv::Size chessboardSize(8, 5);
+
+    std::vector<cv::Point2f> p2D;
+    bool                     found = cv::findChessboardCorners(_camera->getImageGray(),
+                                           chessboardSize,
+                                           p2D,
+                                           flags);
+
+    if (found)
+    {
+        cv::drawChessboardCorners(_camera->getImageRGB(), chessboardSize, p2D, found);
+
+        std::vector<cv::Point3f> p3Dw;
+
+        float chessboardWidthM = 0.042f;
+        for (int y = 0; y < chessboardSize.height; y++)
+        {
+            for (int x = 0; x < chessboardSize.width; x++)
+            {
+                p3Dw.push_back(cv::Point3f(y * chessboardWidthM, x * chessboardWidthM, 0.0f));
+            }
+        }
+
+        cv::Mat r, t;
+        bool    poseFound = cv::solvePnP(p3Dw,
+                                      p2D,
+                                      _camera->getCameraMatrix(),
+                                      _camera->getDistortionMatrix(),
+                                      r,
+                                      t,
+                                      false,
+                                      cv::SOLVEPNP_ITERATIVE);
+
+        if (poseFound)
+        {
+            cv::Mat rotMat;
+            cv::Rodrigues(r, rotMat);
+
+            cv::Mat pose = cv::Mat::eye(4, 4, CV_32F);
+            rotMat.copyTo(pose.rowRange(0, 3).colRange(0, 3));
+            t.copyTo(pose.rowRange(0, 3).col(3));
+
+            initializeWithKnownPose(pose);
+        }
     }
 }
 
@@ -1646,7 +1739,9 @@ bool WAI::ModeOrbSlam2::createInitialMapMonocular()
 
     // Bundle Adjustment
     WAI_LOG("New Map created with %i points", _map->MapPointsInMap());
+#if 0 // TODO(dgj1): REACTIVATE THIS FOR REGULAR INITIALIZATION
     Optimizer::GlobalBundleAdjustemnt(_map, 20);
+#endif
 
     // Set median depth to 1
     float medianDepth    = pKFini->ComputeSceneMedianDepth(2);
@@ -1676,12 +1771,10 @@ bool WAI::ModeOrbSlam2::createInitialMapMonocular()
             pMP->SetWorldPos(pMP->GetWorldPos() * invMedianDepth);
         }
     }
-#endif
 
     mpLocalMapper->InsertKeyFrame(pKFini);
     mpLocalMapper->InsertKeyFrame(pKFcur);
 
-    // TODO(dgj1): REACTIVATE THIS FOR REGULAR INITIALIZATION
     mCurrentFrame.SetPose(pKFcur->GetPose());
     mnLastKeyFrameId = mCurrentFrame.mnId;
     mpLastKeyFrame   = pKFcur;
@@ -1703,9 +1796,6 @@ bool WAI::ModeOrbSlam2::createInitialMapMonocular()
     /*_bOK = true;*/
     //_currentState = TRACK_3DPTS;
 
-    std::cout << pKFini->GetPose() << std::endl;
-    std::cout << pKFcur->GetPose() << std::endl;
-
     //ghm1: run local mapping once
     if (_serial)
     {
@@ -1715,6 +1805,10 @@ bool WAI::ModeOrbSlam2::createInitialMapMonocular()
 
     // Bundle Adjustment
     WAI_LOG("Number of Map points after local mapping: %i", _map->MapPointsInMap());
+#endif
+
+    std::cout << pKFini->getObjectMatrix() << std::endl;
+    std::cout << pKFcur->getObjectMatrix() << std::endl;
 
     //ghm1: add keyframe to scene graph. this position is wrong after bundle adjustment!
     //set map dirty, the map will be updated in next decoration
