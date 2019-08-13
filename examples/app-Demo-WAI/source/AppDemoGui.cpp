@@ -708,8 +708,8 @@ void AppDemoGui::buildMenuBar(SLScene* s, SLSceneView* sv)
         {
             if (ImGui::BeginMenu("Load Test Scene"))
             {
-                if (ImGui::MenuItem("Minimal Scene", nullptr, sid == SID_Minimal))
-                    s->onLoad(s, sv, SID_Minimal);
+                //if (ImGui::MenuItem("Minimal Scene", nullptr, sid == SID_Minimal))
+                //    s->onLoad(s, sv, SID_Minimal);
 
                 ImGui::EndMenu();
             }
@@ -815,14 +815,14 @@ void AppDemoGui::buildMenuBar(SLScene* s, SLSceneView* sv)
                 {
                     if (ImGui::MenuItem("Start Calibration on Main Camera"))
                     {
-                        s->onLoad(s, sv, SID_VideoCalibrateMain);
+                        std::cout << "not implemented" << std::endl;
                         showHelpCalibration = true;
                         showInfosScene      = true;
                     }
 
                     if (ImGui::MenuItem("Start Calibration on Scnd. Camera", nullptr, false, SLCVCapture::hasSecondaryCamera))
                     {
-                        s->onLoad(s, sv, SID_VideoCalibrateScnd);
+                        std::cout << "not implemented" << std::endl;
                         showHelpCalibration = true;
                         showInfosScene      = true;
                     }

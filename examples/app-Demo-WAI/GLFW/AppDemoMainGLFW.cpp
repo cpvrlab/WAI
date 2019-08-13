@@ -41,7 +41,7 @@
 
 #include <WAI.h>
 
-#define AUTO_CALIBRATION 1
+#define AUTO_CALIBRATION 0
 
 //-----------------------------------------------------------------------------
 // GLobal application variables
@@ -65,6 +65,7 @@ static SLfloat       lastMouseDownTime = 0.0f;   //!< Last mouse press time
 static SLKey         modifiers         = K_none; //!< last modifier keys
 static SLbool        fullscreen        = false;  //!< flag if window is in fullscreen mode
 static WAISceneView* sceneView         = nullptr;
+static int           dpi;
 /*!
 onClose event handler for deallocation of the scene & sceneview. onClose is
 called glfwPollEvents, glfwWaitEvents or glfwSwapBuffers.
@@ -442,16 +443,9 @@ void onGLFWError(int error, const char* description)
     fputs(description, stderr);
 }
 //-----------------------------------------------------------------------------
-/*!
-The C main procedure running the GLFW GUI application.
-*/
-int main(int argc, char* argv[])
-{
-    // set command line arguments
-    SLVstring cmdLineArgs;
-    for (int i = 0; i < argc; i++)
-        cmdLineArgs.push_back(SLstring(argv[i]));
 
+void GLFWCrap()
+{
     if (!glfwInit())
     {
         fprintf(stderr, "Failed to initialize GLFW\n");
@@ -469,8 +463,8 @@ int main(int argc, char* argv[])
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    int scrWidth  = 640;
-    int scrHeight = 480;
+    scrWidth  = 640;
+    scrHeight = 480;
 
     //we have to fix aspect ratio, because the video image is initialized with this ratio
     fixAspectRatio = true;
@@ -526,37 +520,24 @@ int main(int argc, char* argv[])
     GET_GL_ERROR;
 
     // Set your own physical screen dpi
-    int dpi = (int)(142 * scr2fbX);
+    dpi = (int)(142 * scr2fbX);
     cout << "------------------------------------------------------------------" << endl;
     cout << "GUI             : GLFW (Version: " << GLFW_VERSION_MAJOR << "." << GLFW_VERSION_MINOR << "." << GLFW_VERSION_REVISION << ")" << endl;
     cout << "DPI             : " << dpi << endl;
 
+    // Set GLFW callback functions
+    glfwSetKeyCallback(window, onKeyPress);
+    glfwSetCharCallback(window, onCharInput);
+    glfwSetWindowSizeCallback(window, onResize);
+    glfwSetMouseButtonCallback(window, onMouseButton);
+    glfwSetCursorPosCallback(window, onMouseMove);
+    glfwSetScrollCallback(window, onMouseWheel);
+    glfwSetWindowCloseCallback(window, onClose);
+}
 
-    // get executable path
-    SLstring slRoot    = SLstring(WAI_ROOT) + "/thirdparty/SLProject";
-    SLstring waiRoot   = SLstring(WAI_ROOT);
-    SLstring configDir = Utils::getAppsWritableDir();
-    //slSetupExternalDirectories(waiRoot + "/data");
 
-    /////////////////////////////////////////////////////////
-    AppWAISingleton::instance()->load(640, 480, waiRoot + "/data", new AutoCalibration(640, 480));
-
-    assert(SLApplication::scene == nullptr && "SLScene is already created!");
-
-    // Default paths for all loaded resources
-    SLGLProgram::defaultPath      = slRoot + "/data/shaders/";
-    SLGLTexture::defaultPath      = slRoot + "/data/images/textures/";
-    SLGLTexture::defaultPathFonts = slRoot + "/data/images/fonts/";
-    //SLAssimpImporter::defaultPath = modelPath;
-    SLCVCapture::videoDefaultPath = waiRoot + "/data/videos/";
-    SLCVCalibration::calibIniPath = waiRoot + "/data/calibrations/";
-    SLApplication::configPath     = configDir;
-
-    SLGLState* stateGL = SLGLState::getInstance();
-    SLApplication::scene = new SLScene("AppDemoGLFW", (cbOnSceneLoad)onLoadWAISceneView);
-    AppWAIScene waiScene = AppWAIScene();
-    waiScene.rebuild();
-
+void slCalibration()
+{
     //This gets computerUser,-Name,-Brand,-Model,-OS,-OSVer,-Arch,-ID
     SLstring deviceString = SLApplication::getComputerInfos();
 
@@ -577,8 +558,35 @@ int main(int argc, char* argv[])
     activeCalib                     = &calibMainCam;
     SLCVCapture::hasSecondaryCamera = true;
 #endif
+}
 
-    //SLApplication::createAppAndScene("AppDemoGLFW", (void*)onLoadWAISceneView);
+/*!
+The C main procedure running the GLFW GUI application.
+*/
+int main(int argc, char* argv[])
+{
+    // set command line arguments
+    SLVstring cmdLineArgs;
+    for (int i = 0; i < argc; i++)
+        cmdLineArgs.push_back(SLstring(argv[i]));
+
+    GLFWCrap();
+
+    // get executable path
+    SLstring slRoot    = SLstring(WAI_ROOT) + "/thirdparty/SLProject/data";
+    SLstring waiRoot   = SLstring(WAI_ROOT);
+    SLstring configDir = Utils::getAppsWritableDir();
+    //slSetupExternalDirectories(waiRoot + "/data");
+
+    /////////////////////////////////////////////////////////
+    //SLCVCalibration::calibIniPath = waiRoot + "/data/calibrations/";
+    //SLCVCapture::videoDefaultPath = waiRoot + "/data/videos/";
+    AppWAISingleton::instance()->load(640, 480, waiRoot + "/data", new AutoCalibration(640, 480));
+    SLApplication::init(slRoot);
+
+    SLGLState* stateGL = SLGLState::getInstance();
+    SLApplication::scene = new SLScene("AppDemoGLFW");
+    AppWAIScene waiScene = AppWAIScene();
 
     /////////////////////////////////////////////////////////
 
@@ -600,7 +608,6 @@ int main(int argc, char* argv[])
     SLSceneViewHandler svHandler;
     svHandler.addSceneView(sceneView);
 
-
     // Set default font sizes depending on the dpi no matter if ImGui is used
     if (!SLApplication::dpi) SLApplication::dpi = dpi;
 
@@ -608,32 +615,7 @@ int main(int argc, char* argv[])
     sceneView->gui().loadFonts(SLGLImGui::fontPropDots, SLGLImGui::fontFixedDots);
 
     // Set active sceneview and load scene. This is done for the first sceneview
-    if (!SLApplication::scene->root3D())
-    {
-        onLoadWAISceneView(SLApplication::scene, sceneView, SLApplication::sceneID);
-    }
-    else
-        sceneView->onInitialize();
-
-    /////////////////////////////////////////////////////////
-    //svIndex = slCreateSceneView((int)(scrWidth * scr2fbX),
-    //                            (int)(scrHeight * scr2fbY),
-    //                            dpi,
-    //                            (SLSceneID)SL_STARTSCENE,
-    //                            (void*)&onPaint,
-    //                            nullptr,
-    //                            (void*)createNewWAISceneView,
-    //                            (void*)AppDemoGui::build);
-    /////////////////////////////////////////////////////////
-
-    // Set GLFW callback functions
-    glfwSetKeyCallback(window, onKeyPress);
-    glfwSetCharCallback(window, onCharInput);
-    glfwSetWindowSizeCallback(window, onResize);
-    glfwSetMouseButtonCallback(window, onMouseButton);
-    glfwSetCursorPosCallback(window, onMouseMove);
-    glfwSetScrollCallback(window, onMouseWheel);
-    glfwSetWindowCloseCallback(window, onClose);
+    onLoadWAISceneView(SLApplication::scene, sceneView, SLApplication::sceneID);
 
     AutoCalibration* ac  = (AutoCalibration*)AppWAISingleton::instance()->wc;
     WAI::WAI*        wai = AppWAISingleton::instance()->wai;
@@ -697,7 +679,9 @@ int main(int argc, char* argv[])
         if (!doRepaint)
             glfwWaitEvents();
         else
+        {
             glfwPollEvents();
+        }
     }
 
     // release the capture device

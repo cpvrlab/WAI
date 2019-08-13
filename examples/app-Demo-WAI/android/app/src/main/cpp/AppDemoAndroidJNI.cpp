@@ -15,6 +15,7 @@
 #include <SLInterface.h>
 #include <SLScene.h>
 #include <SL/SLApplication.h>
+#include <SLSceneViewHandler.h>
 
 #include <AppWAISceneView.h>
 #include <AppDemoGui.h>
@@ -26,6 +27,7 @@
 JNIEnv*       environment; //! Pointer to JAVA environment used in ray tracing callback
 int           svIndex;     //!< SceneView index
 WAISceneView* sceneView = 0;
+SLSceneViewHandler * svHandler = 0;
 std::string   externalDir;
 std::string   dataRoot;
 //-----------------------------------------------------------------------------
@@ -63,11 +65,12 @@ JNIEXPORT void JNICALL Java_ch_fhnw_comgr_GLES3Lib_copyVideoYUVPlanes(JNIEnv* en
 
 //-----------------------------------------------------------------------------
 //! Alternative SceneView creation function passed by slCreateSceneView
-SLuint createNewWAISceneView()
+/*SLuint createNewWAISceneView()
 {
     sceneView = new WAISceneView(externalDir + "/", dataRoot);
     return sceneView->index();
 }
+*/
 //-----------------------------------------------------------------------------
 JNIEXPORT void JNICALL Java_ch_fhnw_comgr_GLES3Lib_onSetupExternalDirectories(JNIEnv* env, jobject obj, jstring externalDirPath)
 {
@@ -76,7 +79,7 @@ JNIEXPORT void JNICALL Java_ch_fhnw_comgr_GLES3Lib_onSetupExternalDirectories(JN
     string      externalDirPathNative(nativeString);
     env->ReleaseStringUTFChars(externalDirPath, nativeString);
 
-    slSetupExternalDirectories(externalDirPathNative);
+    slSetupExternalDir(externalDirPathNative);
 
     externalDir = externalDirPathNative;
 }
@@ -104,11 +107,36 @@ static void printGLString(const char* name, GLenum s)
     SL_LOG("GL %s = %s\n", name, v);
 }
 //-----------------------------------------------------------------------------
+
+void slCalibration()
+{
+    //This gets computerUser,-Name,-Brand,-Model,-OS,-OSVer,-Arch,-ID
+    SLstring deviceString = SLApplication::getComputerInfos();
+
+    SLstring mainCalibFilename = "camCalib_" + deviceString + "_main.xml";
+    SLstring scndCalibFilename = "camCalib_" + deviceString + "_scnd.xml";
+
+    // load opencv camera calibration for main and secondary camera
+#if defined(SL_USES_CVCAPTURE)
+    SLApplication::calibMainCam.load(SLApplication::configPath, mainCalibFilename, true, false);
+    SLApplication::calibMainCam.loadCalibParams();
+    SLApplication::activeCalib      = &SLApplication::calibMainCam;
+    SLCVCapture::hasSecondaryCamera = false;
+#else
+    SLApplication::calibMainCam.load(SLApplication::configPath, mainCalibFilename, false, false);
+    SLApplication::calibMainCam.loadCalibParams();
+    SLApplication::calibScndCam.load(SLApplication::configPath, scndCalibFilename, true, false);
+    SLApplication::calibScndCam.loadCalibParams();
+    SLApplication::activeCalib                     = &SLApplication::calibMainCam;
+    SLCVCapture::hasSecondaryCamera = true;
+#endif
+}
+
 JNIEXPORT void JNICALL Java_ch_fhnw_comgr_GLES3Lib_onInit(JNIEnv* env, jobject obj, jint width, jint height, jint dpi, jstring filePath)
 {
     environment              = env;
     const char* nativeString = env->GetStringUTFChars(filePath, 0);
-    string      devicePath(nativeString);
+    string devicePath(nativeString);
     env->ReleaseStringUTFChars(filePath, nativeString);
 
     SLVstring* cmdLineArgs = new SLVstring();
@@ -118,26 +146,19 @@ JNIEXPORT void JNICALL Java_ch_fhnw_comgr_GLES3Lib_onInit(JNIEnv* env, jobject o
     string device_path_msg = "Device path:" + devicePath;
     SL_LOG(device_path_msg.c_str(), 0);
 
-
     string external_dir_msg = "External dir:" + externalDir;
     SL_LOG(external_dir_msg.c_str(), 0);
 
     dataRoot = devicePath;
 
-    AppWAISingleton::instance()->load(width, height, devicePath, externalDir);
+    AppWAISingleton::instance()->load(width, height, dataRoot, externalDir);
+    SLApplication::init(devicePath);
 
-    ////////////////////////////////////////////////////
-    slCreateAppAndScene(*cmdLineArgs,
-                        devicePath + "/shaders/",
-                        devicePath + "/models/",
-                        devicePath + "/textures/",
-                        devicePath + "/videos/",
-                        devicePath + "/fonts/",
-                        devicePath + "/calibrations/",
-                        devicePath + "/config/",
-                        "AppDemoAndroid",
-                        (void*)onLoadWAISceneView);
-    ////////////////////////////////////////////////////
+    SLGLState* stateGL = SLGLState::getInstance();
+    SLApplication::scene = new SLScene("AppDemoGLFW");
+    AppWAIScene waiScene = AppWAIScene();
+
+    slCalibration();
 
     // This load the GUI configs that are locally stored
     AppDemoGui::loadConfig(dpi);
@@ -145,16 +166,28 @@ JNIEXPORT void JNICALL Java_ch_fhnw_comgr_GLES3Lib_onInit(JNIEnv* env, jobject o
     auto videoStorageGUI = std::make_shared<AppDemoGuiVideoStorage>("Video Storage", externalDir + "/videos/");
     AppDemoGui::addInfoDialog(videoStorageGUI);
 
-    ////////////////////////////////////////////////////////////////////
-    svIndex = slCreateSceneView((int)width,
-                                (int)height,
-                                (int)dpi,
-                                SID_Revolver,
-                                (void*)&Java_renderRaytracingCallback,
-                                0,
-                                (void*)createNewWAISceneView,
-                                (void*)AppDemoGui::build);
-    ////////////////////////////////////////////////////////////////////
+    sceneView = new WAISceneView(SLApplication::scene, externalDir, dataRoot);
+
+    sceneView->init("SceneView",
+                    (int)(width),
+                    (int)(height),
+                    nullptr,
+                    (void*)AppDemoGui::build);
+
+    svHandler = new SLSceneViewHandler();
+    svHandler->addSceneView(sceneView);
+
+    // Load GUI fonts depending on the resolution
+    sceneView->gui().loadFonts(SLGLImGui::fontPropDots, SLGLImGui::fontFixedDots);
+
+    if (!SLApplication::scene->root3D())
+    {
+        onLoadWAISceneView(SLApplication::scene, sceneView, SLApplication::sceneID);
+    }
+    else
+    {
+        sceneView->onInitialize();
+    }
 
     //install memory callback to retrieve stats about memory usage from c++
     //slInstallMemoryStatsCallback((void*)Java_updateMemoryStatsCallback);
@@ -164,16 +197,15 @@ JNIEXPORT void JNICALL Java_ch_fhnw_comgr_GLES3Lib_onInit(JNIEnv* env, jobject o
 //-----------------------------------------------------------------------------
 JNIEXPORT void JNICALL Java_ch_fhnw_comgr_GLES3Lib_onTerminate(JNIEnv* env, jobject obj)
 {
-
     AppDemoGui::saveConfig();
-
     slTerminate();
 }
 //-----------------------------------------------------------------------------
 JNIEXPORT jboolean JNICALL Java_ch_fhnw_comgr_GLES3Lib_onUpdateAndPaint(JNIEnv* env, jobject obj)
 {
+    SLCVCapture::setVideoTexture();
     sceneView->update();
-    return slUpdateAndPaint(svIndex);
+    return svHandler->updateAndPaint(SLApplication::inputManager);
 }
 //-----------------------------------------------------------------------------
 JNIEXPORT void JNICALL Java_ch_fhnw_comgr_GLES3Lib_onResize(JNIEnv* env, jobject obj, jint width, jint height)
@@ -258,7 +290,7 @@ JNIEXPORT jint JNICALL Java_ch_fhnw_comgr_GLES3Lib_getVideoSizeIndex(JNIEnv* env
 //-----------------------------------------------------------------------------
 JNIEXPORT void JNICALL Java_ch_fhnw_comgr_GLES3Lib_grabVideoFileFrame(JNIEnv* env, jobject obj)
 {
-    return slGrabVideoFileFrame();
+    return SLCVCapture::grabAndAdjustForSL(sceneView->scrWdivH());
 }
 //-----------------------------------------------------------------------------
 JNIEXPORT void JNICALL Java_ch_fhnw_comgr_GLES3Lib_copyVideoImage(JNIEnv* env, jobject obj, jint imgWidth, jint imgHeight, jbyteArray imgBuffer)
@@ -273,6 +305,7 @@ JNIEXPORT void JNICALL Java_ch_fhnw_comgr_GLES3Lib_copyVideoImage(JNIEnv* env, j
     WAI::CameraData cameraData = {};
     cameraData.imageGray       = &SLCVCapture::lastFrameGray;
     cameraData.imageRGB        = &SLCVCapture::lastFrame;
+
     sceneView->updateCamera(&cameraData);
 }
 //-----------------------------------------------------------------------------
@@ -288,7 +321,7 @@ JNIEXPORT void JNICALL Java_ch_fhnw_comgr_GLES3Lib_copyVideoYUVPlanes(JNIEnv* en
     if (u == nullptr) SL_EXIT_MSG("copyVideoYUVPlanes: No pointer for u-buffer passed!");
     if (v == nullptr) SL_EXIT_MSG("copyVideoYUVPlanes: No pointer for v-buffer passed!");
 
-    slCopyVideoYUVPlanes(srcW, srcH, y, ySize, yPixStride, yLineStride, u, uSize, uPixStride, uLineStride, v, vSize, vPixStride, vLineStride);
+    slCopyVideoYUVPlanes(srcW, srcH, y, ySize, yPixStride, yLineStride, u, uSize, uPixStride, uLineStride, v, vSize, vPixStride, vLineStride, sceneView->scrWdivH());
 }
 //-----------------------------------------------------------------------------
 JNIEXPORT void JNICALL Java_ch_fhnw_comgr_GLES3Lib_onLocationLLA(JNIEnv* env,

@@ -39,6 +39,11 @@ static void onLoadScenePoseEstimation(SLScene* s, SLSceneView* sv)
     waiScene->cameraNode->fov(AppWAISingleton::instance()->wc->calcCameraFOV());
     waiScene->cameraNode->background().texture(SLCVCapture::videoTexture());
 
+
+
+
+
+
     // Set scene name and info string
     s->name("Track Keyframe based Features");
     s->info("Example for loading an existing pose graph with map points.");
@@ -75,7 +80,6 @@ static void onLoadScenePoseEstimation(SLScene* s, SLSceneView* sv)
 void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
 {
     s->init();
-    SLApplication::init();
 
 #if LIVE_VIDEO
     onLoadScenePoseEstimation(s, sv);
