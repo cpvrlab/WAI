@@ -664,13 +664,13 @@ int main()
 
     int from_to[] = {0, 0};
 
-    cv::Mat img1     = cv::imread(dataRoot + "chessboard_logitech_01.jpg");
+    cv::Mat img1     = cv::imread(dataRoot + "chessboard_logitech_steep_01.jpg");
     cv::Mat img1Gray = cv::Mat(img1.rows,
                                img1.cols,
                                CV_8UC1);
     cv::mixChannels(&img1, 1, &img1Gray, 1, from_to, 1);
 
-    cv::Mat img2     = cv::imread(dataRoot + "chessboard_logitech_02.jpg");
+    cv::Mat img2     = cv::imread(dataRoot + "chessboard_logitech_steep_02.jpg");
     cv::Mat img2Gray = cv::Mat(img2.rows,
                                img2.cols,
                                CV_8UC1);

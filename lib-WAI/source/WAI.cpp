@@ -32,7 +32,7 @@ WAI::Mode* WAI::WAI::setMode(ModeType modeType)
             {
                 _mode = new ModeOrbSlam2((SensorCamera*)_sensors[SensorType_Camera],
                                          false,
-                                         true,
+                                         false,
                                          false,
                                          false,
                                          true,

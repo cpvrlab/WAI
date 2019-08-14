@@ -1095,7 +1095,7 @@ void WAI::ModeOrbSlam2::initializeWithKnownPose(const cv::Mat& knownPose)
     }
 }
 #else
-void WAI::ModeOrbSlam2::initializeWithKnownPose(const cv::Mat& knownPose)
+void WAI::ModeOrbSlam2::initializeWithKnownPose(int minKeys, bool matchesKnown)
 {
     // Get Map Mutex -> Map cannot be changed
     std::unique_lock<std::mutex> lock(_map->mMutexMapUpdate, std::defer_lock);
@@ -1106,19 +1106,35 @@ void WAI::ModeOrbSlam2::initializeWithKnownPose(const cv::Mat& knownPose)
 
     cv::Mat cameraMat     = _camera->getCameraMatrix();
     cv::Mat distortionMat = _camera->getDistortionMatrix();
-    mCurrentFrame         = WAIFrame(_camera->getImageGray(),
-                             0.0,
-                             mpIniORBextractor,
-                             cameraMat,
-                             distortionMat,
-                             mpVocabulary,
-                             _retainImg);
+
+#    if 0
+    if (keyPoints.size())
+    {
+        mCurrentFrame = WAIFrame(_camera->getImageGray(),
+                                 mpIniORBextractor,
+                                 cameraMat,
+                                 distortionMat,
+                                 keyPoints,
+                                 mpVocabulary,
+                                 _retainImg);
+    }
+    else
+    {
+        mCurrentFrame = WAIFrame(_camera->getImageGray(),
+                                 0.0,
+                                 mpIniORBextractor,
+                                 cameraMat,
+                                 distortionMat,
+                                 mpVocabulary,
+                                 _retainImg);
+    }
     mCurrentFrame.SetPose(knownPose);
+#    endif
 
     if (!mpInitializer)
     {
         // Set Reference Frame
-        if (mCurrentFrame.mvKeys.size() > 100)
+        if (mCurrentFrame.mvKeys.size() > minKeys)
         {
             mInitialFrame = WAIFrame(mCurrentFrame);
             mLastFrame    = WAIFrame(mCurrentFrame);
@@ -1138,7 +1154,7 @@ void WAI::ModeOrbSlam2::initializeWithKnownPose(const cv::Mat& knownPose)
     else
     {
         // Try to initialize
-        if ((int)mCurrentFrame.mvKeys.size() <= 100)
+        if ((int)mCurrentFrame.mvKeys.size() <= minKeys)
         {
             delete mpInitializer;
             mpInitializer = static_cast<Initializer*>(NULL);
@@ -1146,43 +1162,63 @@ void WAI::ModeOrbSlam2::initializeWithKnownPose(const cv::Mat& knownPose)
             return;
         }
 
-        cv::Mat Rcw1 = mInitialFrame.GetRotationCW();
-        cv::Mat Rwc1 = Rcw1.t();
-        cv::Mat tcw1 = mInitialFrame.GetTranslationCW();
-
-        cv::Mat Rcw2 = mCurrentFrame.GetRotationCW();
-        cv::Mat Rwc2 = Rcw2.t();
-        cv::Mat tcw2 = mCurrentFrame.GetTranslationCW();
-
-        // Compute Fundamental Matrix
-        cv::Mat F12;
-        {
-            cv::Mat R12 = Rcw1 * Rcw2.t();
-            cv::Mat t12 = -Rcw1 * Rcw2.t() * tcw2 + tcw1;
-
-            cv::Mat t12x = (cv::Mat_<float>(3, 3) << 0.0f, -t12.at<float>(2), t12.at<float>(1), t12.at<float>(2), 0.0f, -t12.at<float>(0), -t12.at<float>(1), t12.at<float>(0), 0.0f); //SkewSymmetricMatrix(t12);
-
-            const cv::Mat& K1 = mInitialFrame.mK;
-            const cv::Mat& K2 = mCurrentFrame.mK;
-
-            F12 = K1.t().inv() * t12x * R12 * K2.inv();
-        }
-
         mInitialFrame.ComputeBoW();
         mCurrentFrame.ComputeBoW();
 
-        // Search matches that fullfil epipolar constraint
-        ORBmatcher matcher(0.9, true); // NOTE(dgj1): this is from initialization
-        int        nmatches = matcher.SearchForInitializationTriangulation(mInitialFrame, mCurrentFrame, F12, mvIniMatches, false);
-
-        // Check if there are enough correspondences
-        if (nmatches < 100)
+        int nmatches        = 0;
+        int minTriangulated = 50;
+        if (matchesKnown)
         {
-            delete mpInitializer;
-            mpInitializer = static_cast<Initializer*>(NULL);
-            return;
+            nmatches     = minKeys + 1;
+            mvIniMatches = std::vector<int>(nmatches, -1);
+            for (int i = 0; i < nmatches; i++)
+            {
+                mvIniMatches[i] = i;
+            }
+
+            minTriangulated = nmatches;
+        }
+        else
+        {
+            cv::Mat Rcw1 = mInitialFrame.GetRotationCW();
+            cv::Mat Rwc1 = Rcw1.t();
+            cv::Mat tcw1 = mInitialFrame.GetTranslationCW();
+
+            cv::Mat Rcw2 = mCurrentFrame.GetRotationCW();
+            cv::Mat Rwc2 = Rcw2.t();
+            cv::Mat tcw2 = mCurrentFrame.GetTranslationCW();
+
+            // Compute Fundamental Matrix
+            cv::Mat F12;
+            {
+                cv::Mat R12 = Rcw1 * Rcw2.t();
+                cv::Mat t12 = -Rcw1 * Rcw2.t() * tcw2 + tcw1;
+
+                cv::Mat t12x = (cv::Mat_<float>(3, 3) << 0.0f, -t12.at<float>(2), t12.at<float>(1), t12.at<float>(2), 0.0f, -t12.at<float>(0), -t12.at<float>(1), t12.at<float>(0), 0.0f); //SkewSymmetricMatrix(t12);
+
+                const cv::Mat& K1 = mInitialFrame.mK;
+                const cv::Mat& K2 = mCurrentFrame.mK;
+
+                F12 = K1.t().inv() * t12x * R12 * K2.inv();
+            }
+
+            // Search matches that fullfil epipolar constraint
+            ORBmatcher matcher(0.9, true); // NOTE(dgj1): this is from initialization
+            //int        nmatches = matcher.SearchForInitializationTriangulation(mInitialFrame, mCurrentFrame, F12, mvIniMatches, false);
+            int nmatches = matcher.SearchForInitialization(mInitialFrame, mCurrentFrame, mvbPrevMatched, mvIniMatches);
+
+            WAI_LOG("%i matches", nmatches);
+
+            // Check if there are enough correspondences
+            if (nmatches < 10) //if (nmatches < 100)
+            {
+                delete mpInitializer;
+                mpInitializer = static_cast<Initializer*>(NULL);
+                return;
+            }
         }
 
+#    if 1
         for (unsigned int i = 0; i < mInitialFrame.mvKeys.size(); i++)
         {
             cv::rectangle(_camera->getImageRGB(),
@@ -1202,12 +1238,13 @@ void WAI::ModeOrbSlam2::initializeWithKnownPose(const cv::Mat& knownPose)
                          cv::Scalar(0, 255, 0));
             }
         }
+#    endif
 
         cv::Mat      Rcw;            // Current Camera Rotation
         cv::Mat      tcw;            // Current Camera Translation
         vector<bool> vbTriangulated; // Triangulated Correspondences (mvIniMatches)
 
-        if (mpInitializer->InitializeWithKnownPose(mInitialFrame, mCurrentFrame, mvIniMatches, Rcw, tcw, mvIniP3D, vbTriangulated))
+        if (mpInitializer->InitializeWithKnownPose(mInitialFrame, mCurrentFrame, mvIniMatches, Rcw, tcw, mvIniP3D, vbTriangulated, 10))
         {
 #    if 0
             {
@@ -1336,7 +1373,16 @@ void WAI::ModeOrbSlam2::initializeWithArucoMarkerCorrection()
         cv::aruco::drawDetectedMarkers(_camera->getImageRGB(), corners, arucoIDs);
         cv::aruco::drawAxis(_camera->getImageRGB(), cameraMat, distortionMat, cv::Mat(rVecs[0]), cv::Mat(tVecs[0]), 0.1f);
 
-        initializeWithKnownPose(knownPose);
+        mCurrentFrame = WAIFrame(_camera->getImageGray(),
+                                 0.0,
+                                 mpIniORBextractor,
+                                 cameraMat,
+                                 distortionMat,
+                                 mpVocabulary,
+                                 _retainImg);
+        mCurrentFrame.SetPose(knownPose);
+
+        initializeWithKnownPose();
     }
 }
 
@@ -1388,7 +1434,35 @@ void WAI::ModeOrbSlam2::initializeWithChessboardCorrection()
             rotMat.copyTo(pose.rowRange(0, 3).colRange(0, 3));
             t.copyTo(pose.rowRange(0, 3).col(3));
 
-            initializeWithKnownPose(pose);
+            std::vector<cv::KeyPoint> kp;
+            for (int i = 0; i < p2D.size(); i++)
+            {
+                kp.push_back(cv::KeyPoint(p2D[i], 1.0f));
+            }
+
+            cv::Mat cameraMat     = _camera->getCameraMatrix();
+            cv::Mat distortionMat = _camera->getDistortionMatrix();
+#if 0
+            mCurrentFrame = WAIFrame(_camera->getImageGray(),
+                                     0.0f,
+                                     mpIniORBextractor,
+                                     cameraMat,
+                                     distortionMat,
+                                     mpVocabulary,
+                                     _retainImg);
+#else
+            mCurrentFrame = WAIFrame(_camera->getImageGray(),
+                                     mpIniORBextractor,
+                                     cameraMat,
+                                     distortionMat,
+                                     kp,
+                                     mpVocabulary,
+                                     _retainImg);
+#endif
+            mCurrentFrame.SetPose(pose);
+
+            //initializeWithKnownPose(kp.size() - 1, true);
+            initializeWithKnownPose(kp.size() - 1);
         }
     }
 }
@@ -1739,9 +1813,9 @@ bool WAI::ModeOrbSlam2::createInitialMapMonocular()
 
     // Bundle Adjustment
     WAI_LOG("New Map created with %i points", _map->MapPointsInMap());
+
 #if 0 // TODO(dgj1): REACTIVATE THIS FOR REGULAR INITIALIZATION
     Optimizer::GlobalBundleAdjustemnt(_map, 20);
-#endif
 
     // Set median depth to 1
     float medianDepth    = pKFini->ComputeSceneMedianDepth(2);
@@ -1754,7 +1828,6 @@ bool WAI::ModeOrbSlam2::createInitialMapMonocular()
         return false;
     }
 
-#if 0 // TODO(dgj1): REACTIVATE THIS FOR REGULAR INITIALIZATION
     // Scale initial baseline
     cv::Mat Tc2w               = pKFcur->GetPose();
     Tc2w.col(3).rowRange(0, 3) = Tc2w.col(3).rowRange(0, 3) * invMedianDepth;

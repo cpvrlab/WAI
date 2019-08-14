@@ -130,7 +130,8 @@ bool Initializer::InitializeWithKnownPose(const std::vector<cv::KeyPoint>& mvKey
                                           cv::Mat&                         R21,
                                           cv::Mat&                         t21,
                                           vector<cv::Point3f>&             vP3D,
-                                          vector<bool>&                    vbTriangulated)
+                                          vector<bool>&                    vbTriangulated,
+                                          int                              minTriangulated)
 {
     bool result = true;
 
@@ -229,13 +230,12 @@ bool Initializer::InitializeWithKnownPose(const std::vector<cv::KeyPoint>& mvKey
             }
         }
 
-        int minTriangulated = 50;
-        int nMinGood        = max(static_cast<int>(0.9 * N), minTriangulated);
+        int nMinGood = max(static_cast<int>(0.9 * N), minTriangulated);
         //int nMinGood = minTriangulated;
 
         //WAI_LOG("nGood, nMinGood, parallax: %i, %i, %f", nGood, nMinGood, parallax);
 
-        float minParallax = 5.0f; // min. angle in degrees between frames
+        float minParallax = 10.0f; // min. angle in degrees between frames
         if (maxGood < nMinGood || parallax <= minParallax)
         {
             result = false;
@@ -245,7 +245,7 @@ bool Initializer::InitializeWithKnownPose(const std::vector<cv::KeyPoint>& mvKey
     return result;
 }
 
-bool Initializer::InitializeWithKnownPose(const WAIFrame& InitialFrame, const WAIFrame& CurrentFrame, const vector<int>& vMatches12, cv::Mat& R21, cv::Mat& t21, vector<cv::Point3f>& vP3D, vector<bool>& vbTriangulated)
+bool Initializer::InitializeWithKnownPose(const WAIFrame& InitialFrame, const WAIFrame& CurrentFrame, const vector<int>& vMatches12, cv::Mat& R21, cv::Mat& t21, vector<cv::Point3f>& vP3D, vector<bool>& vbTriangulated, int minTriangulated)
 {
     bool result = InitializeWithKnownPose(InitialFrame.mvKeysUn,
                                           CurrentFrame.mvKeysUn,
@@ -257,7 +257,8 @@ bool Initializer::InitializeWithKnownPose(const WAIFrame& InitialFrame, const WA
                                           R21,
                                           t21,
                                           vP3D,
-                                          vbTriangulated);
+                                          vbTriangulated,
+                                          minTriangulated);
 
     return result;
 }

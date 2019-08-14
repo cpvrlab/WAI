@@ -118,7 +118,7 @@ class WAI_API ModeOrbSlam2 : public Mode
     };
 
     void initialize();
-    void initializeWithKnownPose(const cv::Mat& knownPose);
+    void initializeWithKnownPose(int minKeys = 100, bool matchesKnown = false);
     void initializeWithArucoMarkerCorrection();
     void initializeWithChessboardCorrection();
     bool createInitialMapMonocular();

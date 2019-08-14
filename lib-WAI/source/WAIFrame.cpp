@@ -149,7 +149,7 @@ WAIFrame::WAIFrame(const cv::Mat& imGray, const double& timeStamp, ORBextractor*
         imgGray = imGray.clone();
 }
 
-WAIFrame::WAIFrame(const cv::Mat& imGray, ORBextractor* extractor, cv::Mat& K, cv::Mat& distCoef, std::vector<cv::KeyPoint> vKeys, ORBVocabulary* orbVocabulary, bool retainImg)
+WAIFrame::WAIFrame(const cv::Mat& imGray, ORBextractor* extractor, cv::Mat& K, cv::Mat& distCoef, std::vector<cv::KeyPoint>& vKeys, ORBVocabulary* orbVocabulary, bool retainImg)
   : mpORBextractorLeft(extractor), mvKeys(vKeys), mpORBvocabulary(orbVocabulary)
 {
     //ghm1: ORB_SLAM uses float precision
