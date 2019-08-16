@@ -210,23 +210,25 @@ bool Initializer::InitializeWithKnownPose(const std::vector<cv::KeyPoint>& mvKey
         int   maxGood = nGood;
 
         int N = 0;
-        for (size_t i = 0, iend = vMatchesInliers.size(); i < iend; i++)
+        for (size_t i = 0, iend = mvMatches12.size(); i < iend; i++)
         {
-            if (vMatchesInliers[i])
+            int pointIndex = mvMatches12[i].first;
+
+            if (/*vMatchesInliers[i] && */vbTriangulated[pointIndex])
             {
                 N++;
 
                 cv::Mat P4D         = cv::Mat(4, 1, CV_32F);
-                P4D.at<float>(0, 0) = vP3D[i].x;
-                P4D.at<float>(1, 0) = vP3D[i].y;
-                P4D.at<float>(2, 0) = vP3D[i].z;
+                P4D.at<float>(0, 0) = vP3D[pointIndex].x;
+                P4D.at<float>(1, 0) = vP3D[pointIndex].y;
+                P4D.at<float>(2, 0) = vP3D[pointIndex].z;
                 P4D.at<float>(3, 0) = 1.0f;
 
                 cv::Mat P4Dw = Twc1 * P4D;
 
-                vP3D[i].x = P4Dw.at<float>(0, 0) / P4Dw.at<float>(3, 0);
-                vP3D[i].y = P4Dw.at<float>(1, 0) / P4Dw.at<float>(3, 0);
-                vP3D[i].z = P4Dw.at<float>(2, 0) / P4Dw.at<float>(3, 0);
+                vP3D[pointIndex].x = P4Dw.at<float>(0, 0) / P4Dw.at<float>(3, 0);
+                vP3D[pointIndex].y = P4Dw.at<float>(1, 0) / P4Dw.at<float>(3, 0);
+                vP3D[pointIndex].z = P4Dw.at<float>(2, 0) / P4Dw.at<float>(3, 0);
             }
         }
 

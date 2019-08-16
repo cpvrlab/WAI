@@ -1244,7 +1244,7 @@ void WAI::ModeOrbSlam2::initializeWithKnownPose(int minKeys, bool matchesKnown)
         cv::Mat      tcw;            // Current Camera Translation
         vector<bool> vbTriangulated; // Triangulated Correspondences (mvIniMatches)
 
-        if (mpInitializer->InitializeWithKnownPose(mInitialFrame, mCurrentFrame, mvIniMatches, Rcw, tcw, mvIniP3D, vbTriangulated, 10))
+        if (mpInitializer->InitializeWithKnownPose(mInitialFrame, mCurrentFrame, mvIniMatches, Rcw, tcw, mvIniP3D, vbTriangulated))
         {
 #    if 0
             {
@@ -1297,12 +1297,33 @@ void WAI::ModeOrbSlam2::initializeWithKnownPose(int minKeys, bool matchesKnown)
             bool mapInitializedSuccessfully = createInitialMapMonocular();
             if (mapInitializedSuccessfully)
             {
+                {
+                    std::vector<cv::Point3f> p3Dw;
+
+                    float chessboardWidthM = 0.029f;
+                    for (int y = 0; y < 5; y++)
+                    {
+                        for (int x = 0; x < 8; x++)
+                        {
+                            p3Dw.push_back(cv::Point3f(y * chessboardWidthM, x * chessboardWidthM, 0.0f));
+                        }
+                    }
+                    
+                    for (size_t i = 0, iend = mvIniMatches.size(); i < iend; i++)
+                    {
+                        if (mvIniMatches[i] >= 0 && vbTriangulated[i])
+                        {
+                            std::cout << mvIniP3D[i] << " : " << p3Dw[i] << " : " << cv::norm(mvIniP3D[i] - p3Dw[i]) << std::endl;
+                        }
+                    }
+                }
+
                 //mark tracking as initialized
                 _initialized = true;
                 _bOK         = true;
-                _state       = TrackingState_None; // TODO(jan): set to tracking ok
+                _state       = TrackingState_TrackingOK;
 
-                _onlyTracking = true; // TODO(jan): set to false
+                //_onlyTracking = true; // TODO(jan): set to false
             }
 
             //ghm1: in the original implementation the initialization is defined in the track() function and this part is always called at the end!
@@ -1393,7 +1414,7 @@ void WAI::ModeOrbSlam2::initializeWithChessboardCorrection()
       //CALIB_CB_NORMALIZE_IMAGE |
       cv::CALIB_CB_FAST_CHECK;
     cv::Size chessboardSize(8, 5);
-
+ 
     std::vector<cv::Point2f> p2D;
     bool                     found = cv::findChessboardCorners(_camera->getImageGray(),
                                            chessboardSize,
@@ -1406,7 +1427,7 @@ void WAI::ModeOrbSlam2::initializeWithChessboardCorrection()
 
         std::vector<cv::Point3f> p3Dw;
 
-        float chessboardWidthM = 0.042f;
+        float chessboardWidthM = 0.029f;
         for (int y = 0; y < chessboardSize.height; y++)
         {
             for (int x = 0; x < chessboardSize.width; x++)
@@ -1442,7 +1463,7 @@ void WAI::ModeOrbSlam2::initializeWithChessboardCorrection()
 
             cv::Mat cameraMat     = _camera->getCameraMatrix();
             cv::Mat distortionMat = _camera->getDistortionMatrix();
-#if 0
+#if 1
             mCurrentFrame = WAIFrame(_camera->getImageGray(),
                                      0.0f,
                                      mpIniORBextractor,
@@ -1462,7 +1483,8 @@ void WAI::ModeOrbSlam2::initializeWithChessboardCorrection()
             mCurrentFrame.SetPose(pose);
 
             //initializeWithKnownPose(kp.size() - 1, true);
-            initializeWithKnownPose(kp.size() - 1);
+            //initializeWithKnownPose(kp.size() - 1);
+            initializeWithKnownPose();
         }
     }
 }
@@ -1814,7 +1836,6 @@ bool WAI::ModeOrbSlam2::createInitialMapMonocular()
     // Bundle Adjustment
     WAI_LOG("New Map created with %i points", _map->MapPointsInMap());
 
-#if 0 // TODO(dgj1): REACTIVATE THIS FOR REGULAR INITIALIZATION
     Optimizer::GlobalBundleAdjustemnt(_map, 20);
 
     // Set median depth to 1
@@ -1828,6 +1849,7 @@ bool WAI::ModeOrbSlam2::createInitialMapMonocular()
         return false;
     }
 
+#if 0 // TODO(dgj1): REACTIVATE THIS FOR REGULAR INITIALIZATION
     // Scale initial baseline
     cv::Mat Tc2w               = pKFcur->GetPose();
     Tc2w.col(3).rowRange(0, 3) = Tc2w.col(3).rowRange(0, 3) * invMedianDepth;
@@ -1844,6 +1866,7 @@ bool WAI::ModeOrbSlam2::createInitialMapMonocular()
             pMP->SetWorldPos(pMP->GetWorldPos() * invMedianDepth);
         }
     }
+#endif
 
     mpLocalMapper->InsertKeyFrame(pKFini);
     mpLocalMapper->InsertKeyFrame(pKFcur);
@@ -1878,7 +1901,6 @@ bool WAI::ModeOrbSlam2::createInitialMapMonocular()
 
     // Bundle Adjustment
     WAI_LOG("Number of Map points after local mapping: %i", _map->MapPointsInMap());
-#endif
 
     std::cout << pKFini->getObjectMatrix() << std::endl;
     std::cout << pKFcur->getObjectMatrix() << std::endl;
