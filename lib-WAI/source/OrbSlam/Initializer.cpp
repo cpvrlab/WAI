@@ -214,7 +214,7 @@ bool Initializer::InitializeWithKnownPose(const std::vector<cv::KeyPoint>& mvKey
         {
             int pointIndex = mvMatches12[i].first;
 
-            if (/*vMatchesInliers[i] && */vbTriangulated[pointIndex])
+            if (/*vMatchesInliers[i] && */ vbTriangulated[pointIndex])
             {
                 N++;
 

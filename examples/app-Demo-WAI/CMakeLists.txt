@@ -1,5 +1,6 @@
 if("${CMAKE_SYSTEM_NAME}" MATCHES "Android")
     set(IDE_FOLDER "Android")
+    set(WAI_BUILD_EXPERIMENTAL OFF CACHE BOOL "disable experimental apps")
     add_subdirectory(android/app)
 else()
     add_subdirectory(GLFW)

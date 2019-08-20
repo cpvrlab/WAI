@@ -28,6 +28,15 @@ include(cmake/PlatformLinkLibs.cmake)
 include(cmake/DownloadPrebuilts.cmake)
 
 add_subdirectory(examples)
-add_subdirectory(experimental)
+
+option(WAI_BUILD_EXPERIMENTAL
+	   "Specifies if experimental apps should be built"
+	   ON)
+if (WAI_BUILD_EXPERIMENTAL)
+    message(STATUS "Building experimental apps")
+    add_subdirectory(experimental)
+endif()
+
+
 add_subdirectory(thirdparty)
 add_subdirectory(lib-WAI)

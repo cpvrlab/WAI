@@ -92,9 +92,10 @@ void LocalMapping::Run()
                 if (!stopRequested())
                 {
                     // Local BA
-                    //if(mpMap->KeyFramesInMap()>2)
                     if (mpMap->KeyFramesInMap() > 2)
+                    {
                         Optimizer::LocalBundleAdjustment(mpCurrentKeyFrame, &mbAbortBA, mpMap);
+                    }
 
                     // Check redundant local Keyframes
                     KeyFrameCulling();

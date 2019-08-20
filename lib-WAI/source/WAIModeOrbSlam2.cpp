@@ -628,7 +628,7 @@ void WAI::ModeOrbSlam2::initialize()
                 _bOK         = true;
                 //_state       = TrackingState_TrackingOK;
 
-                _onlyTracking = true;
+                //_onlyTracking = true;
             }
 
             //ghm1: in the original implementation the initialization is defined in the track() function and this part is always called at the end!
@@ -1210,7 +1210,7 @@ void WAI::ModeOrbSlam2::initializeWithKnownPose(int minKeys, bool matchesKnown)
             WAI_LOG("%i matches", nmatches);
 
             // Check if there are enough correspondences
-            if (nmatches < 10) //if (nmatches < 100)
+            if (nmatches < 100)
             {
                 delete mpInitializer;
                 mpInitializer = static_cast<Initializer*>(NULL);
@@ -1294,13 +1294,16 @@ void WAI::ModeOrbSlam2::initializeWithKnownPose(int minKeys, bool matchesKnown)
                 }
             }
 
+            WAI_LOG("%i matches after initialization", nmatches);
+
             bool mapInitializedSuccessfully = createInitialMapMonocular();
             if (mapInitializedSuccessfully)
             {
+#    if 0
                 {
                     std::vector<cv::Point3f> p3Dw;
 
-                    float chessboardWidthM = 0.029f;
+                    float chessboardWidthM = 0.042f;
                     for (int y = 0; y < 5; y++)
                     {
                         for (int x = 0; x < 8; x++)
@@ -1308,7 +1311,7 @@ void WAI::ModeOrbSlam2::initializeWithKnownPose(int minKeys, bool matchesKnown)
                             p3Dw.push_back(cv::Point3f(y * chessboardWidthM, x * chessboardWidthM, 0.0f));
                         }
                     }
-                    
+
                     for (size_t i = 0, iend = mvIniMatches.size(); i < iend; i++)
                     {
                         if (mvIniMatches[i] >= 0 && vbTriangulated[i])
@@ -1317,6 +1320,10 @@ void WAI::ModeOrbSlam2::initializeWithKnownPose(int minKeys, bool matchesKnown)
                         }
                     }
                 }
+#    endif
+
+                _pose    = mCurrentFrame.mTcw.clone();
+                _poseSet = true;
 
                 //mark tracking as initialized
                 _initialized = true;
@@ -1414,7 +1421,7 @@ void WAI::ModeOrbSlam2::initializeWithChessboardCorrection()
       //CALIB_CB_NORMALIZE_IMAGE |
       cv::CALIB_CB_FAST_CHECK;
     cv::Size chessboardSize(8, 5);
- 
+
     std::vector<cv::Point2f> p2D;
     bool                     found = cv::findChessboardCorners(_camera->getImageGray(),
                                            chessboardSize,
@@ -1427,7 +1434,7 @@ void WAI::ModeOrbSlam2::initializeWithChessboardCorrection()
 
         std::vector<cv::Point3f> p3Dw;
 
-        float chessboardWidthM = 0.029f;
+        float chessboardWidthM = 0.042f;
         for (int y = 0; y < chessboardSize.height; y++)
         {
             for (int x = 0; x < chessboardSize.width; x++)
@@ -1702,6 +1709,8 @@ void WAI::ModeOrbSlam2::track3DPts()
                 Tcw = mCurrentFrame.mTcw.clone();
             }
 
+            std::cout << Tcw << std::endl;
+
             _pose    = Tcw;
             _poseSet = true;
         }
@@ -1853,7 +1862,6 @@ bool WAI::ModeOrbSlam2::createInitialMapMonocular()
     // Scale initial baseline
     cv::Mat Tc2w               = pKFcur->GetPose();
     Tc2w.col(3).rowRange(0, 3) = Tc2w.col(3).rowRange(0, 3) * invMedianDepth;
-    //pKFcur->SetPose(Tc2w);
     pKFcur->SetPose(Tc2w);
 
     // Scale points

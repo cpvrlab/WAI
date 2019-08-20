@@ -70,13 +70,13 @@ static void onLoadScenePoseEstimation(SLScene* s, SLSceneView* sv)
     //boxNode->addChild(axisNode);
     //boxNode->translation(0.0f, 0.0f, -2.0f);
     waiScene->mapNode->rotate(180, 1, 0, 0);
-    //waiScene->mapNode->addChild(waiScene->cameraNode);
+    waiScene->mapNode->addChild(waiScene->cameraNode);
 
     //setup scene
     SLNode* scene = new SLNode("scene");
     scene->addChild(light1);
     scene->addChild(boxNode);
-    scene->addChild(waiScene->cameraNode);
+    //scene->addChild(waiScene->cameraNode);
     scene->addChild(waiScene->mapNode);
 
     s->root3D(scene);
@@ -118,12 +118,13 @@ void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
     s->videoType(VT_MAIN);
     onLoadScenePoseEstimation(s, sv);
 #else
-    SLstring calibFileName = "cam_calibration_main_huawei_p10_640_360.xml";
+    //SLstring calibFileName = "cam_calibration_main_huawei_p10_640_360.xml";
+    SLstring calibFileName = "cam_calibration_main.xml";
     SLApplication::calibVideoFile.load(WAIMapStorage::externalDir() + "calibrations/", calibFileName, false, false);
     SLApplication::calibVideoFile.loadCalibParams();
 
     s->videoType(VT_FILE);
-    SLCVCapture::videoFilename = "street3.mp4";
+    SLCVCapture::videoFilename = "initialization_test.webm";
     SLCVCapture::videoLoops    = true;
 
     onLoadScenePoseEstimation(s, sv);
