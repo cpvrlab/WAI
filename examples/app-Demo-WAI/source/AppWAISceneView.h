@@ -99,9 +99,12 @@ class WAISceneView : public SLSceneView
                          const std::vector<WAIMapPoint*>& pts,
                          SLNode*&                         node,
                          SLPoints*&                       mesh,
-                         SLMaterial*&                     material);
+                         SLMaterial*&                     material,
+                         bool                             markerCorrected,
+                         const cv::Mat&                   markerCorrectionTransformation);
 
-    void renderKeyframes();
+    void renderKeyframes(bool           markerCorrected,
+                         const cv::Mat& markerCorrectionTransformation);
     void renderGraphs();
 
     //! minimum number of covisibles for covisibility graph visualization
@@ -118,6 +121,8 @@ class WAISceneView : public SLSceneView
     bool  _showCovisibilityGraph = true;
     bool  _showSpanningTree      = true;
     bool  _showLoopEdges         = true;
+
+    bool _mapNodeTransformed = false;
 };
 //-----------------------------------------------------------------------------
 

@@ -99,6 +99,9 @@ class WAI_API ModeOrbSlam2 : public Mode
 
     void loadMapData(std::vector<WAIKeyFrame*> keyFrames, std::vector<WAIMapPoint*> mapPoints, int numLoopClosings);
 
+    bool    isMarkerCorrected();
+    cv::Mat getMarkerCorrectionTransformation();
+
     private:
     enum TrackingState
     {
@@ -253,10 +256,14 @@ class WAI_API ModeOrbSlam2 : public Mode
     bool   _renderKfBackground    = false;
     bool   _allowKfsAsActiveCam   = false;
 
-    // aruco stuff
+    // marker correction stuff
     cv::Ptr<cv::aruco::DetectorParameters> _arucoParams;
     cv::Ptr<cv::aruco::Dictionary>         _arucoDictionary;
     float                                  _arucoEdgeLength;
+
+    bool    findChessboardPose(cv::Mat& foundPose);
+    cv::Mat _initialFrameChessboardPose;
+    cv::Mat _markerCorrectionTransformation;
 };
 }
 

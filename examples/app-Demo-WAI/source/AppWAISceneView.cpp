@@ -135,45 +135,66 @@ void WAISceneView::update()
 {
     AppWAIScene* waiScene      = AppWAISingleton::instance()->appWaiScene;
     WAI::WAI*    wai           = AppWAISingleton::instance()->wai;
-    cv::Mat      pose          = cv::Mat(4, 4, CV_32F);
-    bool         iKnowWhereIAm = wai->whereAmI(&pose);
+    cv::Mat      Twc           = cv::Mat(4, 4, CV_32F);
+    bool         iKnowWhereIAm = wai->whereAmI(&Twc);
 
     //update tracking infos visualization
     updateTrackingVisualization(iKnowWhereIAm);
 
     if (iKnowWhereIAm)
     {
-        // update camera node position
-        cv::Mat Rwc(3, 3, CV_32F);
-        cv::Mat twc(3, 1, CV_32F);
+        SLMat4f om;
+        om.setMatrix(Twc.at<float>(0, 0),
+                     Twc.at<float>(0, 1),
+                     Twc.at<float>(0, 2),
+                     Twc.at<float>(0, 3),
+                     Twc.at<float>(1, 0),
+                     Twc.at<float>(1, 1),
+                     Twc.at<float>(1, 2),
+                     Twc.at<float>(1, 3),
+                     Twc.at<float>(2, 0),
+                     Twc.at<float>(2, 1),
+                     Twc.at<float>(2, 2),
+                     Twc.at<float>(2, 3),
+                     Twc.at<float>(3, 0),
+                     Twc.at<float>(3, 1),
+                     Twc.at<float>(3, 2),
+                     Twc.at<float>(3, 3));
+        om.rotate(180, 1, 0, 0);
 
-        Rwc = pose.rowRange(0, 3).colRange(0, 3).t();
-        twc = -Rwc * pose.rowRange(0, 3).col(3);
-
-        SLMat4f slPose((SLfloat)Rwc.at<float>(0, 0),
-                       (SLfloat)Rwc.at<float>(0, 1),
-                       (SLfloat)Rwc.at<float>(0, 2),
-                       (SLfloat)twc.at<float>(0, 0),
-                       (SLfloat)Rwc.at<float>(1, 0),
-                       (SLfloat)Rwc.at<float>(1, 1),
-                       (SLfloat)Rwc.at<float>(1, 2),
-                       (SLfloat)twc.at<float>(1, 0),
-                       (SLfloat)Rwc.at<float>(2, 0),
-                       (SLfloat)Rwc.at<float>(2, 1),
-                       (SLfloat)Rwc.at<float>(2, 2),
-                       (SLfloat)twc.at<float>(2, 0),
-                       0.0f,
-                       0.0f,
-                       0.0f,
-                       1.0f);
-        slPose.rotate(180, 1, 0, 0);
-
-        waiScene->cameraNode->om(slPose);
+        waiScene->cameraNode->om(om);
     }
 }
 //-----------------------------------------------------------------------------
 void WAISceneView::updateTrackingVisualization(const bool iKnowWhereIAm)
 {
+    if (_mode->isMarkerCorrected() && !_mapNodeTransformed && iKnowWhereIAm)
+    {
+        cv::Mat mapTransform = _mode->getMarkerCorrectionTransformation();
+        SLMat4f om;
+        om.setMatrix(mapTransform.at<float>(0, 0),
+                     mapTransform.at<float>(0, 1),
+                     mapTransform.at<float>(0, 2),
+                     mapTransform.at<float>(0, 3),
+                     mapTransform.at<float>(1, 0),
+                     mapTransform.at<float>(1, 1),
+                     mapTransform.at<float>(1, 2),
+                     mapTransform.at<float>(1, 3),
+                     mapTransform.at<float>(2, 0),
+                     mapTransform.at<float>(2, 1),
+                     mapTransform.at<float>(2, 2),
+                     mapTransform.at<float>(2, 3),
+                     mapTransform.at<float>(3, 0),
+                     mapTransform.at<float>(3, 1),
+                     mapTransform.at<float>(3, 2),
+                     mapTransform.at<float>(3, 3));
+
+        AppWAIScene* waiScene = AppWAISingleton::instance()->appWaiScene;
+        waiScene->mapNode->om(om);
+
+        _mapNodeTransformed = true;
+    }
+
     AppWAIScene* waiScene = AppWAISingleton::instance()->appWaiScene;
     //update keypoints visualization (2d image points):
     //TODO: 2d visualization is still done in mode... do we want to keep it there?
@@ -189,7 +210,9 @@ void WAISceneView::updateTrackingVisualization(const bool iKnowWhereIAm)
                         _mode->getMapPoints(),
                         waiScene->mapPC,
                         waiScene->mappointsMesh,
-                        waiScene->redMat);
+                        waiScene->redMat,
+                        false, //_mode->isMarkerCorrected(),
+                        _mode->getMarkerCorrectionTransformation());
     }
     else if (waiScene->mappointsMesh)
     {
@@ -205,7 +228,9 @@ void WAISceneView::updateTrackingVisualization(const bool iKnowWhereIAm)
                         _mode->getLocalMapPoints(),
                         waiScene->mapLocalPC,
                         waiScene->mappointsLocalMesh,
-                        waiScene->blueMat);
+                        waiScene->blueMat,
+                        false, //_mode->isMarkerCorrected(),
+                        _mode->getMarkerCorrectionTransformation());
     }
     else if (waiScene->mappointsLocalMesh)
     {
@@ -221,7 +246,9 @@ void WAISceneView::updateTrackingVisualization(const bool iKnowWhereIAm)
                         _mode->getMatchedMapPoints(),
                         waiScene->mapMatchedPC,
                         waiScene->mappointsMatchedMesh,
-                        waiScene->greenMat);
+                        waiScene->greenMat,
+                        false, //_mode->isMarkerCorrected(),
+                        _mode->getMarkerCorrectionTransformation());
     }
     else if (waiScene->mappointsMatchedMesh)
     {
@@ -233,7 +260,8 @@ void WAISceneView::updateTrackingVisualization(const bool iKnowWhereIAm)
     waiScene->keyFrameNode->deleteChildren();
     if (_showKeyFrames)
     {
-        renderKeyframes();
+        renderKeyframes(false, //_mode->isMarkerCorrected(),
+                        _mode->getMarkerCorrectionTransformation());
     }
 
     //update pose graph visualization
@@ -265,7 +293,9 @@ void WAISceneView::renderMapPoints(std::string                      name,
                                    const std::vector<WAIMapPoint*>& pts,
                                    SLNode*&                         node,
                                    SLPoints*&                       mesh,
-                                   SLMaterial*&                     material)
+                                   SLMaterial*&                     material,
+                                   bool                             markerCorrected,
+                                   const cv::Mat&                   markerCorrectionTransformation)
 {
     //remove old mesh, if it exists
     if (mesh)
@@ -276,12 +306,44 @@ void WAISceneView::renderMapPoints(std::string                      name,
     {
         //get points as Vec3f
         std::vector<SLVec3f> points, normals;
-        for (auto mapPt : pts)
+        if (markerCorrected)
         {
-            WAI::V3 wP = mapPt->worldPosVec();
-            WAI::V3 wN = mapPt->normalVec();
-            points.push_back(SLVec3f(wP.x, wP.y, wP.z));
-            normals.push_back(SLVec3f(wN.x, wN.y, wN.z));
+            for (WAIMapPoint* mapPt : pts)
+            {
+                cv::Mat P3D = mapPt->GetWorldPos();
+                cv::Mat N3D = mapPt->GetNormal();
+
+                cv::Mat P4D         = cv::Mat(4, 1, CV_32F);
+                P4D.at<float>(0, 0) = P3D.at<float>(0, 0);
+                P4D.at<float>(1, 0) = P3D.at<float>(1, 0);
+                P4D.at<float>(2, 0) = P3D.at<float>(2, 0);
+                P4D.at<float>(3, 0) = 1.0f;
+                P4D                 = markerCorrectionTransformation * P4D;
+
+                cv::Mat N4D         = cv::Mat(4, 1, CV_32F);
+                N4D.at<float>(0, 0) = N3D.at<float>(0, 0);
+                N4D.at<float>(1, 0) = N3D.at<float>(1, 0);
+                N4D.at<float>(2, 0) = N3D.at<float>(2, 0);
+                N4D.at<float>(3, 0) = 0.0f;
+                N4D                 = markerCorrectionTransformation * N4D;
+
+                points.push_back(SLVec3f(P4D.at<float>(0, 0),
+                                         P4D.at<float>(1, 0),
+                                         P4D.at<float>(2, 0)));
+                normals.push_back(SLVec3f(N4D.at<float>(0, 0),
+                                          N4D.at<float>(1, 0),
+                                          N4D.at<float>(2, 0)));
+            }
+        }
+        else
+        {
+            for (auto mapPt : pts)
+            {
+                WAI::V3 wP = mapPt->worldPosVec();
+                WAI::V3 wN = mapPt->normalVec();
+                points.push_back(SLVec3f(wP.x, wP.y, wP.z));
+                normals.push_back(SLVec3f(wN.x, wN.y, wN.z));
+            }
         }
 
         mesh = new SLPoints(points, normals, name, material);
@@ -290,7 +352,8 @@ void WAISceneView::renderMapPoints(std::string                      name,
     }
 }
 //-----------------------------------------------------------------------------
-void WAISceneView::renderKeyframes()
+void WAISceneView::renderKeyframes(bool           markerCorrected,
+                                   const cv::Mat& markerCorrectionTransformation)
 {
     std::vector<WAIKeyFrame*> keyframes = _mode->getKeyFrames();
 
@@ -314,23 +377,30 @@ void WAISceneView::renderKeyframes()
         }
 
         cv::Mat Twc = kf->getObjectMatrix();
+
+        if (markerCorrected)
+        {
+            Twc = markerCorrectionTransformation * Twc;
+        }
+
         SLMat4f om;
         om.setMatrix(Twc.at<float>(0, 0),
-                     -Twc.at<float>(0, 1),
-                     -Twc.at<float>(0, 2),
+                     Twc.at<float>(0, 1),
+                     Twc.at<float>(0, 2),
                      Twc.at<float>(0, 3),
                      Twc.at<float>(1, 0),
-                     -Twc.at<float>(1, 1),
-                     -Twc.at<float>(1, 2),
+                     Twc.at<float>(1, 1),
+                     Twc.at<float>(1, 2),
                      Twc.at<float>(1, 3),
                      Twc.at<float>(2, 0),
-                     -Twc.at<float>(2, 1),
-                     -Twc.at<float>(2, 2),
+                     Twc.at<float>(2, 1),
+                     Twc.at<float>(2, 2),
                      Twc.at<float>(2, 3),
                      Twc.at<float>(3, 0),
-                     -Twc.at<float>(3, 1),
-                     -Twc.at<float>(3, 2),
+                     Twc.at<float>(3, 1),
+                     Twc.at<float>(3, 2),
                      Twc.at<float>(3, 3));
+        om.rotate(180, 1, 0, 0);
 
         cam->om(om);
 
