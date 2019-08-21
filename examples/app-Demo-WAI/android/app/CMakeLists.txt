@@ -14,8 +14,7 @@ file(GLOB headers
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiVideoStorage.h
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiInfosMapNodeTransform.h
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiInfosTracking.h
-    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAISceneView.h
-    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAISingleton.h
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAI.h
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAIScene.h
     ${WAI_ROOT}/examples/source/WAICalibration.h
     ${WAI_ROOT}/examples/source/WAIAutoCalibration.h
@@ -31,9 +30,8 @@ file(GLOB sources
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiTrackedMapping.cpp
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiMapStorage.cpp
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiVideoStorage.cpp
-    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAISceneView.cpp
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAIScene.cpp
-    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAISingleton.cpp
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAI.cpp
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiInfosMapNodeTransform.cpp
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiInfosTracking.cpp
     ${WAI_ROOT}/examples/source/WAICalibration.cpp
@@ -118,8 +116,9 @@ set(APK_ASSETS
     ${CMAKE_CURRENT_LIST_DIR}/src/main/assets)
 
 file(MAKE_DIRECTORY
-    ${APK_ASSETS}/fonts
-    ${APK_ASSETS}/textures
+    ${APK_ASSETS}/images
+    ${APK_ASSETS}/images/fonts
+    ${APK_ASSETS}/images/textures
     ${APK_ASSETS}/videos
     ${APK_ASSETS}/models
     ${APK_ASSETS}/shaders
@@ -127,8 +126,8 @@ file(MAKE_DIRECTORY
     ${APK_ASSETS}/config
     )
 
-file(COPY ${FONTS}          DESTINATION ${APK_ASSETS}/fonts)
-file(COPY ${TEXTURES}       DESTINATION ${APK_ASSETS}/textures)
+file(COPY ${FONTS}          DESTINATION ${APK_ASSETS}/images/fonts)
+file(COPY ${TEXTURES}       DESTINATION ${APK_ASSETS}/images/textures)
 file(COPY ${VIDEOS}         DESTINATION ${APK_ASSETS}/videos)
 file(COPY ${MODELS}         DESTINATION ${APK_ASSETS}/models)
 file(COPY ${SHADERS}        DESTINATION ${APK_ASSETS}/shaders)

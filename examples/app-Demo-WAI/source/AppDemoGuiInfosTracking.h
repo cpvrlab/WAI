@@ -18,20 +18,18 @@
 #include <WAIModeOrbSlam2.h>
 
 #include <AppDemoGuiInfosDialog.h>
-#include <AppWAISceneView.h>
+#include <AppWAI.h>
 
 //-----------------------------------------------------------------------------
 class AppDemoGuiInfosTracking : public AppDemoGuiInfosDialog
 {
     public:
     AppDemoGuiInfosTracking(std::string        name,
-                            WAISceneView*      sceneView,
                             WAI::ModeOrbSlam2* mode);
 
     void buildInfos() override;
 
     private:
-    WAISceneView*      _sceneView = nullptr;
     WAI::ModeOrbSlam2* _mode      = nullptr;
 
     int _minNumCovisibleMapPts = 0;

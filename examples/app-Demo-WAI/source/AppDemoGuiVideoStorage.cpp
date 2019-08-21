@@ -13,14 +13,16 @@
 
 #include <Utils.h>
 #include <AppDemoGuiVideoStorage.h>
-#include <AppWAISingleton.h>
-#include "AppWAISingleton.h"
 
 //-----------------------------------------------------------------------------
-AppDemoGuiVideoStorage::AppDemoGuiVideoStorage(const std::string& name, std::string videoDir)
+
+AppDemoGuiVideoStorage::AppDemoGuiVideoStorage(const std::string& name, std::string videoDir,
+                           cv::VideoWriter* videoWriter, cv::VideoWriter* videoWriterInfo)
   : AppDemoGuiInfosDialog(name),
     _videoPrefix("video-"),
-    _nextId(0)
+    _nextId(0),
+    _videoWriter(videoWriter),
+    _videoWriterInfo(videoWriterInfo)
 {
     _videoDir = Utils::unifySlashes(videoDir);
     //_videoDir = videoDir;
@@ -96,20 +98,20 @@ void AppDemoGuiVideoStorage::saveVideo(std::string filename)
         }
     }
 
-    if (AppWAISingleton::instance()->videoWriter.isOpened())
+    if (_videoWriter->isOpened())
     {
-        AppWAISingleton::instance()->videoWriter.release();
+        _videoWriter->release();
     }
-    if (AppWAISingleton::instance()->videoWriterInfo.isOpened())
+    if (_videoWriterInfo->isOpened())
     {
-        AppWAISingleton::instance()->videoWriterInfo.release();
+        _videoWriterInfo->release();
     }
 
     cv::Size size  = cv::Size(SLCVCapture::lastFrame.cols, SLCVCapture::lastFrame.rows);
 
-    bool ret = AppWAISingleton::instance()->videoWriter.open(path, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 30, size, true);
+    bool ret = _videoWriter->open(path, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 30, size, true);
 
-    ret = AppWAISingleton::instance()->videoWriterInfo.open(infoPath, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 30, size, true);
+    ret = _videoWriterInfo->open(infoPath, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 30, size, true);
 }
 //-----------------------------------------------------------------------------
 void AppDemoGuiVideoStorage::buildInfos()
@@ -132,7 +134,7 @@ void AppDemoGuiVideoStorage::buildInfos()
 
     if (ImGui::Button("Stop recording", ImVec2(ImGui::GetContentRegionAvailWidth(), 0.0f)))
     {
-        AppWAISingleton::instance()->videoWriter.release();
+        _videoWriter->release();
     }
 
     ImGui::Separator();
@@ -140,7 +142,7 @@ void AppDemoGuiVideoStorage::buildInfos()
     {
         _currentItem = "";
         _nextId = _nextId + 1;
-        AppWAISingleton::instance()->videoWriter.release();
+        _videoWriter->release();
     }
 
     ImGui::Separator();

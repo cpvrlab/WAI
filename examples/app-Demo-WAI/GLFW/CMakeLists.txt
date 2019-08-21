@@ -15,9 +15,8 @@ file(GLOB headers
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiVideoStorage.h
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiInfosMapNodeTransform.h
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiInfosTracking.h
-    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAISceneView.h
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAI.h
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAIScene.h
-    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAISingleton.h
     ${WAI_ROOT}/examples/source/WAICalibration.h
     ${WAI_ROOT}/examples/source/WAIAutoCalibration.h
     ${WAI_ROOT}/examples/source/WAIMapIO.h
@@ -32,9 +31,8 @@ file(GLOB sources
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiMapStorage.cpp
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiVideoStorage.cpp
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiInfosMapNodeTransform.cpp
-    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAISceneView.cpp
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAI.cpp
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAIScene.cpp
-    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAISingleton.cpp
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiInfosTracking.cpp
     ${WAI_ROOT}/examples/source/WAICalibration.cpp
     ${WAI_ROOT}/examples/source/WAIAutoCalibration.cpp

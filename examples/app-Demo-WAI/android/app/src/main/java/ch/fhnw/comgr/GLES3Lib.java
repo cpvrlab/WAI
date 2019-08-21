@@ -104,9 +104,9 @@ public class GLES3Lib {
     public static void extractAPK() throws IOException {
         FilesPath = App.getApplicationContext().getFilesDir().getAbsolutePath();
         Log.i("SLProject", "Destination: " + FilesPath);
-        extractAPKFolder(FilesPath, "textures");
+        extractAPKFolder(FilesPath, "images/fonts");
+        extractAPKFolder(FilesPath, "images/textures");
         extractAPKFolder(FilesPath, "videos");
-        extractAPKFolder(FilesPath, "fonts");
         extractAPKFolder(FilesPath, "models");
         extractAPKFolder(FilesPath, "shaders");
         extractAPKFolder(FilesPath, "calibrations");

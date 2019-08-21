@@ -16,7 +16,7 @@
 #include <SLScene.h>
 #include <SL/SLApplication.h>
 
-#include <AppWAISceneView.h>
+#include <AppWAI.h>
 #include <AppDemoGui.h>
 #include <AppDemoGuiVideoStorage.h>
 #include <CV/SLCVCapture.h>
@@ -25,7 +25,6 @@
 // Some global variable for the JNI interface
 JNIEnv*       environment; //! Pointer to JAVA environment used in ray tracing callback
 int           svIndex;     //!< SceneView index
-WAISceneView* sceneView = 0;
 std::string   externalDir;
 std::string   dataRoot;
 //-----------------------------------------------------------------------------
@@ -62,13 +61,6 @@ JNIEXPORT void JNICALL Java_ch_fhnw_comgr_GLES3Lib_copyVideoYUVPlanes(JNIEnv* en
 };
 
 //-----------------------------------------------------------------------------
-//! Alternative SceneView creation function passed by slCreateSceneView
-SLuint createNewWAISceneView()
-{
-    sceneView = new WAISceneView(externalDir + "/", dataRoot);
-    return sceneView->index();
-}
-//-----------------------------------------------------------------------------
 JNIEXPORT void JNICALL Java_ch_fhnw_comgr_GLES3Lib_onSetupExternalDirectories(JNIEnv* env, jobject obj, jstring externalDirPath)
 {
     environment              = env;
@@ -76,7 +68,7 @@ JNIEXPORT void JNICALL Java_ch_fhnw_comgr_GLES3Lib_onSetupExternalDirectories(JN
     string      externalDirPathNative(nativeString);
     env->ReleaseStringUTFChars(externalDirPath, nativeString);
 
-    slSetupExternalDirectories(externalDirPathNative);
+    slSetupExternalDir(externalDirPathNative);
 
     externalDir = externalDirPathNative;
 }
@@ -111,60 +103,22 @@ JNIEXPORT void JNICALL Java_ch_fhnw_comgr_GLES3Lib_onInit(JNIEnv* env, jobject o
     string      devicePath(nativeString);
     env->ReleaseStringUTFChars(filePath, nativeString);
 
-    SLVstring* cmdLineArgs = new SLVstring();
-
     SL_LOG("GUI            : Android");
 
     string device_path_msg = "Device path:" + devicePath;
     SL_LOG(device_path_msg.c_str(), 0);
 
-
     string external_dir_msg = "External dir:" + externalDir;
     SL_LOG(external_dir_msg.c_str(), 0);
 
-    dataRoot = devicePath;
-
-    AppWAISingleton::instance()->load(width, height, devicePath, externalDir);
-
-    ////////////////////////////////////////////////////
-    slCreateAppAndScene(*cmdLineArgs,
-                        devicePath + "/shaders/",
-                        devicePath + "/models/",
-                        devicePath + "/textures/",
-                        devicePath + "/videos/",
-                        devicePath + "/fonts/",
-                        devicePath + "/calibrations/",
-                        devicePath + "/config/",
-                        "AppDemoAndroid",
-                        (void*)onLoadWAISceneView);
-    ////////////////////////////////////////////////////
-
-    // This load the GUI configs that are locally stored
-    AppDemoGui::loadConfig(dpi);
-
-    auto videoStorageGUI = std::make_shared<AppDemoGuiVideoStorage>("Video Storage", externalDir + "/videos/");
-    AppDemoGui::addInfoDialog(videoStorageGUI);
-
-    ////////////////////////////////////////////////////////////////////
-    svIndex = slCreateSceneView((int)width,
-                                (int)height,
-                                (int)dpi,
-                                SID_Revolver,
-                                (void*)&Java_renderRaytracingCallback,
-                                0,
-                                (void*)createNewWAISceneView,
-                                (void*)AppDemoGui::build);
-    ////////////////////////////////////////////////////////////////////
+    WAIApp::load(width, height, 1.0, 1.0, dpi, externalDir, devicePath, devicePath);
 
     //install memory callback to retrieve stats about memory usage from c++
     //slInstallMemoryStatsCallback((void*)Java_updateMemoryStatsCallback);
-
-    delete cmdLineArgs;
 }
 //-----------------------------------------------------------------------------
 JNIEXPORT void JNICALL Java_ch_fhnw_comgr_GLES3Lib_onTerminate(JNIEnv* env, jobject obj)
 {
-
     AppDemoGui::saveConfig();
 
     slTerminate();
@@ -172,7 +126,7 @@ JNIEXPORT void JNICALL Java_ch_fhnw_comgr_GLES3Lib_onTerminate(JNIEnv* env, jobj
 //-----------------------------------------------------------------------------
 JNIEXPORT jboolean JNICALL Java_ch_fhnw_comgr_GLES3Lib_onUpdateAndPaint(JNIEnv* env, jobject obj)
 {
-    sceneView->update();
+    WAIApp::update();
     return slUpdateAndPaint(svIndex);
 }
 //-----------------------------------------------------------------------------
@@ -273,7 +227,7 @@ JNIEXPORT void JNICALL Java_ch_fhnw_comgr_GLES3Lib_copyVideoImage(JNIEnv* env, j
     WAI::CameraData cameraData = {};
     cameraData.imageGray       = &SLCVCapture::lastFrameGray;
     cameraData.imageRGB        = &SLCVCapture::lastFrame;
-    sceneView->updateCamera(&cameraData);
+    WAIApp::updateCamera(&cameraData);
 }
 //-----------------------------------------------------------------------------
 

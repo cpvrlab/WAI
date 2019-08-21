@@ -8,18 +8,13 @@
 //             Please visit: http://opensource.org/licenses/GPL-3.0
 //#############################################################################
 
-#ifndef SL_IMGUI_MAPSTORAGE_H
-#define SL_IMGUI_MAPSTORAGE_H
+#ifndef SL_IMGUI_VIDEOSTORAGE_H
+#define SL_IMGUI_VIDEOSTORAGE_H
 
-#include <AppDemoGuiInfosDialog.h>
 #include <SLCVCapture.h>
 
 #include <opencv2/core.hpp>
-
-#include <WAIMap.h>
-#include <WAIMapStorage.h>
-#include <WAIOrbVocabulary.h>
-#include <WAIModeOrbSlam2.h>
+#include <AppDemoGuiInfosDialog.h>
 
 #include <SLMat4.h>
 #include <SLNode.h>
@@ -28,7 +23,8 @@
 class AppDemoGuiVideoStorage : public AppDemoGuiInfosDialog
 {
     public:
-    AppDemoGuiVideoStorage(const std::string& name, std::string videoDir);
+    AppDemoGuiVideoStorage(const std::string& name, std::string videoDir,
+                           cv::VideoWriter* videoWriter, cv::VideoWriter* videoWriterInfo);
 
     void buildInfos() override;
 
@@ -36,6 +32,8 @@ class AppDemoGuiVideoStorage : public AppDemoGuiInfosDialog
 
     void saveVideo(std::string filename);
 
+    cv::VideoWriter*         _videoWriter;
+    cv::VideoWriter*         _videoWriterInfo;
     std::string              _videoDir;
     std::string              _videoPrefix;
     std::vector<std::string> _existingVideoNames;

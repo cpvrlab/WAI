@@ -13,6 +13,7 @@ class AppWAIScene
 {
     public:
     AppWAIScene();
+    SLNode*   rootNode          = nullptr;
     SLCamera* cameraNode        = nullptr;
     SLNode*   mapNode           = nullptr;
     SLNode*   mapPC             = nullptr;

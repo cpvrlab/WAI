@@ -12,17 +12,16 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 
+#include <AppWAI.h>
 #include <AppDemoGuiInfosTracking.h>
 
 //-----------------------------------------------------------------------------
 AppDemoGuiInfosTracking::AppDemoGuiInfosTracking(std::string        name,
-                                                 WAISceneView*      sceneView,
                                                  WAI::ModeOrbSlam2* mode)
   : AppDemoGuiInfosDialog(name),
-    _sceneView(sceneView),
     _mode(mode)
 {
-    _minNumCovisibleMapPts = _sceneView->getMinNumOfCovisibles();
+    _minNumCovisibleMapPts = WAIApp::minNumOfCovisibles;
 }
 //-----------------------------------------------------------------------------
 void AppDemoGuiInfosTracking::buildInfos()
@@ -47,17 +46,17 @@ void AppDemoGuiInfosTracking::buildInfos()
     if (ImGui::CollapsingHeader("KeyPoints"))
     {
         //show 2D key points in video image
-        b = _sceneView->showKeyPoints();
+        b = WAIApp::showKeyPoints;
         if (ImGui::Checkbox("KeyPts", &b))
         {
-            _sceneView->showKeyPoints(b);
+            WAIApp::showKeyPoints;
         }
 
         //show matched 2D key points in video image
-        b = _sceneView->showKeyPointsMatched();
+        b = WAIApp::showKeyPointsMatched;
         if (ImGui::Checkbox("KeyPts Matched", &b))
         {
-            _sceneView->showKeyPointsMatched(b);
+            WAIApp::showKeyPointsMatched = b;
         }
     }
     //-------------------------------------------------------------------------
@@ -67,21 +66,21 @@ void AppDemoGuiInfosTracking::buildInfos()
         //number of map points
         ImGui::Text("Count : %d ", _mode->getMapPointCount());
         //show and update all mappoints
-        b = _sceneView->showMapPC();
+        b = WAIApp::showMapPC;
         ImGui::Checkbox("Show Map Pts", &b);
-        _sceneView->showMapPC(b);
+        WAIApp::showMapPC = b;
 
         //show and update matches to mappoints
-        b = _sceneView->showMatchesPC();
+        b = WAIApp::showMatchesPC;
         if (ImGui::Checkbox("Show Matches to Map Pts", &b))
         {
-            _sceneView->showMatchesPC(b);
+            WAIApp::showMatchesPC = b;
         }
         //show and update local map points
-        b = _sceneView->showLocalMapPC();
+        b = WAIApp::showLocalMapPC;
         if (ImGui::Checkbox("Show Local Map Pts", &b))
         {
-            _sceneView->showLocalMapPC(b);
+            WAIApp::showLocalMapPC = b;
         }
     }
     //-------------------------------------------------------------------------
@@ -92,20 +91,20 @@ void AppDemoGuiInfosTracking::buildInfos()
         ImGui::Text("Number of Keyframes : %d ", _mode->getKeyFrameCount());
         //show keyframe scene objects
         //show and update all mappoints
-        b = _sceneView->showKeyFrames();
+        b = WAIApp::showKeyFrames;
         ImGui::Checkbox("Show", &b);
-        _sceneView->showKeyFrames(b);
+        WAIApp::showKeyFrames = b;
 
         //if backgound rendering is active kf images will be rendered on
         //near clipping plane if kf is not the active camera
-        b = _sceneView->renderKfBackground();
+        b = WAIApp::renderKfBackground;
         ImGui::Checkbox("Show Image", &b);
-        _sceneView->renderKfBackground(b);
+        WAIApp::renderKfBackground = b;
 
         //allow SLCVCameras as active camera so that we can look through it
-        b = _sceneView->allowKfsAsActiveCam();
+        b = WAIApp::allowKfsAsActiveCam;
         ImGui::Checkbox("Allow as Active Cam", &b);
-        _sceneView->allowKfsAsActiveCam(b);
+        WAIApp::allowKfsAsActiveCam = b;
     }
 
     //-------------------------------------------------------------------------
@@ -113,24 +112,24 @@ void AppDemoGuiInfosTracking::buildInfos()
     if (ImGui::CollapsingHeader("Graph"))
     {
         //covisibility graph
-        b = _sceneView->showCovisibilityGraph();
+        b = WAIApp::showCovisibilityGraph;
         ImGui::Checkbox("Show Covisibility (100 common KPts)", &b);
-        _sceneView->showCovisibilityGraph(b);
+        WAIApp::showCovisibilityGraph = b;
         if (b)
         {
             //Definition of minimum number of covisible map points
             if (ImGui::InputInt("Min. covis. map pts", &_minNumCovisibleMapPts, 10, 0))
             {
-                _sceneView->updateMinNumOfCovisibles(_minNumCovisibleMapPts);
+                WAIApp::minNumOfCovisibles = (_minNumCovisibleMapPts);
             }
         }
         //spanning tree
-        b = _sceneView->showSpanningTree();
+        b = WAIApp::showSpanningTree;
         ImGui::Checkbox("Show spanning tree", &b);
-        _sceneView->showSpanningTree(b);
+        WAIApp::showSpanningTree = b;
         //loop edges
-        b = _sceneView->showLoopEdges();
+        b = WAIApp::showLoopEdges;
         ImGui::Checkbox("Show loop edges", &b);
-        _sceneView->showLoopEdges(b);
+        WAIApp::showLoopEdges = b;
     }
 }

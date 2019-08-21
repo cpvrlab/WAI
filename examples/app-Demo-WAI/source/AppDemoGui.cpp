@@ -26,7 +26,6 @@
 #include <SLGLShader.h>
 #include <SLGLTexture.h>
 #include <AppDemoGuiInfosDialog.h>
-#include <AppWAISingleton.h>
 #include <SLImporter.h>
 #include <SLInterface.h>
 #include <SLLightDirect.h>
@@ -400,11 +399,10 @@ void AppDemoGui::build(SLScene* s, SLSceneView* sv)
         SLchar m[2550]; // message character array
         m[0] = 0;       // set zero length
 
-        WAICalibration * wc = AppWAISingleton::instance()->wc;
-
         SLCVSize         capSize  = SLCVCapture::captureSize;
         SLVideoType      vt       = s->videoType();
-
+        /*
+        WAICalibration * wc = AppWAISingleton::instance()->wc;
         sprintf(m + strlen(m), "Video Type    : %s\n", vt == VT_NONE ? "None" : vt == VT_MAIN ? "Main Camera" : vt == VT_FILE ? "File" : "Secondary Camera");
         sprintf(m + strlen(m), "Display size  : %d x %d\n", SLCVCapture::lastFrame.cols, SLCVCapture::lastFrame.rows);
         sprintf(m + strlen(m), "Capture size  : %d x %d\n", capSize.width, capSize.height);
@@ -420,7 +418,7 @@ void AppDemoGui::build(SLScene* s, SLSceneView* sv)
             //sprintf(m + strlen(m), "Calib. time   : %s\n", c->calibrationTime().c_str());
             sprintf(m + strlen(m), "Calib. file   : %s\n", wc->getCalibrationPath().c_str());
             sprintf(m + strlen(m), "Calib. state  : %s\n", wc->stateStr().c_str());
-        }
+        }*/
 
         if (vt != VT_NONE && s->trackers().size() > 0)
         {
@@ -829,7 +827,7 @@ void AppDemoGui::buildMenuBar(SLScene* s, SLSceneView* sv)
 
                     if (ImGui::MenuItem("Recalibrate", nullptr, false))
                     {
-                        AppWAISingleton::instance()->wc->reset();
+                        //AppWAISingleton::instance()->wc->reset();
                     }
 
                     if (ImGui::MenuItem("Undistort Image", nullptr, ac->showUndistorted(), ac->state() == CS_calibrated))
