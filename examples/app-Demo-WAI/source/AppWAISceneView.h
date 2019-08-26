@@ -24,7 +24,7 @@
 
 #include <WAI.h>
 
-#define LIVE_VIDEO 0
+#define LIVE_VIDEO 1
 
 void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid);
 
