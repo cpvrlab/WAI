@@ -13,6 +13,7 @@
 
 #include <WAIMapStorage.h>
 #include <WAI.h>
+#include <SLScene.h>
 #include <AppDemoGuiInfosDialog.h>
 #include <string>
 
@@ -28,9 +29,10 @@ class WAI_API AppDemoGuiInfosMapNodeTransform : public AppDemoGuiInfosDialog
       std::string        name,
       SLNode*            mapNode,
       WAI::ModeOrbSlam2* tracking,
-      std::string        externalDir);
+      std::string        externalDir,
+      bool*              activator);
 
-    void buildInfos() override;
+    void buildInfos(SLScene* s, SLSceneView* sv) override;
 
     private:
     float _transformationRotValue   = 10.0f;

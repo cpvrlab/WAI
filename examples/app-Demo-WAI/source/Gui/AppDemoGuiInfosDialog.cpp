@@ -12,7 +12,7 @@
 #include <AppDemoGuiInfosDialog.h>
 
 //-----------------------------------------------------------------------------
-AppDemoGuiInfosDialog::AppDemoGuiInfosDialog(std::string name)
-    : _name(name)
+AppDemoGuiInfosDialog::AppDemoGuiInfosDialog(std::string name,  bool* activator)
+    : _name(name), _activator(activator)
 {
 }

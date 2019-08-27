@@ -7,38 +7,63 @@ cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
 set(target native-lib)
 
 file(GLOB headers
-    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGui.h
-    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiInfosDialog.h
-    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiTrackedMapping.h
-    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiMapStorage.h
-    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiVideoStorage.h
-    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiInfosMapNodeTransform.h
-    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiInfosTracking.h
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/Gui/AppDemoGui.h
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/Gui/AppDemoGuiInfosDialog.h
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/Gui/AppDemoGuiMenu.h
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/Gui/AppDemoGuiPrefs.h
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiAbout.h
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiInfosFrameworks.h
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiInfosMapNodeTransform.h
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiInfosScene.h
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiInfosSensors.h
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiInfosTracking.h
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiMapStorage.h
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiProperties.h
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiSceneGraph.h
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiStatsDebugTiming.h
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiStatsTiming.h
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiStatsVideo.h
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiTrackedMapping.h
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiTransform.h
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiUIPrefs.h
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiVideoStorage.h
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAI.h
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDirectories.h
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAIScene.h
     ${WAI_ROOT}/examples/source/WAICalibration.h
-    ${WAI_ROOT}/examples/source/WAIAutoCalibration.h
-    ${WAI_ROOT}/examples/source/WAIFileSystem.h
     ${WAI_ROOT}/examples/source/WAIMapIO.h
     ${WAI_ROOT}/examples/source/WAIMapStorage.h
     ${WAI_ROOT}/examples/source/WAIUtils.h
     )
 
 file(GLOB sources
-    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGui.cpp
-    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiInfosDialog.cpp
-    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiTrackedMapping.cpp
-    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiMapStorage.cpp
-    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiVideoStorage.cpp
-    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAIScene.cpp
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/Gui/AppDemoGui.cpp
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/Gui/AppDemoGuiInfosDialog.cpp
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/Gui/AppDemoGuiMenu.cpp
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/Gui/AppDemoGuiPrefs.cpp
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiAbout.cpp
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiInfosFrameworks.cpp
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiInfosMapNodeTransform.cpp
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiInfosScene.cpp
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiInfosSensors.cpp
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiInfosTracking.cpp
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiMapStorage.cpp
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiProperties.cpp
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiSceneGra.cpp.cpp
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiStatsDebugTiming.cpp
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiStatsTiming.cpp
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiStatsVideo.cpp
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiTrackedMapping.cpp
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiTransform.cpp
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiUIPrefs.cpp
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiVideoStorage.cpp
     ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAI.cpp
-    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiInfosMapNodeTransform.cpp
-    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDemoGuiInfosTracking.cpp
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppDirectories.cpp
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/AppWAIScene.cpp
     ${WAI_ROOT}/examples/source/WAICalibration.cpp
-    ${WAI_ROOT}/examples/source/WAIAutoCalibration.cpp
-    ${WAI_ROOT}/examples/source/WAIFileSystem.cpp
     ${WAI_ROOT}/examples/source/WAIMapIO.cpp
     ${WAI_ROOT}/examples/source/WAIMapStorage.cpp
+    ${WAI_ROOT}/examples/source/WAIUtils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/main/cpp/AppDemoAndroidJNI.cpp
     )
 
@@ -55,6 +80,8 @@ target_include_directories(${target}
     PUBLIC
     ${WAI_ROOT}/examples/source
     ${WAI_ROOT}/examples/app-Demo-WAI/source
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/Gui
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab
     ${WAI_ROOT}/lib-WAI/source
     ${OpenCV_INCLUDE_DIR}
     ${g2o_INCLUDE_DIR}

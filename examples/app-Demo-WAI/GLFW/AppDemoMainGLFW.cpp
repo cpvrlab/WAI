@@ -21,8 +21,8 @@
 #include <WAIModeOrbSlam2.h>
 #include <WAIAutoCalibration.h>
 
-#include <SLCVCapture.h>
-#include <SLCVCalibration.h>
+#include <CVCapture.h>
+#include <CVCalibration.h>
 #include <SLKeyframeCamera.h>
 
 #include <SLBox.h>
@@ -241,7 +241,7 @@ static void onMouseButton(GLFWwindow* window,
             else // normal mouse clicks
             {
                 // Start timer for the long touch detection
-                SLTimer::callAfterSleep(SLSceneView::LONGTOUCH_MS, onLongTouch);
+                HighResTimer::callAfterSleep(SLSceneView::LONGTOUCH_MS, onLongTouch);
 
                 switch (button)
                 {
@@ -532,7 +532,6 @@ void GLFWInit()
     glfwSetWindowCloseCallback(window, onClose);
 }
 
-
 /*!
 The C main procedure running the GLFW GUI application.
 */
@@ -540,28 +539,33 @@ int main(int argc, char* argv[])
 {
     GLFWInit();
 
-    SLstring waiRoot   = SLstring(WAI_ROOT);
-    SLstring slRoot    = waiRoot + "/thirdparty/SLProject";
-    SLstring extDir = Utils::getAppsWritableDir();
+    AppWAIDirectories dirs;
+    dirs.waiDataRoot = SLstring(WAI_ROOT) + "/data";
+    dirs.slDataRoot = SLstring(WAI_ROOT) + "/thirdparty/SLProject/data";
+    dirs.writableDir = Utils::getAppsWritableDir();
 
-    svIndex = WAIApp::load(scrWidth, scrHeight, scr2fbX, scr2fbY, dpi, extDir, waiRoot + "/data", slRoot + "/data");
+    CVCapture::instance()->open(0);
+    svIndex = WAIApp::load(scrWidth, scrHeight, scr2fbX, scr2fbY, dpi, &dirs);
+
+    CVCapture::instance()->videoType(VT_MAIN);
+    CVCapture::instance()->start(scrWdivH);
 
     // Event loop
     while (!slShouldClose())
     {
-        if (slGetVideoType() != VT_NONE)
+        if (CVCapture::instance()->videoType() != VT_NONE)
         {
-            SLCVCapture::grabAndAdjustForSL();
+            CVCapture::instance()->grabAndAdjustForSL(scrWdivH);
 
             WAI::CameraData cameraData = {};
-            cameraData.imageGray       = &SLCVCapture::lastFrameGray;
-            cameraData.imageRGB        = &SLCVCapture::lastFrame;
+            cameraData.imageGray       = &CVCapture::instance()->lastFrameGray;
+            cameraData.imageRGB        = &CVCapture::instance()->lastFrame;
             WAIApp::updateCamera(&cameraData);
         }
 
         WAIApp::update();
 
-        SLbool doRepaint = slUpdateAndPaint(svIndex);
+        SLbool doRepaint = slPaintAllViews();
         glfwSwapBuffers(window);
         glfwSetWindowTitle(window, slGetWindowTitle(svIndex).c_str());
 
@@ -571,8 +575,6 @@ int main(int argc, char* argv[])
         else
             glfwPollEvents();
     }
-
-    AppDemoGui::saveConfig();
 
     slTerminate();
     glfwDestroyWindow(window);

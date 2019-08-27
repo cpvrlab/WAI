@@ -1,9 +1,8 @@
 #include <atomic>
 #include <SLApplication.h>
 #include <SLInterface.h>
-#include <SLCVTrackedChessboard.h>
 #include <SLKeyframeCamera.h>
-#include <SLCVCapture.h>
+#include <CVCapture.h>
 #include <Utils.h>
 
 #include <WAIMapStorage.h>
@@ -11,13 +10,25 @@
 #include <WAICalibration.h>
 #include <AppWAIScene.h>
 #include <AppDemoGui.h>
+#include <AppDemoGuiMenu.h>
 #include <AppDemoGuiInfosDialog.h>
 #include <AppDemoGuiTrackedMapping.h>
+#include <AppDemoGuiAbout.h>
+#include <AppDemoGuiStatsTiming.h>
+#include <AppDemoGuiStatsDebugTiming.h>
+#include <AppDemoGuiStatsVideo.h>
+#include <AppDemoGuiInfosScene.h>
+#include <AppDemoGuiTransform.h>
+#include <AppDemoGuiInfosFrameworks.h>
+#include <AppDemoGuiInfosSensors.h>
+#include <AppDemoGuiUIPrefs.h>
+#include <AppDemoGuiProperties.h>
 #include <AppDemoGuiMapStorage.h>
 #include <AppDemoGuiVideoStorage.h>
 #include <AppDemoGuiInfosMapNodeTransform.h>
 #include <AppDemoGuiInfosTracking.h>
 #include <AppWAI.h>
+#include <AppDirectories.h>
 
 int   WAIApp::minNumOfCovisibles = 50;
 float WAIApp::meanReprojectionError;
@@ -33,69 +44,114 @@ bool  WAIApp::showCovisibilityGraph = true;
 bool  WAIApp::showSpanningTree      = true;
 bool  WAIApp::showLoopEdges         = true;
 
-AppWAIScene*       WAIApp::waiScene;
-std::string        WAIApp::rootPath;
-WAI::WAI*          WAIApp::wai;
+AppDemoGuiAbout*   WAIApp::aboutDial = nullptr;
+GUIPreferences     WAIApp::uiPrefs;
+SLGLTexture*       WAIApp::cpvrLogo = nullptr;
+SLGLTexture*       WAIApp::videoImage = nullptr;
+AppWAIDirectories* WAIApp::dirs = nullptr;
+AppWAIScene*       WAIApp::waiScene = nullptr;
+WAI::WAI*          WAIApp::wai = nullptr;
 WAICalibration*    WAIApp::wc;
 int                WAIApp::scrWidth;
 int                WAIApp::scrHeight;
-cv::VideoWriter*   WAIApp::videoWriter;
-cv::VideoWriter*   WAIApp::videoWriterInfo;
+cv::VideoWriter*   WAIApp::videoWriter = nullptr;
+cv::VideoWriter*   WAIApp::videoWriterInfo = nullptr;
 WAI::ModeOrbSlam2* WAIApp::mode        = nullptr;
-std::string        WAIApp::externalDir = "";
 bool               WAIApp::loaded      = false;
 
-int WAIApp::load(int width, int height, float scr2fbX, float scr2fbY, int dpi,
-                  std::string extDir, std::string dataRoot, std::string slRoot)
+int WAIApp::load(int width, int height, float scr2fbX, float scr2fbY, int dpi, AppWAIDirectories* directories)
 {
-    externalDir = extDir;
-    rootPath = dataRoot;
-    WAIMapStorage::init(externalDir);
+    dirs = directories;
+    WAIMapStorage::init(dirs->writableDir);
 
-    wai             = new WAI::WAI(dataRoot);
+    wai             = new WAI::WAI(dirs->waiDataRoot);
     wc              = new WAICalibration();
     waiScene        = new AppWAIScene();
     videoWriter     = new cv::VideoWriter();
     videoWriterInfo = new cv::VideoWriter();
 
     wc->changeImageSize(width, height);
-    wc->loadFromFile(rootPath + "/calibrations/cam_calibration_main.xml");
+    wc->loadFromFile(dirs->waiDataRoot + "/calibrations/cam_calibration_main.xml");
     WAI::CameraCalibration calibration = wc->getCameraCalibration();
     wai->activateSensor(WAI::SensorType_Camera, &calibration);
 
     SLVstring empty;
+    empty.push_back("WAI APP");
     slCreateAppAndScene(empty,
-                        slRoot + "/shaders/",
-                        slRoot + "/models/",
-                        slRoot + "/images/textures/",
-                        slRoot + "/videos/",
-                        slRoot + "/images/fonts/",
-                        slRoot + "/calibrations/",
-                        extDir,
+                        dirs->slDataRoot + "/shaders/",
+                        dirs->slDataRoot + "/models/",
+                        dirs->slDataRoot + "/images/textures/",
+                        dirs->slDataRoot + "/images/fonts/",
+                        dirs->writableDir,
                         "AppDemoGLFW",
                         (void*)WAIApp::onLoadWAISceneView);
 
     // This load the GUI configs that are locally stored
-    AppDemoGui::loadConfig(dpi);
+    uiPrefs.load(dpi);
+    setupGUI();
 
     int svIndex = slCreateSceneView((int)(width * scr2fbX),
-                                (int)(height * scr2fbY),
-                                dpi,
-                                (SLSceneID)0,
-                                nullptr,
-                                nullptr,
-                                nullptr,
-                                (void*)AppDemoGui::build);
+                                    (int)(height * scr2fbY),
+                                    dpi,
+                                    (SLSceneID)0,
+                                    nullptr,
+                                    nullptr,
+                                    nullptr,
+                                    (void*)buildGUI);
 
     loaded = true;
     return svIndex;
+}
+
+void WAIApp::setupGUI()
+{
+    aboutDial = new AppDemoGuiAbout("about", cpvrLogo, &uiPrefs.showAbout);
+    AppDemoGui::addInfoDialog(new AppDemoGuiStatsTiming("timing", &uiPrefs.showStatsTiming));
+    AppDemoGui::addInfoDialog(new AppDemoGuiStatsDebugTiming("debug timing", &uiPrefs.showStatsDebugTiming));
+    AppDemoGui::addInfoDialog(new AppDemoGuiStatsVideo("video", wc, &uiPrefs.showStatsVideo));
+    AppDemoGui::addInfoDialog(new AppDemoGuiInfosScene("scene", &uiPrefs.showInfosScene));
+    AppDemoGui::addInfoDialog(new AppDemoGuiTransform("transform", &uiPrefs.showTransform));
+    AppDemoGui::addInfoDialog(new AppDemoGuiInfosFrameworks("frameworks", &uiPrefs.showInfosFrameworks));
+    AppDemoGui::addInfoDialog(new AppDemoGuiInfosSensors("sensors", &uiPrefs.showInfosSensors));
+    AppDemoGui::addInfoDialog(new AppDemoGuiUIPrefs("prefs", &uiPrefs, &uiPrefs.showUIPrefs));
+    AppDemoGui::addInfoDialog(new AppDemoGuiProperties("properties", &uiPrefs.showProperties));
+}
+
+void WAIApp::buildGUI(SLScene* s, SLSceneView* sv)
+{
+    if (uiPrefs.showAbout)
+    {
+        aboutDial->buildInfos(s, sv);
+    }
+    else
+    {
+        AppDemoGui::buildInfosDialogs(s, sv);
+        AppDemoGuiMenu::build(&uiPrefs, s, sv);
+    }
+}
+
+void WAIApp::openTest(std::string path)
+{
+    cv::FileStorage fs(path, cv::FileStorage::READ);
+    cv::FileNode n = fs["Links"];
+    std::string cal_path = (std::string)n["Calibration"];
+    std::string vid_path = (std::string)n["Videos"];
+    std::string map_path = (std::string)n["Maps"];
+}
+
+void WAIApp::refreshTexture(cv::Mat *image)
+{
+    videoImage->copyVideoImage(image->cols, image->rows,
+                               CVCapture::instance()->format,
+                               image->data,
+                               image->isContinuous(),
+                               true);
 }
 
 //-----------------------------------------------------------------------------
 void WAIApp::onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
 {
     s->init();
-    s->videoType(VT_MAIN);
     waiScene->rebuild();
 
     // Set scene name and info string
@@ -106,42 +162,18 @@ void WAIApp::onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
     sv->doWaitOnIdle(false); //for constant video feed
     sv->camera(waiScene->cameraNode);
 
-    waiScene->cameraNode->background().texture(s->videoTexture());
+    if (videoImage == nullptr)
+    {
+        videoImage = new SLGLTexture("LiveVideoError.png", GL_LINEAR, GL_LINEAR);
+    }
+    waiScene->cameraNode->background().texture(videoImage);
     waiScene->cameraNode->fov(wc->calcCameraFOV());
 
     s->root3D(waiScene->rootNode);
 
     sv->onInitialize();
-    s->onAfterLoad();
 
     mode = ((WAI::ModeOrbSlam2*)wai->setMode(WAI::ModeType_ORB_SLAM2));
-
-
-    auto trackedMapping = std::make_shared<AppDemoGuiTrackedMapping>("Tracked mapping", mode);
-    AppDemoGui::addInfoDialog(trackedMapping);
-
-    auto mapStorage = std::make_shared<AppDemoGuiMapStorage>("Map Storage",
-                                                             mode,
-                                                             waiScene->mapNode,
-                                                             externalDir + "slam-maps");
-    AppDemoGui::addInfoDialog(mapStorage);
-
-
-    auto mapTransform = std::make_shared<AppDemoGuiInfosMapNodeTransform>("Map transform",
-                                                                          waiScene->mapNode,
-                                                                          mode,
-                                                                          externalDir);
-    AppDemoGui::addInfoDialog(mapTransform);
-
-
-    auto trackingInfos = std::make_shared<AppDemoGuiInfosTracking>("Tracking Infos",
-                                                                   mode);
-    AppDemoGui::addInfoDialog(trackingInfos);
-
-
-    auto videoStorageGUI = std::make_shared<AppDemoGuiVideoStorage>("VideoStorage", rootPath + "/data/videos/",
-                                                                    videoWriter, videoWriterInfo);
-    AppDemoGui::addInfoDialog(videoStorageGUI);
 }
 
 //-----------------------------------------------------------------------------
@@ -185,6 +217,8 @@ void WAIApp::update()
 
         waiScene->cameraNode->om(slPose);
     }
+
+    slUpdateScene();
 }
 //-----------------------------------------------------------------------------
 void WAIApp::updateTrackingVisualization(const bool iKnowWhereIAm)
@@ -256,7 +290,7 @@ void WAIApp::updateTrackingVisualization(const bool iKnowWhereIAm)
 //-----------------------------------------------------------------------------
 void WAIApp::updateCamera(WAI::CameraData* cameraData)
 {
-    if(!loaded)
+    if(!loaded || videoImage == nullptr)
         return;
 
     if (videoWriter->isOpened()) {
@@ -264,6 +298,7 @@ void WAIApp::updateCamera(WAI::CameraData* cameraData)
     }
 
     wai->updateSensor(WAI::SensorType_Camera, cameraData);
+    refreshTexture(cameraData->imageRGB);
 
     if (videoWriterInfo->isOpened()) {
         videoWriterInfo->write(*cameraData->imageRGB);

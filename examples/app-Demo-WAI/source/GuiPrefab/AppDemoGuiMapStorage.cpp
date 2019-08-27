@@ -18,8 +18,9 @@
 AppDemoGuiMapStorage::AppDemoGuiMapStorage(const string&      name,
                                            WAI::ModeOrbSlam2* tracking,
                                            SLNode*            mapNode,
-                                           std::string        mapDir)
-  : AppDemoGuiInfosDialog(name),
+                                           std::string        mapDir,
+                                           bool*              activator)
+  : AppDemoGuiInfosDialog(name, activator),
     _tracking(tracking),
     _mapNode(mapNode),
     _mapPrefix("slam-map-"),
@@ -262,7 +263,7 @@ void AppDemoGuiMapStorage::saveMap()
     }
 }
 //-----------------------------------------------------------------------------
-void AppDemoGuiMapStorage::buildInfos()
+void AppDemoGuiMapStorage::buildInfos(SLScene* s, SLSceneView* sv)
 {
     if (!_map)
         return;

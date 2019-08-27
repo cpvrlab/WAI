@@ -13,12 +13,14 @@
 
 #include <Utils.h>
 #include <AppDemoGuiVideoStorage.h>
+#include <CVCapture.h>
 
 //-----------------------------------------------------------------------------
 
 AppDemoGuiVideoStorage::AppDemoGuiVideoStorage(const std::string& name, std::string videoDir,
-                           cv::VideoWriter* videoWriter, cv::VideoWriter* videoWriterInfo)
-  : AppDemoGuiInfosDialog(name),
+                           cv::VideoWriter* videoWriter, cv::VideoWriter* videoWriterInfo,
+                           bool* activator)
+  : AppDemoGuiInfosDialog(name, activator),
     _videoPrefix("video-"),
     _nextId(0),
     _videoWriter(videoWriter),
@@ -107,14 +109,14 @@ void AppDemoGuiVideoStorage::saveVideo(std::string filename)
         _videoWriterInfo->release();
     }
 
-    cv::Size size  = cv::Size(SLCVCapture::lastFrame.cols, SLCVCapture::lastFrame.rows);
+    cv::Size size  = cv::Size(CVCapture::instance()->lastFrame.cols, CVCapture::instance()->lastFrame.rows);
 
     bool ret = _videoWriter->open(path, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 30, size, true);
 
     ret = _videoWriterInfo->open(infoPath, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 30, size, true);
 }
 //-----------------------------------------------------------------------------
-void AppDemoGuiVideoStorage::buildInfos()
+void AppDemoGuiVideoStorage::buildInfos(SLScene* s, SLSceneView* sv)
 {
     if (ImGui::Button("Start recording", ImVec2(ImGui::GetContentRegionAvailWidth(), 0.0f)))
     {

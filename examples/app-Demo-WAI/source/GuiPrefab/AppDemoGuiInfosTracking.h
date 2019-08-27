@@ -25,9 +25,10 @@ class AppDemoGuiInfosTracking : public AppDemoGuiInfosDialog
 {
     public:
     AppDemoGuiInfosTracking(std::string        name,
-                            WAI::ModeOrbSlam2* mode);
+                            WAI::ModeOrbSlam2* mode,
+                            bool*              activator);
 
-    void buildInfos() override;
+    void buildInfos(SLScene* s, SLSceneView* sv) override;
 
     private:
     WAI::ModeOrbSlam2* _mode      = nullptr;

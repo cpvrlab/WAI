@@ -74,12 +74,18 @@ WAI::Mode* WAI::WAI::setMode(ModeType modeType)
         break;
     }
 
+    _modeType = modeType;
     return _mode;
 }
 
 WAI::Mode* WAI::WAI::getCurrentMode()
 {
     return _mode;
+}
+
+WAI::ModeType WAI::WAI::getCurrentModeType()
+{
+    return _modeType;
 }
 
 void WAI::WAI::activateSensor(SensorType sensorType, void* sensorInfo)

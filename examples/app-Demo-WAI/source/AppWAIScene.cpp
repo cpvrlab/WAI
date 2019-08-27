@@ -12,16 +12,16 @@ AppWAIScene::AppWAIScene()
 
 void AppWAIScene::rebuild()
 {
-    rootNode          = new SLNode("scene");
-    cameraNode        = new SLCamera("Camera 1");
-    mapNode           = new SLNode("map");
-    mapPC             = new SLNode("MapPC");
-    mapMatchedPC      = new SLNode("MapMatchedPC");
-    mapLocalPC        = new SLNode("MapLocalPC");
-    keyFrameNode      = new SLNode("KeyFrames");
-    covisibilityGraph = new SLNode("CovisibilityGraph");
-    spanningTree      = new SLNode("SpanningTree");
-    loopEdges         = new SLNode("LoopEdges");
+    rootNode            = new SLNode("scene");
+    cameraNode          = new SLCamera("Camera 1");
+    mapNode             = new SLNode("map");
+    mapPC               = new SLNode("MapPC");
+    mapMatchedPC        = new SLNode("MapMatchedPC");
+    mapLocalPC          = new SLNode("MapLocalPC");
+    keyFrameNode        = new SLNode("KeyFrames");
+    covisibilityGraph   = new SLNode("CovisibilityGraph");
+    spanningTree        = new SLNode("SpanningTree");
+    loopEdges           = new SLNode("LoopEdges");
     SLLightSpot* light1 = new SLLightSpot(1, 1, 1, 0.3f);
 
     redMat = new SLMaterial(SLCol4f::RED, "Red");

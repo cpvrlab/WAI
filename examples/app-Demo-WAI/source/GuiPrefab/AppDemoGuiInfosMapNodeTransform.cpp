@@ -20,8 +20,9 @@ AppDemoGuiInfosMapNodeTransform::AppDemoGuiInfosMapNodeTransform(
   std::string        name,
   SLNode*            mapNode,
   WAI::ModeOrbSlam2* tracking,
-  std::string        externalDir)
-  : AppDemoGuiInfosDialog(name),
+  std::string        externalDir,
+  bool*              activator)
+  : AppDemoGuiInfosDialog(name, activator),
     _externalDir(externalDir),
     _mapNode(mapNode),
     _tracking(tracking)
@@ -29,7 +30,7 @@ AppDemoGuiInfosMapNodeTransform::AppDemoGuiInfosMapNodeTransform(
 }
 
 //-----------------------------------------------------------------------------
-void AppDemoGuiInfosMapNodeTransform::buildInfos()
+void AppDemoGuiInfosMapNodeTransform::buildInfos(SLScene* s, SLSceneView* sv)
 {
     static SLTransformSpace tSpace = TS_world;
     ImGui::Text("Transf. Space:");

@@ -18,8 +18,11 @@
 #include <SLPoints.h>
 #include <SLPolyline.h>
 
-#include <SLCVCalibration.h>
+#include <CVCalibration.h>
 #include <WAIAutoCalibration.h>
+#include <AppDirectories.h>
+#include <AppDemoGuiPrefs.h>
+#include <AppDemoGuiAbout.h>
 
 #include <WAI.h>
 
@@ -29,8 +32,7 @@
 class WAIApp
 {
     public:
-    static int load(int width, int height, float scr2fbX, float scr2fbY, int dpi,
-                  std::string extDir, std::string dataRoot, std::string slRoot);
+    static int load(int width, int height, float scr2fbX, float scr2fbY, int dpi, AppWAIDirectories* dirs);
 
     static void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid);
     static void update();
@@ -40,17 +42,23 @@ class WAIApp
     static void updateTrackingVisualization(const bool iKnowWhereIAm);
 
     static void renderMapPoints(std::string                      name,
-                         const std::vector<WAIMapPoint*>& pts,
-                         SLNode*&                         node,
-                         SLPoints*&                       mesh,
-                         SLMaterial*&                     material);
+                                const std::vector<WAIMapPoint*>& pts,
+                                SLNode*&                         node,
+                                SLPoints*&                       mesh,
+                                SLMaterial*&                     material);
 
     static void renderKeyframes();
     static void renderGraphs();
+    static void refreshTexture(cv::Mat *image);
+
+    static void setupGUI();
+    static void buildGUI(SLScene* s, SLSceneView* sv);
+    static void openTest(std::string path);
 
     //! minimum number of covisibles for covisibility graph visualization
-    static std::string        rootPath;
-    static std::string        externalDir;
+    static AppDemoGuiAbout*   aboutDial;
+    static GUIPreferences     uiPrefs;
+    static AppWAIDirectories* dirs;
     static WAI::WAI*          wai;
     static WAICalibration*    wc;
     static int                scrWidth;
@@ -60,6 +68,9 @@ class WAIApp
     static WAI::ModeOrbSlam2* mode;
     static AppWAIScene*       waiScene;
     static bool               loaded;
+    static SLGLTexture*       cpvrLogo;
+    static SLGLTexture*       videoImage;
+    static SLGLTexture*       videoError;
 
     static int   minNumOfCovisibles;
     static float meanReprojectionError;
@@ -75,6 +86,5 @@ class WAIApp
     static bool  showSpanningTree;
     static bool  showLoopEdges;
 };
-//-----------------------------------------------------------------------------
 
 #endif

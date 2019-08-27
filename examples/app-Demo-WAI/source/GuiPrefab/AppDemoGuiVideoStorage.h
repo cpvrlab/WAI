@@ -8,41 +8,36 @@
 //             Please visit: http://opensource.org/licenses/GPL-3.0
 //#############################################################################
 
-#ifndef SL_IMGUI_MAPSTORAGE_H
-#define SL_IMGUI_MAPSTORAGE_H
-
-#include <AppDemoGuiInfosDialog.h>
+#ifndef SL_IMGUI_VIDEOSTORAGE_H
+#define SL_IMGUI_VIDEOSTORAGE_H
 
 #include <opencv2/core.hpp>
-
-#include <WAIMap.h>
-#include <WAIMapStorage.h>
-#include <WAIOrbVocabulary.h>
-#include <WAIModeOrbSlam2.h>
+#include <AppDemoGuiInfosDialog.h>
 
 #include <SLMat4.h>
 #include <SLNode.h>
 
 //-----------------------------------------------------------------------------
-class AppDemoGuiMapStorage : public AppDemoGuiInfosDialog
+class AppDemoGuiVideoStorage : public AppDemoGuiInfosDialog
 {
     public:
-    AppDemoGuiMapStorage(const std::string& name, WAI::ModeOrbSlam2* tracking, SLNode* mapNode, std::string mapDir);
+    AppDemoGuiVideoStorage(const std::string& name, std::string videoDir,
+                           cv::VideoWriter* videoWriter, cv::VideoWriter* videoWriterInfo,
+                           bool* activator);
 
-    void buildInfos() override;
+    void buildInfos(SLScene* s, SLSceneView* sv) override;
 
     private:
-    void saveMap();
 
-    WAIMap*                  _map;
-    WAIKeyFrameDB*           _kfDB;
-    WAI::ModeOrbSlam2*       _tracking;
-    SLNode*                  _mapNode;
-    std::string              _mapDir;
-    std::string              _mapPrefix;
-    std::vector<std::string> _existingMapNames;
+    void saveVideo(std::string filename);
+
+    cv::VideoWriter*         _videoWriter;
+    cv::VideoWriter*         _videoWriterInfo;
+    std::string              _videoDir;
+    std::string              _videoPrefix;
+    std::vector<std::string> _existingVideoNames;
     int                      _nextId;
-    bool                     _saveAndLoadImages = true;
+    std::string              _currentItem;
 };
 
 #endif //SL_IMGUI_MAPSTORAGE_H

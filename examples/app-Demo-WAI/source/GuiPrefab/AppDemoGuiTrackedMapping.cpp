@@ -7,13 +7,13 @@
 const char* AppDemoGuiTrackedMapping::_currItem = NULL;
 int         AppDemoGuiTrackedMapping::_currN    = -1;
 //-----------------------------------------------------------------------------
-AppDemoGuiTrackedMapping::AppDemoGuiTrackedMapping(string name, WAI::ModeOrbSlam2* orbSlamMode)
-  : AppDemoGuiInfosDialog(name),
+AppDemoGuiTrackedMapping::AppDemoGuiTrackedMapping(string name, WAI::ModeOrbSlam2* orbSlamMode, bool* activator)
+  : AppDemoGuiInfosDialog(name, activator),
     _orbSlamMode(orbSlamMode)
 {
 }
 //-----------------------------------------------------------------------------
-void AppDemoGuiTrackedMapping::buildInfos()
+void AppDemoGuiTrackedMapping::buildInfos(SLScene* s, SLSceneView* sv)
 {
     if (ImGui::Button("Reset", ImVec2(ImGui::GetContentRegionAvailWidth(), 0.0f)))
     {

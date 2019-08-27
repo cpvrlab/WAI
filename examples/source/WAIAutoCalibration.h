@@ -1,9 +1,9 @@
 #ifndef WAIAUTOCALIBRATION
 #define WAIAUTOCALIBRATION
 using namespace std;
-#include <SLCV.h>
 #include <WAICalibration.h>
 #include <WAISensorCamera.h>
+#include <opencv2/core/core.hpp>
 
 class AutoCalibration : public WAICalibration
 {

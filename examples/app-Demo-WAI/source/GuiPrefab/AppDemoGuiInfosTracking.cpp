@@ -17,14 +17,15 @@
 
 //-----------------------------------------------------------------------------
 AppDemoGuiInfosTracking::AppDemoGuiInfosTracking(std::string        name,
-                                                 WAI::ModeOrbSlam2* mode)
-  : AppDemoGuiInfosDialog(name),
+                                                 WAI::ModeOrbSlam2* mode,
+                                                 bool*              activator)
+  : AppDemoGuiInfosDialog(name, activator),
     _mode(mode)
 {
     _minNumCovisibleMapPts = WAIApp::minNumOfCovisibles;
 }
 //-----------------------------------------------------------------------------
-void AppDemoGuiInfosTracking::buildInfos()
+void AppDemoGuiInfosTracking::buildInfos(SLScene* s, SLSceneView* sv)
 {
     //-------------------------------------------------------------------------
     //numbers

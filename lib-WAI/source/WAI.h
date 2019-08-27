@@ -24,10 +24,12 @@ class WAI_API WAI
     bool  whereAmI(cv::Mat* pose);
     Mode* setMode(ModeType mode);
     Mode* getCurrentMode();
+    ModeType getCurrentModeType();
 
     private:
     std::string                   _dataRoot;
     Mode*                         _mode = nullptr;
+    ModeType                      _modeType;
     std::map<SensorType, Sensor*> _sensors;
 };
 }

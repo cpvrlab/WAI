@@ -11,8 +11,6 @@
 #ifndef SL_IMGUI_VIDEOSTORAGE_H
 #define SL_IMGUI_VIDEOSTORAGE_H
 
-#include <SLCVCapture.h>
-
 #include <opencv2/core.hpp>
 #include <AppDemoGuiInfosDialog.h>
 
@@ -24,9 +22,10 @@ class AppDemoGuiVideoStorage : public AppDemoGuiInfosDialog
 {
     public:
     AppDemoGuiVideoStorage(const std::string& name, std::string videoDir,
-                           cv::VideoWriter* videoWriter, cv::VideoWriter* videoWriterInfo);
+                           cv::VideoWriter* videoWriter, cv::VideoWriter* videoWriterInfo,
+                           bool* activator);
 
-    void buildInfos() override;
+    void buildInfos(SLScene* s, SLSceneView* sv) override;
 
     private:
 

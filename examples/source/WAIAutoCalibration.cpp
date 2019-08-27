@@ -1,5 +1,6 @@
 #include <WAIAutoCalibration.h>
 #include <WAICalibration.h>
+#include <CVCapture.h>
 using namespace cv;
 #define NB_SAMPLES 10
 

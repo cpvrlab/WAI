@@ -5,7 +5,7 @@
 #include <SLPoints.h>
 #include <SLPolyline.h>
 
-#include <SLCVCalibration.h>
+#include <CVCalibration.h>
 
 #include <WAI.h>
 
