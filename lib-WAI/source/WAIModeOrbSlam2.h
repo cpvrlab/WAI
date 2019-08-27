@@ -264,6 +264,15 @@ class WAI_API ModeOrbSlam2 : public Mode
     bool    findChessboardPose(cv::Mat& foundPose);
     cv::Mat _initialFrameChessboardPose;
     cv::Mat _markerCorrectionTransformation;
+
+    cv::Size _chessboardSize;
+    int      _chessboardFlags;
+    float    _chessboardWidthM;
+
+    WAIFrame         _markerFrame;
+    ORBextractor*    _markerOrbExtractor;
+    std::vector<int> _initialFrameToMarkerMatches;
+    bool             _relocalizeFromMarkerMap;
 };
 }
 

@@ -656,7 +656,6 @@ bool Initializer::ReconstructF(vector<bool>& vbMatchesInliers, cv::Mat& F21, cv:
     // If there is not a clear winner or not enough triangulated points reject initialization
     if (maxGood < nMinGood || nsimilar > 1)
     {
-        WAI_LOG("not enough triangulated points: %i, nsimilar: %i", maxGood, nsimilar);
         return false;
     }
 
