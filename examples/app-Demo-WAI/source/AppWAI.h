@@ -35,7 +35,7 @@ class WAIApp
     static int load(int width, int height, float scr2fbX, float scr2fbY, int dpi, AppWAIDirectories* dirs);
 
     static void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid);
-    static void update();
+    static bool update();
     static void updateCamera(WAI::CameraData* cameraData);
     static void updateMinNumOfCovisibles(int n);
 
@@ -70,7 +70,6 @@ class WAIApp
     static bool               loaded;
     static SLGLTexture*       cpvrLogo;
     static SLGLTexture*       videoImage;
-    static SLGLTexture*       videoError;
 
     static int   minNumOfCovisibles;
     static float meanReprojectionError;

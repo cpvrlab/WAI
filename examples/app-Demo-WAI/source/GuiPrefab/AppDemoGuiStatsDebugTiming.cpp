@@ -44,7 +44,7 @@ void AppDemoGuiStatsDebugTiming::buildInfos(SLScene* s, SLSceneView* sv)
     for (auto* block : blocks)
     {
         SLfloat      val   = block->val.average();
-        SLfloat      valPC = SL_clamp(val / refTime * 100.0f, 0.0f, 100.0f);
+        SLfloat      valPC = Utils::clamp(val / refTime * 100.0f, 0.0f, 100.0f);
         string       name  = block->name;
         stringstream ss;
         for (int i = 0; i < block->posH; ++i)

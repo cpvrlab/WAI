@@ -141,6 +141,9 @@ void WAIApp::openTest(std::string path)
 
 void WAIApp::refreshTexture(cv::Mat *image)
 {
+    if (image == nullptr)
+        return;
+
     videoImage->copyVideoImage(image->cols, image->rows,
                                CVCapture::instance()->format,
                                image->data,
@@ -177,10 +180,10 @@ void WAIApp::onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
 }
 
 //-----------------------------------------------------------------------------
-void WAIApp::update()
+bool WAIApp::update()
 {
     if(!loaded)
-        return;
+        return false;
 
     cv::Mat      pose          = cv::Mat(4, 4, CV_32F);
     bool         iKnowWhereIAm = wai->whereAmI(&pose);
@@ -218,7 +221,7 @@ void WAIApp::update()
         waiScene->cameraNode->om(slPose);
     }
 
-    slUpdateScene();
+    return slUpdateScene();
 }
 //-----------------------------------------------------------------------------
 void WAIApp::updateTrackingVisualization(const bool iKnowWhereIAm)

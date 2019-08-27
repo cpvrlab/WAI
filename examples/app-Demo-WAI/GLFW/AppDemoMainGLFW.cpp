@@ -35,6 +35,7 @@
 #include <SLLightSpot.h>
 #include <SLMaterial.h>
 #include <SLPoints.h>
+#include <Utils.h>
 
 #include <WAI.h>
 
@@ -169,7 +170,7 @@ onLongTouch gets called from a 500ms timer after a mouse down event.
 void onLongTouch()
 {
     // forward the long touch only if the mouse or touch hasn't moved.
-    if (SL_abs(mouseX - startX) < 2 && SL_abs(mouseY - startY) < 2)
+    if (Utils::abs(mouseX - startX) < 2 && Utils::abs(mouseY - startY) < 2)
         slLongTouch(svIndex, mouseX, mouseY);
 }
 //-----------------------------------------------------------------------------
@@ -344,7 +345,7 @@ static void onMouseWheel(GLFWwindow* window,
 {
     // make sure the delta is at least one integer
     int dY = (int)yscroll;
-    if (dY == 0) dY = (int)(SL_sign(yscroll));
+    if (dY == 0) dY = (int)(Utils::sign(yscroll));
 
     slMouseWheel(svIndex, dY, modifiers);
 }

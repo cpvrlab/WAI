@@ -4,6 +4,7 @@
 #include <SLApplication.h>
 #include <CVCapture.h>
 #include <AppDemoGuiStatsTiming.h>
+#include <Utils.h>
 //-----------------------------------------------------------------------------
 AppDemoGuiStatsTiming::AppDemoGuiStatsTiming(string name, bool* activator)
   : AppDemoGuiInfosDialog(name, activator)
@@ -26,12 +27,12 @@ void AppDemoGuiStatsTiming::buildInfos(SLScene* s, SLSceneView* sv)
     SLfloat cullTime     = s->cullTimesMS().average();
 
     // Calculate percentage from frame time
-    SLfloat captureTimePC  = SL_clamp(captureTime / ft * 100.0f, 0.0f, 100.0f);
-    SLfloat updateTimePC   = SL_clamp(updateTime / ft * 100.0f, 0.0f, 100.0f);
+    SLfloat captureTimePC  = Utils::clamp(captureTime / ft * 100.0f, 0.0f, 100.0f);
+    SLfloat updateTimePC   = Utils::clamp(updateTime / ft * 100.0f, 0.0f, 100.0f);
 
-    SLfloat draw3DTimePC   = SL_clamp(draw3DTime / ft * 100.0f, 0.0f, 100.0f);
-    SLfloat draw2DTimePC   = SL_clamp(draw2DTime / ft * 100.0f, 0.0f, 100.0f);
-    SLfloat cullTimePC     = SL_clamp(cullTime / ft * 100.0f, 0.0f, 100.0f);
+    SLfloat draw3DTimePC   = Utils::clamp(draw3DTime / ft * 100.0f, 0.0f, 100.0f);
+    SLfloat draw2DTimePC   = Utils::clamp(draw2DTime / ft * 100.0f, 0.0f, 100.0f);
+    SLfloat cullTimePC     = Utils::clamp(cullTime / ft * 100.0f, 0.0f, 100.0f);
 
     sprintf(m + strlen(m), "Renderer      : OpenGL\n");
     sprintf(m + strlen(m), "Frame size    : %d x %d\n", sv->scrW(), sv->scrH());

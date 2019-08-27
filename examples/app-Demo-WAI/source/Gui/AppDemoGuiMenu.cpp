@@ -6,6 +6,7 @@
 #include <SLGLImGui.h>
 #include <SLAverageTiming.h>
 #include <AppDemoGuiMenu.h>
+#include <Utils.h>
 
 
 void AppDemoGuiMenu::build(GUIPreferences * prefs, SLScene* s, SLSceneView* sv)
@@ -170,7 +171,7 @@ void AppDemoGuiMenu::build(GUIPreferences * prefs, SLScene* s, SLSceneView* sv)
                 if (ImGui::SliderFloat("Focal Dist.", &focalDist, clipN, clipF))
                     cam->focalDist(focalDist);
 
-                if (ImGui::SliderFloat("Far Clip", &clipF, clipN, SL_min(clipF * 1.1f, 1000000.f)))
+                if (ImGui::SliderFloat("Far Clip", &clipF, clipN, Utils::min(clipF * 1.1f, 1000000.f)))
                     cam->clipFar(clipF);
 
                 ImGui::PopItemWidth();
