@@ -99,12 +99,9 @@ class WAISceneView : public SLSceneView
                          const std::vector<WAIMapPoint*>& pts,
                          SLNode*&                         node,
                          SLPoints*&                       mesh,
-                         SLMaterial*&                     material,
-                         bool                             markerCorrected,
-                         const cv::Mat&                   markerCorrectionTransformation);
+                         SLMaterial*&                     material);
 
-    void renderKeyframes(bool           markerCorrected,
-                         const cv::Mat& markerCorrectionTransformation);
+    void renderKeyframes();
     void renderGraphs();
 
     //! minimum number of covisibles for covisibility graph visualization

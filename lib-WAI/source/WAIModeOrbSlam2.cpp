@@ -1460,7 +1460,7 @@ bool WAI::ModeOrbSlam2::findChessboardPose(cv::Mat& foundPose)
     bool result = false;
 
     int flags =
-      //CALIB_CB_ADAPTIVE_THRESH |
+      cv::CALIB_CB_ADAPTIVE_THRESH |
       //CALIB_CB_NORMALIZE_IMAGE |
       cv::CALIB_CB_FAST_CHECK;
     cv::Size chessboardSize(8, 5);
@@ -1622,6 +1622,13 @@ void WAI::ModeOrbSlam2::track3DPts()
                              distortionMat,
                              mpVocabulary,
                              _retainImg);
+
+    bool    chessboardFound = false;
+    cv::Mat markerCorrectedPose;
+    if (_markerCorrected)
+    {
+        chessboardFound = findChessboardPose(markerCorrectedPose);
+    }
 
     // Get Map Mutex -> Map cannot be changed
     std::unique_lock<std::mutex> lock(_map->mMutexMapUpdate, std::defer_lock);
@@ -1826,9 +1833,24 @@ void WAI::ModeOrbSlam2::track3DPts()
 
             std::cout << Twc << std::endl;
 
-            if (_markerCorrected)
+            if (chessboardFound)
             {
-                //Twc = _markerCorrectionTransformation * Twc;
+                cv::Mat t1, t2;
+                t1 = _initialFrameChessboardPose.rowRange(0, 3).col(3);
+                t2 = markerCorrectedPose.rowRange(0, 3).col(3);
+
+                cv::Mat t1w, t2w;
+                t1w = mInitialFrame.GetCameraCenter();
+                t2w = mCurrentFrame.GetCameraCenter();
+
+                float distCorrected   = cv::norm(t1, t2);
+                float distUncorrected = cv::norm(t1w, t2w);
+
+                float scaleFactor = distUncorrected / distCorrected;
+
+                cv::Mat scaledMarkerCorrection               = _initialFrameChessboardPose.clone();
+                scaledMarkerCorrection.col(3).rowRange(0, 3) = scaledMarkerCorrection.col(3).rowRange(0, 3) * scaleFactor;
+                _markerCorrectionTransformation              = scaledMarkerCorrection;
             }
 
             _pose    = Twc;

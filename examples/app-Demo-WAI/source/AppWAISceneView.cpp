@@ -168,7 +168,7 @@ void WAISceneView::update()
 //-----------------------------------------------------------------------------
 void WAISceneView::updateTrackingVisualization(const bool iKnowWhereIAm)
 {
-    if (_mode->isMarkerCorrected() && !_mapNodeTransformed && iKnowWhereIAm)
+    if (_mode->isMarkerCorrected() && iKnowWhereIAm)
     {
         cv::Mat mapTransform = _mode->getMarkerCorrectionTransformation();
         SLMat4f om;
@@ -210,9 +210,7 @@ void WAISceneView::updateTrackingVisualization(const bool iKnowWhereIAm)
                         _mode->getMapPoints(),
                         waiScene->mapPC,
                         waiScene->mappointsMesh,
-                        waiScene->redMat,
-                        false, //_mode->isMarkerCorrected(),
-                        _mode->getMarkerCorrectionTransformation());
+                        waiScene->redMat);
     }
     else if (waiScene->mappointsMesh)
     {
@@ -228,9 +226,7 @@ void WAISceneView::updateTrackingVisualization(const bool iKnowWhereIAm)
                         _mode->getLocalMapPoints(),
                         waiScene->mapLocalPC,
                         waiScene->mappointsLocalMesh,
-                        waiScene->blueMat,
-                        false, //_mode->isMarkerCorrected(),
-                        _mode->getMarkerCorrectionTransformation());
+                        waiScene->blueMat);
     }
     else if (waiScene->mappointsLocalMesh)
     {
@@ -246,9 +242,7 @@ void WAISceneView::updateTrackingVisualization(const bool iKnowWhereIAm)
                         _mode->getMatchedMapPoints(),
                         waiScene->mapMatchedPC,
                         waiScene->mappointsMatchedMesh,
-                        waiScene->greenMat,
-                        false, //_mode->isMarkerCorrected(),
-                        _mode->getMarkerCorrectionTransformation());
+                        waiScene->greenMat);
     }
     else if (waiScene->mappointsMatchedMesh)
     {
@@ -260,8 +254,7 @@ void WAISceneView::updateTrackingVisualization(const bool iKnowWhereIAm)
     waiScene->keyFrameNode->deleteChildren();
     if (_showKeyFrames)
     {
-        renderKeyframes(false, //_mode->isMarkerCorrected(),
-                        _mode->getMarkerCorrectionTransformation());
+        renderKeyframes();
     }
 
     //update pose graph visualization
@@ -293,9 +286,7 @@ void WAISceneView::renderMapPoints(std::string                      name,
                                    const std::vector<WAIMapPoint*>& pts,
                                    SLNode*&                         node,
                                    SLPoints*&                       mesh,
-                                   SLMaterial*&                     material,
-                                   bool                             markerCorrected,
-                                   const cv::Mat&                   markerCorrectionTransformation)
+                                   SLMaterial*&                     material)
 {
     //remove old mesh, if it exists
     if (mesh)
@@ -306,44 +297,12 @@ void WAISceneView::renderMapPoints(std::string                      name,
     {
         //get points as Vec3f
         std::vector<SLVec3f> points, normals;
-        if (markerCorrected)
+        for (auto mapPt : pts)
         {
-            for (WAIMapPoint* mapPt : pts)
-            {
-                cv::Mat P3D = mapPt->GetWorldPos();
-                cv::Mat N3D = mapPt->GetNormal();
-
-                cv::Mat P4D         = cv::Mat(4, 1, CV_32F);
-                P4D.at<float>(0, 0) = P3D.at<float>(0, 0);
-                P4D.at<float>(1, 0) = P3D.at<float>(1, 0);
-                P4D.at<float>(2, 0) = P3D.at<float>(2, 0);
-                P4D.at<float>(3, 0) = 1.0f;
-                P4D                 = markerCorrectionTransformation * P4D;
-
-                cv::Mat N4D         = cv::Mat(4, 1, CV_32F);
-                N4D.at<float>(0, 0) = N3D.at<float>(0, 0);
-                N4D.at<float>(1, 0) = N3D.at<float>(1, 0);
-                N4D.at<float>(2, 0) = N3D.at<float>(2, 0);
-                N4D.at<float>(3, 0) = 0.0f;
-                N4D                 = markerCorrectionTransformation * N4D;
-
-                points.push_back(SLVec3f(P4D.at<float>(0, 0),
-                                         P4D.at<float>(1, 0),
-                                         P4D.at<float>(2, 0)));
-                normals.push_back(SLVec3f(N4D.at<float>(0, 0),
-                                          N4D.at<float>(1, 0),
-                                          N4D.at<float>(2, 0)));
-            }
-        }
-        else
-        {
-            for (auto mapPt : pts)
-            {
-                WAI::V3 wP = mapPt->worldPosVec();
-                WAI::V3 wN = mapPt->normalVec();
-                points.push_back(SLVec3f(wP.x, wP.y, wP.z));
-                normals.push_back(SLVec3f(wN.x, wN.y, wN.z));
-            }
+            WAI::V3 wP = mapPt->worldPosVec();
+            WAI::V3 wN = mapPt->normalVec();
+            points.push_back(SLVec3f(wP.x, wP.y, wP.z));
+            normals.push_back(SLVec3f(wN.x, wN.y, wN.z));
         }
 
         mesh = new SLPoints(points, normals, name, material);
@@ -352,8 +311,7 @@ void WAISceneView::renderMapPoints(std::string                      name,
     }
 }
 //-----------------------------------------------------------------------------
-void WAISceneView::renderKeyframes(bool           markerCorrected,
-                                   const cv::Mat& markerCorrectionTransformation)
+void WAISceneView::renderKeyframes()
 {
     std::vector<WAIKeyFrame*> keyframes = _mode->getKeyFrames();
 
@@ -377,11 +335,6 @@ void WAISceneView::renderKeyframes(bool           markerCorrected,
         }
 
         cv::Mat Twc = kf->getObjectMatrix();
-
-        if (markerCorrected)
-        {
-            Twc = markerCorrectionTransformation * Twc;
-        }
 
         SLMat4f om;
         om.setMatrix(Twc.at<float>(0, 0),
