@@ -1,6 +1,7 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 
+#include <SL.h>
 #include <Utils.h>
 #include <SLAverageTiming.h>
 #include <SLApplication.h>
