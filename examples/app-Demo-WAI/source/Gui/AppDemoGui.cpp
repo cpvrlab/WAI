@@ -63,11 +63,7 @@ void AppDemoGui::buildInfosDialogs(SLScene* s, SLSceneView* sv)
     {
         if (dialog.second->show())
         {
-            ImGui::Begin(dialog.second->getName(), dialog.second->activator(), ImVec2(300, 0), -1.f, ImGuiWindowFlags_NoCollapse);
-
             dialog.second->buildInfos(s, sv);
-
-            ImGui::End();
         }
     }
 }

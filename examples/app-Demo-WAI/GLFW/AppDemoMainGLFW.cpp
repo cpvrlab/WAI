@@ -560,6 +560,7 @@ int main(int argc, char* argv[])
         }
 
         WAIApp::update();
+        slUpdateScene();
 
         SLbool doRepaint = slPaintAllViews();
         glfwSwapBuffers(window);

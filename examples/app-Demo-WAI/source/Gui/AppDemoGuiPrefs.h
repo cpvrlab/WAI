@@ -6,10 +6,13 @@ class GUIPreferences
 {
     public:
     GUIPreferences();
+    void setDPI(int dotsPerInch);
     void reset();
-    void load(SLint dotsPerInch);
+
+    void load();
     void save();
 
+    int          dpi;
     SLbool       showAbout;            //!< Flag if about info should be shown
     SLbool       showHelp;             //!< Flag if help info should be shown
     SLbool       showHelpCalibration;  //!< Flag if calibration info should be shown

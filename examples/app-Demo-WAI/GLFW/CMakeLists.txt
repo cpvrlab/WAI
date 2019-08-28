@@ -50,7 +50,7 @@ file(GLOB sources
     ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiInfosTracking.cpp
     ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiMapStorage.cpp
     ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiProperties.cpp
-    ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiSceneGra.cpp.cpp
+    ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiSceneGraph.cpp
     ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiStatsDebugTiming.cpp
     ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiStatsTiming.cpp
     ${WAI_ROOT}/examples/app-Demo-WAI/source/GuiPrefab/AppDemoGuiStatsVideo.cpp

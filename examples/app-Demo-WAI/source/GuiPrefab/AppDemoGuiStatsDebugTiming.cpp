@@ -6,6 +6,7 @@
 #include <SLApplication.h>
 #include <CVCapture.h>
 #include <AppDemoGuiStatsDebugTiming.h>
+#include <Utils.h>
 //-----------------------------------------------------------------------------
 AppDemoGuiStatsDebugTiming::AppDemoGuiStatsDebugTiming(string name, bool* activator)
   : AppDemoGuiInfosDialog(name, activator)

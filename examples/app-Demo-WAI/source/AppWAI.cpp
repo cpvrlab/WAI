@@ -18,6 +18,7 @@
 #include <AppDemoGuiStatsDebugTiming.h>
 #include <AppDemoGuiStatsVideo.h>
 #include <AppDemoGuiInfosScene.h>
+#include <AppDemoGuiSceneGraph.h>
 #include <AppDemoGuiTransform.h>
 #include <AppDemoGuiInfosFrameworks.h>
 #include <AppDemoGuiInfosSensors.h>
@@ -59,6 +60,7 @@ cv::VideoWriter*   WAIApp::videoWriterInfo = nullptr;
 WAI::ModeOrbSlam2* WAIApp::mode        = nullptr;
 bool               WAIApp::loaded      = false;
 
+
 int WAIApp::load(int width, int height, float scr2fbX, float scr2fbY, int dpi, AppWAIDirectories* directories)
 {
     dirs = directories;
@@ -87,7 +89,8 @@ int WAIApp::load(int width, int height, float scr2fbX, float scr2fbY, int dpi, A
                         (void*)WAIApp::onLoadWAISceneView);
 
     // This load the GUI configs that are locally stored
-    uiPrefs.load(dpi);
+    uiPrefs.setDPI(dpi);
+    uiPrefs.load();
     setupGUI();
 
     int svIndex = slCreateSceneView((int)(width * scr2fbX),
@@ -110,6 +113,7 @@ void WAIApp::setupGUI()
     AppDemoGui::addInfoDialog(new AppDemoGuiStatsDebugTiming("debug timing", &uiPrefs.showStatsDebugTiming));
     AppDemoGui::addInfoDialog(new AppDemoGuiStatsVideo("video", wc, &uiPrefs.showStatsVideo));
     AppDemoGui::addInfoDialog(new AppDemoGuiInfosScene("scene", &uiPrefs.showInfosScene));
+    AppDemoGui::addInfoDialog(new AppDemoGuiSceneGraph("scene graph", &uiPrefs.showSceneGraph));
     AppDemoGui::addInfoDialog(new AppDemoGuiTransform("transform", &uiPrefs.showTransform));
     AppDemoGui::addInfoDialog(new AppDemoGuiInfosFrameworks("frameworks", &uiPrefs.showInfosFrameworks));
     AppDemoGui::addInfoDialog(new AppDemoGuiInfosSensors("sensors", &uiPrefs.showInfosSensors));
@@ -174,7 +178,7 @@ void WAIApp::onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
     s->root3D(waiScene->rootNode);
 
     sv->onInitialize();
-    sv->doWaitOnIdle(false);
+    //sv->doWaitOnIdle(false);
 
     mode = ((WAI::ModeOrbSlam2*)wai->setMode(WAI::ModeType_ORB_SLAM2));
 }

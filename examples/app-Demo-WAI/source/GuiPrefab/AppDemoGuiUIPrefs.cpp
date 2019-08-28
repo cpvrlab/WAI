@@ -36,11 +36,12 @@ void AppDemoGuiUIPrefs::buildInfos(SLScene* s, SLSceneView* sv)
 
         ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[1]);
         sprintf(reset, "Reset User Interface (DPI: %d)", SLApplication::dpi);
+        _prefs->setDPI(SLApplication::dpi);
         if (ImGui::MenuItem(reset))
         {
             SLstring fullPathFilename = SLApplication::configPath + "DemoGui.yml";
             Utils::deleteFile(fullPathFilename);
-            _prefs->load(SLApplication::dpi);
+            _prefs->load();
         }
         ImGui::PopFont();
 

@@ -7,6 +7,7 @@
 
 GUIPreferences::GUIPreferences()
 {
+    dpi = 200;
     reset();
 };
 
@@ -30,8 +31,12 @@ void GUIPreferences::reset()
     showTransform        = false;
 };
 
+void GUIPreferences::setDPI(int dotsPerInch)
+{
+    dpi = dotsPerInch;
+}
 
-void GUIPreferences::load(SLint dotsPerInch)
+void GUIPreferences::load()
 {
     ImGuiStyle& style               = ImGui::GetStyle();
     SLstring    fullPathAndFilename = SLApplication::configPath +
@@ -40,8 +45,8 @@ void GUIPreferences::load(SLint dotsPerInch)
     if (!Utils::fileExists(fullPathAndFilename))
     {
         // Scale for proportional and fixed size fonts
-        SLfloat dpiScaleProp  = dotsPerInch / 120.0f;
-        SLfloat dpiScaleFixed = dotsPerInch / 142.0f;
+        SLfloat dpiScaleProp  = dpi / 120.0f;
+        SLfloat dpiScaleFixed = dpi / 142.0f;
 
         // Default settings for the first time
         SLGLImGui::fontPropDots  = max(16.0f * dpiScaleProp, 16.0f);
@@ -110,14 +115,14 @@ void GUIPreferences::load(SLint dotsPerInch)
     }
 
     // check font sizes for HDPI displays
-    if (dotsPerInch > 300)
+    if (dpi > 300)
     {
         if (SLGLImGui::fontPropDots < 16.1f &&
             SLGLImGui::fontFixedDots < 13.1)
         {
             // Scale for proportional and fixed size fonts
-            SLfloat dpiScaleProp  = dotsPerInch / 120.0f;
-            SLfloat dpiScaleFixed = dotsPerInch / 142.0f;
+            SLfloat dpiScaleProp  = dpi / 120.0f;
+            SLfloat dpiScaleFixed = dpi / 142.0f;
 
             // Default settings for the first time
             SLGLImGui::fontPropDots  = Utils::max(16.0f * dpiScaleProp, 16.0f);
