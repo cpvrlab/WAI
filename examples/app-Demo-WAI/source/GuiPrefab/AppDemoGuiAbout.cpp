@@ -5,6 +5,7 @@
 #include <AppDemoGuiInfosDialog.h>
 #include <AppDemoGuiAbout.h>
 //-----------------------------------------------------------------------------
+// cpvr logo not used yet, a bug must be resolved
 AppDemoGuiAbout::AppDemoGuiAbout(std::string name, SLGLTexture* cpvrLogo, bool* activator)
   : AppDemoGuiInfosDialog(name, activator)
 {
@@ -14,7 +15,7 @@ AppDemoGuiAbout::AppDemoGuiAbout(std::string name, SLGLTexture* cpvrLogo, bool* 
                  "Augmented Reality application. WAI is developed at the Computer Science "
                  "Department of the Bern University of Applied Sciences.\n";
 
-    _cpvrLogo = cpvrLogo;
+    //_cpvrLogo = cpvrLogo;
 }
 
 //-----------------------------------------------------------------------------
@@ -30,6 +31,7 @@ void AppDemoGuiAbout::centerNextWindow(SLSceneView* sv, SLfloat widthPC, SLfloat
 //-----------------------------------------------------------------------------
 void AppDemoGuiAbout::buildInfos(SLScene* s, SLSceneView* sv)
 {
+    /*
     if (_cpvrLogo == nullptr)
     {
         // The texture resources get deleted by the SLScene destructor
@@ -39,13 +41,13 @@ void AppDemoGuiAbout::buildInfos(SLScene* s, SLSceneView* sv)
     }
     else
         _cpvrLogo->bindActive();
-
+    */
     SLfloat iconSize = sv->scrW() * 0.15f;
 
     centerNextWindow(sv);
     ImGui::Begin("About WAI-Demo", _activator, ImGuiWindowFlags_NoResize);
-    ImGui::Image((ImTextureID)(intptr_t)_cpvrLogo->texName(), ImVec2(iconSize, iconSize), ImVec2(0, 1), ImVec2(1, 0));
-    ImGui::SameLine();
+    //ImGui::Image((ImTextureID)(intptr_t)_cpvrLogo->texName(), ImVec2(iconSize, iconSize), ImVec2(0, 1), ImVec2(1, 0));
+    //ImGui::SameLine();
     ImGui::Text("Version: %s", SLApplication::version.c_str());
     ImGui::Separator();
     ImGui::Text("Git Branch: %s (Commit: %s)", SLApplication::gitBranch.c_str(), SLApplication::gitCommit.c_str());

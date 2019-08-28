@@ -97,7 +97,6 @@ void JNICALL Java_ch_fhnw_comgr_GLES3Lib_onInit(JNIEnv *env, jclass obj, jint wi
     env->ReleaseStringUTFChars(filePath, nativeString);
 
     CVImage::defaultPath = dirs.slDataRoot + "/images/textures/";
-    CVCapture::instance()->videoType(VT_MAIN);
     CVCapture::instance()->loadCalibrations(SLApplication::getComputerInfos(), // deviceInfo string
                                             dirs.slDataRoot + "/config/",           // for calibrations made
                                             dirs.slDataRoot + "/calibrations/",     // for calibInitPath
@@ -118,14 +117,13 @@ void JNICALL Java_ch_fhnw_comgr_GLES3Lib_onTerminate(JNIEnv *env, jclass obj)
 extern "C" JNIEXPORT
 jboolean JNICALL Java_ch_fhnw_comgr_GLES3Lib_onUpdateTracking(JNIEnv *env, jclass obj)
 {
-    //return onUpdateTracking();
-    return false;
+    return WAIApp::update();
 }
 //-----------------------------------------------------------------------------
 extern "C" JNIEXPORT
 jboolean JNICALL Java_ch_fhnw_comgr_GLES3Lib_onUpdateScene(JNIEnv *env, jclass obj)
 {
-    return WAIApp::update();
+    return slUpdateScene();
 }
 //-----------------------------------------------------------------------------
 extern "C" JNIEXPORT
@@ -233,12 +231,6 @@ void JNICALL Java_ch_fhnw_comgr_GLES3Lib_copyVideoImage(JNIEnv *env, jclass obj,
 
     float scrWdivH = SLApplication::scene->sceneView(0)->scrWdivH();
     CVCapture::instance()->loadIntoLastFrame(scrWdivH, imgWidth, imgHeight, PF_yuv_420_888, srcLumaPtr, true);
-
-    WAI::CameraData cameraData = {};
-    cameraData.imageGray       = &CVCapture::instance()->lastFrameGray;
-    cameraData.imageRGB        = &CVCapture::instance()->lastFrame;
-    WAIApp::updateCamera(&cameraData);
-
 }
 //-----------------------------------------------------------------------------
 extern "C" JNIEXPORT

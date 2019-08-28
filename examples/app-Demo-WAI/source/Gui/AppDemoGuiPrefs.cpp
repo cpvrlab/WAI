@@ -127,7 +127,7 @@ void GUIPreferences::load(SLint dotsPerInch)
 }
 
 
-void GUIPreferences::saveConfig()
+void GUIPreferences::save()
 {
     ImGuiStyle& style               = ImGui::GetStyle();
     SLstring    fullPathAndFilename = SLApplication::configPath +

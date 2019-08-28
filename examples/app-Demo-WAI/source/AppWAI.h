@@ -36,7 +36,6 @@ class WAIApp
 
     static void onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid);
     static bool update();
-    static void updateCamera(WAI::CameraData* cameraData);
     static void updateMinNumOfCovisibles(int n);
 
     static void updateTrackingVisualization(const bool iKnowWhereIAm);

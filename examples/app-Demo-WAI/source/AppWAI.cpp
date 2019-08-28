@@ -165,16 +165,16 @@ void WAIApp::onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
     sv->doWaitOnIdle(false); //for constant video feed
     sv->camera(waiScene->cameraNode);
 
-    if (videoImage == nullptr)
-    {
-        videoImage = new SLGLTexture("LiveVideoError.png", GL_LINEAR, GL_LINEAR);
-    }
+    CVCapture::instance()->videoType(VT_MAIN);
+    videoImage = new SLGLTexture("LiveVideoError.png", GL_LINEAR, GL_LINEAR);
     waiScene->cameraNode->background().texture(videoImage);
+
     waiScene->cameraNode->fov(wc->calcCameraFOV());
 
     s->root3D(waiScene->rootNode);
 
     sv->onInitialize();
+    sv->doWaitOnIdle(false);
 
     mode = ((WAI::ModeOrbSlam2*)wai->setMode(WAI::ModeType_ORB_SLAM2));
 }
@@ -184,6 +184,30 @@ bool WAIApp::update()
 {
     if(!loaded)
         return false;
+
+    if (CVCapture::instance()->videoType() != VT_NONE && !CVCapture::instance()->lastFrame.empty())
+    {
+        if (videoWriter->isOpened())
+        {
+            videoWriter->write(CVCapture::instance()->lastFrame);
+        }
+        WAI::CameraData cameraData = {};
+        cameraData.imageGray = &CVCapture::instance()->lastFrameGray;
+        cameraData.imageRGB = &CVCapture::instance()->lastFrame;
+        wai->updateSensor(WAI::SensorType_Camera, &cameraData);
+
+        videoImage->copyVideoImage(CVCapture::instance()->lastFrame.cols,
+                                   CVCapture::instance()->lastFrame.rows,
+                                   CVCapture::instance()->format,
+                                   CVCapture::instance()->lastFrame.data,
+                                   CVCapture::instance()->lastFrame.isContinuous(),
+                                   true);
+
+        if (videoWriterInfo->isOpened())
+        {
+            videoWriterInfo->write(*cameraData.imageRGB);
+        }
+    }
 
     cv::Mat      pose          = cv::Mat(4, 4, CV_32F);
     bool         iKnowWhereIAm = wai->whereAmI(&pose);
@@ -221,7 +245,7 @@ bool WAIApp::update()
         waiScene->cameraNode->om(slPose);
     }
 
-    return slUpdateScene();
+    return true;
 }
 //-----------------------------------------------------------------------------
 void WAIApp::updateTrackingVisualization(const bool iKnowWhereIAm)
@@ -290,23 +314,8 @@ void WAIApp::updateTrackingVisualization(const bool iKnowWhereIAm)
     //update pose graph visualization
     renderGraphs();
 }
-//-----------------------------------------------------------------------------
-void WAIApp::updateCamera(WAI::CameraData* cameraData)
-{
-    if(!loaded || videoImage == nullptr)
-        return;
 
-    if (videoWriter->isOpened()) {
-        videoWriter->write(*cameraData->imageRGB);
-    }
 
-    wai->updateSensor(WAI::SensorType_Camera, cameraData);
-    refreshTexture(cameraData->imageRGB);
-
-    if (videoWriterInfo->isOpened()) {
-        videoWriterInfo->write(*cameraData->imageRGB);
-    }
-}
 //-----------------------------------------------------------------------------
 void WAIApp::updateMinNumOfCovisibles(int n)
 {

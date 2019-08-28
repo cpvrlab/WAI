@@ -8,7 +8,7 @@ class GUIPreferences
     GUIPreferences();
     void reset();
     void load(SLint dotsPerInch);
-    void saveConfig();
+    void save();
 
     SLbool       showAbout;            //!< Flag if about info should be shown
     SLbool       showHelp;             //!< Flag if help info should be shown

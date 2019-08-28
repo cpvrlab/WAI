@@ -557,11 +557,6 @@ int main(int argc, char* argv[])
         if (CVCapture::instance()->videoType() != VT_NONE)
         {
             CVCapture::instance()->grabAndAdjustForSL(scrWdivH);
-
-            WAI::CameraData cameraData = {};
-            cameraData.imageGray       = &CVCapture::instance()->lastFrameGray;
-            cameraData.imageRGB        = &CVCapture::instance()->lastFrame;
-            WAIApp::updateCamera(&cameraData);
         }
 
         WAIApp::update();

@@ -19,7 +19,7 @@ class AppDemoGuiAbout : public AppDemoGuiInfosDialog
     void centerNextWindow(SLSceneView* sv, SLfloat widthPC = 0.9f, SLfloat heightPC = 0.9f);
 
     SLstring     _infoAbout;
-    SLGLTexture* _cpvrLogo;
+    //SLGLTexture* _cpvrLogo;
 };
 
 #endif //SL_IMGUI_TRACKEDMAPPING_H
