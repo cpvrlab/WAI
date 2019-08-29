@@ -118,6 +118,7 @@ void AppDemoGuiVideoStorage::saveVideo(std::string filename)
 //-----------------------------------------------------------------------------
 void AppDemoGuiVideoStorage::buildInfos(SLScene* s, SLSceneView* sv)
 {
+    ImGui::Begin("Video storage", _activator, ImGuiWindowFlags_AlwaysAutoResize);
     if (ImGui::Button("Start recording", ImVec2(ImGui::GetContentRegionAvailWidth(), 0.0f)))
     {
         std::string filename;
@@ -164,4 +165,5 @@ void AppDemoGuiVideoStorage::buildInfos(SLScene* s, SLSceneView* sv)
             ImGui::EndCombo();
         }
     }
+    ImGui::End();
 }

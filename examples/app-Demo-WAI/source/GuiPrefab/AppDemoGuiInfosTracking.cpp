@@ -28,6 +28,8 @@ AppDemoGuiInfosTracking::AppDemoGuiInfosTracking(std::string        name,
 void AppDemoGuiInfosTracking::buildInfos(SLScene* s, SLSceneView* sv)
 {
     //-------------------------------------------------------------------------
+
+    ImGui::Begin("Tracking Informations", _activator, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
     //numbers
     //add tracking state
     ImGui::Text("Tracking State : %s ", _mode->getPrintableState().c_str());
@@ -133,4 +135,5 @@ void AppDemoGuiInfosTracking::buildInfos(SLScene* s, SLSceneView* sv)
         ImGui::Checkbox("Show loop edges", &b);
         WAIApp::showLoopEdges = b;
     }
+    ImGui::End();
 }

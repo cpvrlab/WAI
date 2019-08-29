@@ -15,6 +15,7 @@ AppDemoGuiTrackedMapping::AppDemoGuiTrackedMapping(string name, WAI::ModeOrbSlam
 //-----------------------------------------------------------------------------
 void AppDemoGuiTrackedMapping::buildInfos(SLScene* s, SLSceneView* sv)
 {
+    ImGui::Begin("Tracked Mapping", _activator, ImGuiWindowFlags_AlwaysAutoResize);
     if (ImGui::Button("Reset", ImVec2(ImGui::GetContentRegionAvailWidth(), 0.0f)))
     {
         _orbSlamMode->reset();
@@ -42,4 +43,6 @@ void AppDemoGuiTrackedMapping::buildInfos(SLScene* s, SLSceneView* sv)
     {
         _orbSlamMode->setTrackOptFlow(b);
     }
+
+    ImGui::End();
 }

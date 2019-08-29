@@ -12,22 +12,22 @@
 #include <AppDemoGui.h>
 #include <AppDemoGuiMenu.h>
 #include <AppDemoGuiInfosDialog.h>
-#include <AppDemoGuiTrackedMapping.h>
 #include <AppDemoGuiAbout.h>
-#include <AppDemoGuiStatsTiming.h>
-#include <AppDemoGuiStatsDebugTiming.h>
-#include <AppDemoGuiStatsVideo.h>
-#include <AppDemoGuiInfosScene.h>
-#include <AppDemoGuiSceneGraph.h>
-#include <AppDemoGuiTransform.h>
 #include <AppDemoGuiInfosFrameworks.h>
-#include <AppDemoGuiInfosSensors.h>
-#include <AppDemoGuiUIPrefs.h>
-#include <AppDemoGuiProperties.h>
-#include <AppDemoGuiMapStorage.h>
-#include <AppDemoGuiVideoStorage.h>
 #include <AppDemoGuiInfosMapNodeTransform.h>
+#include <AppDemoGuiInfosScene.h>
+#include <AppDemoGuiInfosSensors.h>
 #include <AppDemoGuiInfosTracking.h>
+#include <AppDemoGuiMapStorage.h>
+#include <AppDemoGuiProperties.h>
+#include <AppDemoGuiSceneGraph.h>
+#include <AppDemoGuiStatsDebugTiming.h>
+#include <AppDemoGuiStatsTiming.h>
+#include <AppDemoGuiStatsVideo.h>
+#include <AppDemoGuiTrackedMapping.h>
+#include <AppDemoGuiTransform.h>
+#include <AppDemoGuiUIPrefs.h>
+#include <AppDemoGuiVideoStorage.h>
 #include <AppWAI.h>
 #include <AppDirectories.h>
 
@@ -76,6 +76,7 @@ int WAIApp::load(int width, int height, float scr2fbX, float scr2fbY, int dpi, A
     wc->loadFromFile(dirs->waiDataRoot + "/calibrations/cam_calibration_main.xml");
     WAI::CameraCalibration calibration = wc->getCameraCalibration();
     wai->activateSensor(WAI::SensorType_Camera, &calibration);
+    mode = ((WAI::ModeOrbSlam2*)wai->setMode(WAI::ModeType_ORB_SLAM2));
 
     SLVstring empty;
     empty.push_back("WAI APP");
@@ -109,16 +110,33 @@ int WAIApp::load(int width, int height, float scr2fbX, float scr2fbY, int dpi, A
 void WAIApp::setupGUI()
 {
     aboutDial = new AppDemoGuiAbout("about", cpvrLogo, &uiPrefs.showAbout);
-    AppDemoGui::addInfoDialog(new AppDemoGuiStatsTiming("timing", &uiPrefs.showStatsTiming));
-    AppDemoGui::addInfoDialog(new AppDemoGuiStatsDebugTiming("debug timing", &uiPrefs.showStatsDebugTiming));
-    AppDemoGui::addInfoDialog(new AppDemoGuiStatsVideo("video", wc, &uiPrefs.showStatsVideo));
-    AppDemoGui::addInfoDialog(new AppDemoGuiInfosScene("scene", &uiPrefs.showInfosScene));
-    AppDemoGui::addInfoDialog(new AppDemoGuiSceneGraph("scene graph", &uiPrefs.showSceneGraph));
-    AppDemoGui::addInfoDialog(new AppDemoGuiTransform("transform", &uiPrefs.showTransform));
     AppDemoGui::addInfoDialog(new AppDemoGuiInfosFrameworks("frameworks", &uiPrefs.showInfosFrameworks));
+    AppDemoGui::addInfoDialog(new AppDemoGuiInfosMapNodeTransform("map node",
+                                                                   waiScene->mapNode,
+                                                                   (WAI::ModeOrbSlam2*)wai->getCurrentMode(),
+                                                                   dirs->writableDir,
+                                                                   &uiPrefs.showInfosMapNodeTransform));
+
+    AppDemoGui::addInfoDialog(new AppDemoGuiInfosScene("scene", &uiPrefs.showInfosScene));
     AppDemoGui::addInfoDialog(new AppDemoGuiInfosSensors("sensors", &uiPrefs.showInfosSensors));
-    AppDemoGui::addInfoDialog(new AppDemoGuiUIPrefs("prefs", &uiPrefs, &uiPrefs.showUIPrefs));
+    AppDemoGui::addInfoDialog(new AppDemoGuiInfosTracking("tracking", (WAI::ModeOrbSlam2*)wai->getCurrentMode(),
+                                                          &uiPrefs.showInfosTracking));
+
+    AppDemoGui::addInfoDialog(new AppDemoGuiMapStorage("map storage", (WAI::ModeOrbSlam2*)wai->getCurrentMode(),
+                                                       waiScene->mapNode,
+                                                       dirs->writableDir, &uiPrefs.showMapStorage));
+
     AppDemoGui::addInfoDialog(new AppDemoGuiProperties("properties", &uiPrefs.showProperties));
+    AppDemoGui::addInfoDialog(new AppDemoGuiSceneGraph("scene graph", &uiPrefs.showSceneGraph));
+    AppDemoGui::addInfoDialog(new AppDemoGuiStatsDebugTiming("debug timing", &uiPrefs.showStatsDebugTiming));
+    AppDemoGui::addInfoDialog(new AppDemoGuiStatsTiming("timing", &uiPrefs.showStatsTiming));
+    AppDemoGui::addInfoDialog(new AppDemoGuiStatsVideo("video", wc, &uiPrefs.showStatsVideo));
+    AppDemoGui::addInfoDialog(new AppDemoGuiTrackedMapping("tracked mapping", (WAI::ModeOrbSlam2*)wai->getCurrentMode(),
+                                                           &uiPrefs.showTrackedMapping));
+
+    AppDemoGui::addInfoDialog(new AppDemoGuiTransform("transform", &uiPrefs.showTransform));
+    AppDemoGui::addInfoDialog(new AppDemoGuiUIPrefs("prefs", &uiPrefs, &uiPrefs.showUIPrefs));
+    AppDemoGui::addInfoDialog(new AppDemoGuiVideoStorage("video storage", dirs->writableDir, videoWriter, videoWriterInfo, &uiPrefs.showVideoStorage));
 }
 
 void WAIApp::buildGUI(SLScene* s, SLSceneView* sv)
@@ -178,9 +196,7 @@ void WAIApp::onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
     s->root3D(waiScene->rootNode);
 
     sv->onInitialize();
-    //sv->doWaitOnIdle(false);
-
-    mode = ((WAI::ModeOrbSlam2*)wai->setMode(WAI::ModeType_ORB_SLAM2));
+    sv->doWaitOnIdle(false);
 }
 
 //-----------------------------------------------------------------------------

@@ -1,4 +1,5 @@
 #include <SL.h>
+
 #include <SLApplication.h>
 #include <SLGLImGui.h>
 #include <AppDemoGuiPrefs.h>
@@ -13,22 +14,26 @@ GUIPreferences::GUIPreferences()
 
 void GUIPreferences::reset()
 {
-    showAbout            = true;
-    showHelp             = false;
-    showHelpCalibration  = false;
-    showCredits          = false;
-    showStatsTiming      = false;
-    showStatsScene       = false;
-    showStatsVideo       = false;
-    showInfosSensors     = false;
-    showInfosFrameworks  = false;
-    showInfosScene       = false;
-    showSceneGraph       = false;
-    showProperties       = false;
-    showChristoffel      = false;
-    showStatsDebugTiming = false;
-    showUIPrefs          = false;
-    showTransform        = false;
+    showAbout                 = true;
+    showChristoffel           = false;
+    showCredits               = false;
+    showHelp                  = false;
+    showHelpCalibration       = false;
+    showInfosFrameworks       = false;
+    showInfosMapNodeTransform = false;
+    showInfosScene            = false;
+    showInfosSensors          = false;
+    showProperties            = false;
+    showSceneGraph            = false;
+    showStatsDebugTiming      = false;
+    showStatsScene            = false;
+    showStatsTiming           = false;
+    showStatsVideo            = false;
+    showTransform             = false;
+    showTrackedMapping        = false;
+    showUIPrefs               = false;
+    showMapStorage            = false;
+    showVideoStorage          = false;
 };
 
 void GUIPreferences::setDPI(int dotsPerInch)

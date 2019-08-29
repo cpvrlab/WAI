@@ -192,6 +192,7 @@ void AppDemoGuiMenu::build(GUIPreferences * prefs, SLScene* s, SLSceneView* sv)
             }
 
             ImGui::MenuItem("Stats on Scene", nullptr, &prefs->showStatsScene);
+            ImGui::MenuItem("Infos Map Node Transform", nullptr, &prefs->showInfosMapNodeTransform);
             ImGui::MenuItem("Stats on Video", nullptr, &prefs->showStatsVideo);
             ImGui::Separator();
             ImGui::MenuItem("Show Scenegraph", nullptr, &prefs->showSceneGraph);
@@ -200,10 +201,13 @@ void AppDemoGuiMenu::build(GUIPreferences * prefs, SLScene* s, SLSceneView* sv)
             ImGui::Separator();
             ImGui::MenuItem("Infos on Sensors", nullptr, &prefs->showInfosSensors);
             ImGui::MenuItem("Infos on Frameworks", nullptr, &prefs->showInfosFrameworks);
-
+            ImGui::MenuItem("Infos on Tracking", nullptr, &prefs->showInfosTracking);
             ImGui::Separator();
             ImGui::MenuItem("Help on Interaction", nullptr, &prefs->showHelp);
             ImGui::MenuItem("Help on Calibration", nullptr, &prefs->showHelpCalibration);
+            ImGui::MenuItem("Map storage", nullptr, &prefs->showMapStorage);
+            ImGui::MenuItem("Tracked Mapping", nullptr, &prefs->showTrackedMapping);
+            ImGui::MenuItem("Video Storage", nullptr, &prefs->showVideoStorage);
             ImGui::Separator();
             ImGui::MenuItem("UI Preferences", nullptr, &prefs->showUIPrefs);
             ImGui::MenuItem("Credits", nullptr, &prefs->showCredits);

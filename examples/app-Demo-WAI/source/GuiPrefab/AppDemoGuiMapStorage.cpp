@@ -268,6 +268,7 @@ void AppDemoGuiMapStorage::buildInfos(SLScene* s, SLSceneView* sv)
     if (!_map)
         return;
 
+    ImGui::Begin("Map storage", _activator, ImGuiWindowFlags_AlwaysAutoResize);
     if (ImGui::Button("Save map", ImVec2(ImGui::GetContentRegionAvailWidth(), 0.0f)))
     {
         saveMap();
@@ -747,4 +748,5 @@ void AppDemoGuiMapStorage::buildInfos(SLScene* s, SLSceneView* sv)
 #endif
         }
     }
+    ImGui::End();
 }

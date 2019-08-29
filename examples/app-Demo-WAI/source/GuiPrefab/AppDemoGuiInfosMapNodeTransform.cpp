@@ -32,15 +32,18 @@ AppDemoGuiInfosMapNodeTransform::AppDemoGuiInfosMapNodeTransform(
 //-----------------------------------------------------------------------------
 void AppDemoGuiInfosMapNodeTransform::buildInfos(SLScene* s, SLSceneView* sv)
 {
+    ImGui::Begin("Node Transform", _activator, ImGuiWindowFlags_AlwaysAutoResize);
     static SLTransformSpace tSpace = TS_world;
     ImGui::Text("Transf. Space:");
     ImGui::SameLine();
+    ImGui::BeginGroup();
     if (ImGui::RadioButton("Object", (int*)&tSpace, 0)) tSpace = TS_object;
     ImGui::SameLine();
     if (ImGui::RadioButton("World", (int*)&tSpace, 1)) tSpace = TS_world;
     ImGui::SameLine();
     if (ImGui::RadioButton("Parent", (int*)&tSpace, 2)) tSpace = TS_parent;
     ImGui::Separator();
+    ImGui::EndGroup();
 
     static SLfloat sp = 3; //spacing
     SLfloat        bW = (ImGui::GetContentRegionAvailWidth() - 2 * sp) / 3;
@@ -134,4 +137,6 @@ void AppDemoGuiInfosMapNodeTransform::buildInfos(SLScene* s, SLSceneView* sv)
                                cvOm,
                                _externalDir);
     }
+
+    ImGui::End();
 }
