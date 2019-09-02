@@ -2,6 +2,8 @@
 #include <iostream>
 #include <WAICalibration.h>
 #include <WAISensorCamera.h>
+#include <SLApplication.h>
+#include <Utils.h>
 
 using namespace std;
 using namespace cv;
@@ -41,13 +43,40 @@ void WAICalibration::computeMatrix(cv::Mat& mat, float fov)
     mat      = (Mat_<double>(3, 3) << fx, 0, cx, 0, fy, cy, 0, 0, 1);
 }
 
-
 std::string WAICalibration::stateStr()
 {
     if (_state == CalibrationState_Guess)
         return std::string("Guess");
     else
         return std::string("Calibrated");
+}
+
+bool WAICalibration::saveToFile(std::string path)
+{
+    FileStorage fs(path, FileStorage::WRITE);
+    if (!fs.isOpened())
+    {
+        return false;
+    }
+
+    fs << "imageSizeWidth" << _imgSize.width;
+    fs << "imageSizeHeight" << _imgSize.height;
+    fs << "cameraMat" << _cameraMat;
+    fs << "distortion" << _distortion;
+    fs << "numCaptured" << _numCaptured;
+    fs << "isMirroredH" << _isMirroredH;
+    fs << "isMirroredV" << _isMirroredV;
+    fs << "calibFixAspectRatio" << _calibFixAspectRatio;
+    fs << "calibFixPrincipalPoint" << _calibFixPrincipalPoint;
+    fs << "calibZeroTangentDist" << _calibZeroTangentDist;
+    fs << "reprojectionError" << _reprojectionError;
+    fs << "calibrationTime" << _calibrationTime;
+    fs << "camSizeIndex" << _camSizeIndex;
+    fs << "FOV" << calcCameraHorizontalFOV();
+    fs << "ComputerModel" << SLApplication::computerModel;
+    fs << "CreationDate" << Utils::getDateTime2String();
+
+    fs.release();
 }
 
 bool WAICalibration::loadFromFile(std::string path)
@@ -62,14 +91,23 @@ bool WAICalibration::loadFromFile(std::string path)
     fs["imageSizeHeight"] >> _imgSize.height;
     fs["cameraMat"] >> _cameraMat;
     fs["distortion"] >> _distortion;
-
+    fs["numCaptured"] >> _numCaptured;
+    fs["isMirroredH"] >> _isMirroredH;
+    fs["isMirroredV"] >> _isMirroredV;
+    fs["calibFixAspectRatio"] >> _calibFixAspectRatio;
+    fs["calibFixPrincipalPoint"] >> _calibFixPrincipalPoint;
+    fs["calibZeroTangentDist"] >> _calibZeroTangentDist;
+    fs["reprojectionError"] >> _reprojectionError;
+    fs["calibrationTime"] >> _calibrationTime;
+    fs["camSizeIndex"] >> _camSizeIndex;
+    fs["ComputerModel"] >> _computerModel;
+    fs["CreationDate"] >> _creationDate;
     fs.release();
-    _state = CalibrationState_Calibrated;
 
-    float fov = calcCameraFOV();
+    _state = CalibrationState_Calibrated;
+    float fov = calcCameraHorizontalFOV();
 
     _calibrationPath = path;
-
     std::cout << "calibration file " << path << " loaded.    FOV = " << fov << std::endl;
     return true;
 }
@@ -80,20 +118,31 @@ WAI::CameraCalibration WAICalibration::getCameraCalibration()
     return calibration;
 }
 
-float WAICalibration::calcCameraFOV()
+float WAICalibration::calcCameraVerticalFOV()
 {
-    //calculate vertical field of view
-    float fy     = _cameraMat.at<double>(1, 1);
-    float cy     = _cameraMat.at<double>(1, 2);
-    float fovRad = 2.0 * atan2(cy, fy);
-    return fovRad * 180.0 / M_PI;
+    float fy       = (float)_cameraMat.at<double>(1, 1);
+    float cy       = (float)_cameraMat.at<double>(1, 2);
+    return 2.0 * atan2(cy, fy) * 180.0 / M_PI;
 }
 
-float WAICalibration::calcCameraFOV(cv::Mat& cameraMat)
+float WAICalibration::calcCameraHorizontalFOV()
 {
-    //calculate vertical field of view
-    float fy     = cameraMat.at<double>(1, 1);
-    float cy     = cameraMat.at<double>(1, 2);
-    float fovRad = 2.0 * atan2(cy, fy);
-    return fovRad * 180.0 / M_PI;
+    float fx       = (float)_cameraMat.at<double>(0, 0);
+    float cx       = (float)_cameraMat.at<double>(0, 2);
+    return 2.0 * atan2(cx, fx) * 180.0 / M_PI;
 }
+
+float WAICalibration::calcCameraVerticalFOV(cv::Mat& cameraMat)
+{
+    float fy       = (float)cameraMat.at<double>(1, 1);
+    float cy       = (float)cameraMat.at<double>(1, 2);
+    return 2.0 * atan2(cy, fy) * 180.0 / M_PI;
+}
+
+float WAICalibration::calcCameraHorizontalFOV(cv::Mat& cameraMat)
+{
+    float fx       = (float)cameraMat.at<double>(0, 0);
+    float cx       = (float)cameraMat.at<double>(0, 2);
+    return 2.0 * atan2(cx, fx) * 180.0 / M_PI;
+}
+

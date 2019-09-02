@@ -26,7 +26,7 @@ void AppDemoGuiStatsVideo::buildInfos(SLScene* s, SLSceneView* sv)
 
     if (_wc != nullptr)
     {
-        sprintf(m + strlen(m), "FOV (deg.)    : %4.1f\n", _wc->calcCameraFOV());
+        sprintf(m + strlen(m), "FOV (deg.)    : %4.1f\n", _wc->calcCameraHorizontalFOV());
         sprintf(m + strlen(m), "fx,fy,cx,cy   : %4.1f,%4.1f,%4.1f,%4.1f\n", _wc->fx(), _wc->fy(), _wc->cx(), _wc->cy());
         sprintf(m + strlen(m), "k1,k2,p1,p2   : %4.2f,%4.2f,%4.2f,%4.2f\n", _wc->k1(), _wc->k2(), _wc->p1(), _wc->p2());
         sprintf(m + strlen(m), "Calib. file   : %s\n", _wc->getCalibrationPath().c_str());

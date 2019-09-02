@@ -10,6 +10,7 @@
 
 #include <imgui.h>
 #include <imgui_internal.h>
+#include <stdio.h>
 
 #include <Utils.h>
 #include <AppDemoGuiVideoStorage.h>
@@ -27,7 +28,6 @@ AppDemoGuiVideoStorage::AppDemoGuiVideoStorage(const std::string& name, std::str
     _videoWriterInfo(videoWriterInfo)
 {
     _videoDir = Utils::unifySlashes(videoDir);
-    //_videoDir = videoDir;
     _currentItem = "";
 
     _existingVideoNames.clear();

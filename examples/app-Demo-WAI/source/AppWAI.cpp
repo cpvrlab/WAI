@@ -73,7 +73,7 @@ int WAIApp::load(int width, int height, float scr2fbX, float scr2fbY, int dpi, A
     videoWriterInfo = new cv::VideoWriter();
 
     wc->changeImageSize(width, height);
-    wc->loadFromFile(dirs->waiDataRoot + "/calibrations/cam_calibration_main.xml");
+    wc->loadFromFile(dirs->writableDir + "/calibrations/cam_calibration_main.xml");
     WAI::CameraCalibration calibration = wc->getCameraCalibration();
     wai->activateSensor(WAI::SensorType_Camera, &calibration);
     mode = ((WAI::ModeOrbSlam2*)wai->setMode(WAI::ModeType_ORB_SLAM2));
@@ -136,7 +136,7 @@ void WAIApp::setupGUI()
 
     AppDemoGui::addInfoDialog(new AppDemoGuiTransform("transform", &uiPrefs.showTransform));
     AppDemoGui::addInfoDialog(new AppDemoGuiUIPrefs("prefs", &uiPrefs, &uiPrefs.showUIPrefs));
-    AppDemoGui::addInfoDialog(new AppDemoGuiVideoStorage("video storage", dirs->writableDir, videoWriter, videoWriterInfo, &uiPrefs.showVideoStorage));
+    AppDemoGui::addInfoDialog(new AppDemoGuiVideoStorage("video storage", dirs->writableDir + "/videos/", videoWriter, videoWriterInfo, &uiPrefs.showVideoStorage));
 }
 
 void WAIApp::buildGUI(SLScene* s, SLSceneView* sv)
@@ -150,15 +150,6 @@ void WAIApp::buildGUI(SLScene* s, SLSceneView* sv)
         AppDemoGui::buildInfosDialogs(s, sv);
         AppDemoGuiMenu::build(&uiPrefs, s, sv);
     }
-}
-
-void WAIApp::openTest(std::string path)
-{
-    cv::FileStorage fs(path, cv::FileStorage::READ);
-    cv::FileNode n = fs["Links"];
-    std::string cal_path = (std::string)n["Calibration"];
-    std::string vid_path = (std::string)n["Videos"];
-    std::string map_path = (std::string)n["Maps"];
 }
 
 void WAIApp::refreshTexture(cv::Mat *image)
@@ -191,7 +182,7 @@ void WAIApp::onLoadWAISceneView(SLScene* s, SLSceneView* sv, SLSceneID sid)
     videoImage = new SLGLTexture("LiveVideoError.png", GL_LINEAR, GL_LINEAR);
     waiScene->cameraNode->background().texture(videoImage);
 
-    waiScene->cameraNode->fov(wc->calcCameraFOV());
+    waiScene->cameraNode->fov(wc->calcCameraHorizontalFOV());
 
     s->root3D(waiScene->rootNode);
 

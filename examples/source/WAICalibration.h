@@ -18,11 +18,15 @@ class WAICalibration
     public:
     WAICalibration();
     virtual bool loadFromFile(std::string path);
+    virtual bool saveToFile(std::string path);
     virtual void reset();
     virtual void changeImageSize(int width, int height);
 
-    float                  calcCameraFOV(cv::Mat& mat);
-    float                  calcCameraFOV();
+    float calcCameraVerticalFOV();
+    float calcCameraHorizontalFOV();
+    float calcCameraVerticalFOV(cv::Mat& cameraMat);
+    float calcCameraHorizontalFOV(cv::Mat& cameraMat);
+
     void                   computeMatrix(cv::Mat& mat, float fov);
     WAI::CameraCalibration getCameraCalibration();
     cv::Mat&               cameraMat() { return _cameraMat; }
@@ -47,5 +51,16 @@ class WAICalibration
     cv::Size         _imgSize;
     float            _cameraFovDeg;
     std::string      _calibrationPath;
+    int              _numCaptured;
+    bool             _isMirroredH;
+    bool             _isMirroredV;
+    bool             _calibFixAspectRatio;
+    bool             _calibFixPrincipalPoint;
+    bool             _calibZeroTangentDist;
+    float            _reprojectionError;
+    float            _calibrationTime;
+    int              _camSizeIndex;
+    std::string      _computerModel;
+    std::string      _creationDate;
 };
 #endif
