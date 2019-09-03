@@ -11,7 +11,9 @@
 #include <WAIKeyFrameDB.h>
 #include <WAIMap.h>
 #include <WAIOrbVocabulary.h>
+#include <WAIInitializerOrbSlam.h>
 
+#include <SURFextractor.h>
 #include <OrbSlam/LocalMapping.h>
 #include <OrbSlam/LoopClosing.h>
 #include <OrbSlam/Initializer.h>
@@ -120,10 +122,10 @@ class WAI_API ModeOrbSlam2 : public Mode
         TrackingType_OptFlow
     };
 
-    void initialize();
-    void initializeWithKnownPose(int minKeys = 100, bool matchesKnown = false);
-    void initializeWithArucoMarkerCorrection();
-    void initializeWithChessboardCorrection();
+    //void initialize();
+    //void initializeWithKnownPose(int minKeys = 100, bool matchesKnown = false);
+    //void initializeWithArucoMarkerCorrection();
+    //void initializeWithChessboardCorrection();
     bool createInitialMapMonocular();
     void track3DPts();
 
@@ -164,11 +166,13 @@ class WAI_API ModeOrbSlam2 : public Mode
     WAIMap*        _map               = nullptr;
 
     ORB_SLAM2::ORBVocabulary* mpVocabulary      = nullptr;
-    ORB_SLAM2::ORBextractor*  _extractor        = nullptr;
-    ORB_SLAM2::ORBextractor*  mpIniORBextractor = nullptr;
+    ORB_SLAM2::KPextractor*   _extractor        = nullptr;
+    ORB_SLAM2::KPextractor*   mpIniORBextractor = nullptr;
     ORB_SLAM2::LocalMapping*  mpLocalMapper     = nullptr;
     ORB_SLAM2::LoopClosing*   mpLoopCloser      = nullptr;
-    ORB_SLAM2::Initializer*   mpInitializer     = nullptr;
+    //ORB_SLAM2::Initializer*   mpInitializer     = nullptr;
+
+    WAIInitializer* _initializer;
 
     std::thread* mptLocalMapping = nullptr;
     std::thread* mptLoopClosing  = nullptr;
@@ -269,10 +273,10 @@ class WAI_API ModeOrbSlam2 : public Mode
     int      _chessboardFlags;
     float    _chessboardWidthM;
 
-    WAIFrame         _markerFrame;
-    ORBextractor*    _markerOrbExtractor;
-    std::vector<int> _initialFrameToMarkerMatches;
-    bool             _relocalizeFromMarkerMap;
+    WAIFrame                _markerFrame;
+    ORB_SLAM2::KPextractor* _markerOrbExtractor;
+    std::vector<int>        _initialFrameToMarkerMatches;
+    bool                    _relocalizeFromMarkerMap;
 };
 }
 

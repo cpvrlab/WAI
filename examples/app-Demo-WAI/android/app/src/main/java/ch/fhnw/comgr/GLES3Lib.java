@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.lang.String;
 
 import javax.microedition.khronos.egl.EGL10;
 import javax.microedition.khronos.egl.EGLContext;
@@ -51,7 +52,9 @@ public class GLES3Lib {
     public static final int VIDEO_TYPE_FILE = 3;    // Maps to Androids front facing camera
 
     public static native void    onInit             (int width, int height, int dotsPerInch, String FilePath);
-    public static native boolean onUpdateAndPaint   ();
+    public static native boolean onUpdateTracking   ();
+    public static native boolean onUpdateScene      ();
+    public static native boolean onPaintAllViews    ();
     public static native void    onResize           (int width, int height);
     public static native void    onMouseDown        (int button, int x, int y);
     public static native void    onMouseUp          (int button, int x, int y);
@@ -62,8 +65,6 @@ public class GLES3Lib {
     public static native void    onDoubleClick      (int button, int x, int y);
     public static native void    onRotationQUAT     (float quatX, float quatY, float quatZ, float quatW);
     public static native void    onClose            ();
-    public static native boolean shouldClose        ();
-    public static native void    shouldClose        (boolean doClose);
     public static native boolean usesRotation       ();
     public static native boolean usesLocation       ();
     public static native void    onLocationLLA      (double latitudeDEG, double longitudeDEG, double altitudeM, float accuracyM);
@@ -75,8 +76,9 @@ public class GLES3Lib {
                                                      byte[] y, int ySize, int yPixStride, int yLineStride,
                                                      byte[] u, int uSize, int uPixStride, int uLineStride,
                                                      byte[] v, int vSize, int vPixStride, int vLineStride);
-    public static native void    onSetupExternalDirectories(String externalDirPath);
-
+    public static native void    onSetupExternalDir (String externalDirPath);
+    public static native void    setCameraSize      (int sizeIndex, int sizeIndexMax, int width, int height);
+    public static native void    setDeviceParameter (String parameter, String value);
 
     /**
      * The RaytracingCallback function is used to repaint the ray tracing image during the
@@ -87,7 +89,7 @@ public class GLES3Lib {
      */
     public static boolean RaytracingCallback() {
         // calls the OpenGL rendering to display the RT image on a simple rectangle
-        boolean stopSignal = GLES3Lib.onUpdateAndPaint();
+        boolean stopSignal = GLES3Lib.onPaintAllViews();
 
         // Do the OpenGL back to front buffer swap
         EGL10 mEgl = (EGL10) EGLContext.getEGL();
@@ -104,9 +106,9 @@ public class GLES3Lib {
     public static void extractAPK() throws IOException {
         FilesPath = App.getApplicationContext().getFilesDir().getAbsolutePath();
         Log.i("SLProject", "Destination: " + FilesPath);
-        extractAPKFolder(FilesPath, "textures");
+        extractAPKFolder(FilesPath, "images/textures");
         extractAPKFolder(FilesPath, "videos");
-        extractAPKFolder(FilesPath, "fonts");
+        extractAPKFolder(FilesPath, "images/fonts");
         extractAPKFolder(FilesPath, "models");
         extractAPKFolder(FilesPath, "shaders");
         extractAPKFolder(FilesPath, "calibrations");

@@ -8,6 +8,8 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
+#include <Utils.h>
+
 #include <SLApplication.h>
 #include <SLInterface.h>
 #include <SLGLProgram.h>
@@ -158,7 +160,7 @@ onLongTouch gets called from a 500ms timer after a mouse down event.
 void onLongTouch()
 {
     // forward the long touch only if the mouse or touch hasn't moved.
-    if (SL_abs(mouseX - startX) < 2 && SL_abs(mouseY - startY) < 2)
+    if (Utils::abs(mouseX - startX) < 2 && Utils::abs(mouseY - startY) < 2)
         slLongTouch(svIndex, mouseX, mouseY);
 }
 //-----------------------------------------------------------------------------
@@ -230,7 +232,7 @@ static void onMouseButton(GLFWwindow* window,
             else // normal mouse clicks
             {
                 // Start timer for the long touch detection
-                SLTimer::callAfterSleep(SLSceneView::LONGTOUCH_MS, onLongTouch);
+                HighResTimer::callAfterSleep(SLSceneView::LONGTOUCH_MS, onLongTouch);
 
                 switch (button)
                 {
@@ -333,7 +335,7 @@ static void onMouseWheel(GLFWwindow* window,
 {
     // make sure the delta is at least one integer
     int dY = (int)yscroll;
-    if (dY == 0) dY = (int)(SL_sign(yscroll));
+    if (dY == 0) dY = (int)(Utils::sign(yscroll));
 
     slMouseWheel(svIndex, dY, modifiers);
 }
@@ -428,7 +430,8 @@ void onGLFWError(int error, const char* description)
 
 bool update()
 {
-    bool viewNeedsRepaint = slUpdateAndPaint(svIndex);
+    slUpdateScene();
+    bool viewNeedsRepaint = slPaintAllViews();
 
     glfwSwapBuffers(window);
 
@@ -647,7 +650,7 @@ int main()
     scene->root3D(rootNode);
 
     sv->onInitialize();
-    scene->onAfterLoad();
+    //scene->onAfterLoad();
 
     // WAI initialization
     std::string orbVocFile   = std::string(WAI_ROOT) + "/data/calibrations/ORBvoc.bin";
@@ -843,8 +846,8 @@ int main()
                         redMat);
         renderKeyframes(map->GetAllKeyFrames(), keyFrameNode);
 
-        slUpdateAndPaint(svIndex);
-        glfwSwapBuffers(window);
+        update();
+
         glfwPollEvents();
     }
 

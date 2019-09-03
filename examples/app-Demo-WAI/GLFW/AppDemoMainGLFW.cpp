@@ -17,14 +17,12 @@
 #include <GLFW/glfw3.h>
 
 #include <AppDemoGui.h>
-#include <AppWAISceneView.h>
+#include <AppWAI.h>
 #include <WAIModeOrbSlam2.h>
 #include <WAIAutoCalibration.h>
-#include <AppWAISingleton.h>
-#include <AppDemoGuiVideoStorage.h>
 
-#include <SLCVCapture.h>
-#include <SLCVCalibration.h>
+#include <CVCapture.h>
+#include <CVCalibration.h>
 #include <SLKeyframeCamera.h>
 
 #include <SLBox.h>
@@ -37,42 +35,33 @@
 #include <SLLightSpot.h>
 #include <SLMaterial.h>
 #include <SLPoints.h>
+#include <Utils.h>
 
 #include <WAI.h>
 
-#define AUTO_CALIBRATION 0
-
 //-----------------------------------------------------------------------------
 // GLobal application variables
-static GLFWwindow*   window;                     //!< The global glfw window handle
-static SLint         svIndex;                    //!< SceneView index
-static SLint         scrWidth;                   //!< Window width at start up
-static SLint         scrHeight;                  //!< Window height at start up
-static SLbool        fixAspectRatio;             //!< Flag if aspect ratio should be fixed
-static SLfloat       scrWdivH;                   //!< aspect ratio screen width divided by height
-static SLfloat       scr2fbX;                    //!< Factor from screen to framebuffer coords
-static SLfloat       scr2fbY;                    //!< Factor from screen to framebuffer coords
-static SLint         startX;                     //!< start position x in pixels
-static SLint         startY;                     //!< start position y in pixels
-static SLint         mouseX;                     //!< Last mouse position x in pixels
-static SLint         mouseY;                     //!< Last mouse position y in pixels
-static SLVec2i       touch2;                     //!< Last finger touch 2 position in pixels
-static SLVec2i       touchDelta;                 //!< Delta between two fingers in x
-static SLint         lastWidth;                  //!< Last window width in pixels
-static SLint         lastHeight;                 //!< Last window height in pixels
-static SLfloat       lastMouseDownTime = 0.0f;   //!< Last mouse press time
-static SLKey         modifiers         = K_none; //!< last modifier keys
-static SLbool        fullscreen        = false;  //!< flag if window is in fullscreen mode
-static WAISceneView* sceneView         = nullptr;
+static GLFWwindow* window;                     //!< The global glfw window handle
+static SLint       svIndex;                    //!< SceneView index
+static SLint       scrWidth;                   //!< Window width at start up
+static SLint       scrHeight;                  //!< Window height at start up
+static SLbool      fixAspectRatio;             //!< Flag if aspect ratio should be fixed
+static SLfloat     scrWdivH;                   //!< aspect ratio screen width divided by height
+static SLfloat     scr2fbX;                    //!< Factor from screen to framebuffer coords
+static SLfloat     scr2fbY;                    //!< Factor from screen to framebuffer coords
+static SLint       startX;                     //!< start position x in pixels
+static SLint       startY;                     //!< start position y in pixels
+static SLint       mouseX;                     //!< Last mouse position x in pixels
+static SLint       mouseY;                     //!< Last mouse position y in pixels
+static SLVec2i     touch2;                     //!< Last finger touch 2 position in pixels
+static SLVec2i     touchDelta;                 //!< Delta between two fingers in x
+static SLint       lastWidth;                  //!< Last window width in pixels
+static SLint       lastHeight;                 //!< Last window height in pixels
+static SLfloat     lastMouseDownTime = 0.0f;   //!< Last mouse press time
+static SLKey       modifiers         = K_none; //!< last modifier keys
+static SLbool      fullscreen        = false;  //!< flag if window is in fullscreen mode
+static int         dpi;
 
-//-----------------------------------------------------------------------------
-//! Alternative SceneView creation function passed by slCreateSceneView
-SLuint createNewWAISceneView()
-{
-    sceneView = new WAISceneView(std::string(WAI_ROOT) + "/data/",
-                                 std::string(WAI_ROOT) + "/data/");
-    return sceneView->index();
-}
 //-----------------------------------------------------------------------------
 /*!
 onClose event handler for deallocation of the scene & sceneview. onClose is
@@ -82,25 +71,7 @@ void onClose(GLFWwindow* window)
 {
     slShouldClose(true);
 }
-//-----------------------------------------------------------------------------
-/*!
-onPaint: Paint event handler that passes the event to the slPaint function.
-*/
-SLbool onPaint()
-{
-    //////////////////////////////////////////////////
-    bool viewNeedsRepaint;
-    viewNeedsRepaint = slUpdateAndPaint(svIndex);
-    //////////////////////////////////////////////////
 
-    // Fast copy the back buffer to the front buffer. This is OS dependent.
-    glfwSwapBuffers(window);
-
-    // Show the title generated by the scene library (FPS etc.)
-    glfwSetWindowTitle(window, slGetWindowTitle(svIndex).c_str());
-
-    return viewNeedsRepaint;
-}
 //-----------------------------------------------------------------------------
 //! Maps the GLFW key codes to the SLKey codes
 SLKey mapKeyToSLKey(SLint key)
@@ -199,7 +170,7 @@ onLongTouch gets called from a 500ms timer after a mouse down event.
 void onLongTouch()
 {
     // forward the long touch only if the mouse or touch hasn't moved.
-    if (SL_abs(mouseX - startX) < 2 && SL_abs(mouseY - startY) < 2)
+    if (Utils::abs(mouseX - startX) < 2 && Utils::abs(mouseY - startY) < 2)
         slLongTouch(svIndex, mouseX, mouseY);
 }
 //-----------------------------------------------------------------------------
@@ -271,7 +242,7 @@ static void onMouseButton(GLFWwindow* window,
             else // normal mouse clicks
             {
                 // Start timer for the long touch detection
-                SLTimer::callAfterSleep(SLSceneView::LONGTOUCH_MS, onLongTouch);
+                HighResTimer::callAfterSleep(SLSceneView::LONGTOUCH_MS, onLongTouch);
 
                 switch (button)
                 {
@@ -374,7 +345,7 @@ static void onMouseWheel(GLFWwindow* window,
 {
     // make sure the delta is at least one integer
     int dY = (int)yscroll;
-    if (dY == 0) dY = (int)(SL_sign(yscroll));
+    if (dY == 0) dY = (int)(Utils::sign(yscroll));
 
     slMouseWheel(svIndex, dY, modifiers);
 }
@@ -470,16 +441,9 @@ void onGLFWError(int error, const char* description)
     fputs(description, stderr);
 }
 //-----------------------------------------------------------------------------
-/*!
-The C main procedure running the GLFW GUI application.
-*/
-int main(int argc, char* argv[])
-{
-    // set command line arguments
-    SLVstring cmdLineArgs;
-    for (int i = 0; i < argc; i++)
-        cmdLineArgs.push_back(SLstring(argv[i]));
 
+void GLFWInit()
+{
     if (!glfwInit())
     {
         fprintf(stderr, "Failed to initialize GLFW\n");
@@ -497,8 +461,8 @@ int main(int argc, char* argv[])
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    int scrWidth  = 640;
-    int scrHeight = 480;
+    scrWidth  = 640;
+    scrHeight = 480;
 
     //we have to fix aspect ratio, because the video image is initialized with this ratio
     fixAspectRatio = true;
@@ -554,50 +518,10 @@ int main(int argc, char* argv[])
     GET_GL_ERROR;
 
     // Set your own physical screen dpi
-    int dpi = (int)(142 * scr2fbX);
+    dpi = (int)(142 * scr2fbX);
     cout << "------------------------------------------------------------------" << endl;
     cout << "GUI             : GLFW (Version: " << GLFW_VERSION_MAJOR << "." << GLFW_VERSION_MINOR << "." << GLFW_VERSION_REVISION << ")" << endl;
     cout << "DPI             : " << dpi << endl;
-
-    // get executable path
-    SLstring slRoot    = SLstring(WAI_ROOT) + "/thirdparty/SLProject";
-    SLstring waiRoot   = SLstring(WAI_ROOT);
-    SLstring configDir = Utils::getAppsWritableDir();
-    slSetupExternalDirectories(waiRoot + "/data");
-
-    /////////////////////////////////////////////////////////
-    AppWAISingleton::instance()->load(640, 480, waiRoot + "/data", new AutoCalibration(640, 480));
-
-    slCreateAppAndScene(cmdLineArgs,
-                        slRoot + "/data/shaders/",
-                        waiRoot + "/data/models/",
-                        slRoot + "/data/images/textures/",
-                        waiRoot + "/data/videos/",
-                        slRoot + "/data/images/fonts/",
-                        waiRoot + "/data/calibrations/",
-                        configDir,
-                        "AppDemoGLFW",
-                        (void*)onLoadWAISceneView);
-    /////////////////////////////////////////////////////////
-
-    // This load the GUI configs that are locally stored
-    AppDemoGui::loadConfig(dpi);
-
-    auto videoStorageGUI = std::make_shared<AppDemoGuiVideoStorage>("VideoStorage", waiRoot + "/data/videos/");
-    AppDemoGui::addInfoDialog(videoStorageGUI);
-
-    SLApplication::sceneID = (SLSceneID)Scene_WAI;
-
-    /////////////////////////////////////////////////////////
-    svIndex = slCreateSceneView((int)(scrWidth * scr2fbX),
-                                (int)(scrHeight * scr2fbY),
-                                dpi,
-                                (SLSceneID)SL_STARTSCENE,
-                                (void*)&onPaint,
-                                nullptr,
-                                (void*)createNewWAISceneView,
-                                (void*)AppDemoGui::build);
-    /////////////////////////////////////////////////////////
 
     // Set GLFW callback functions
     glfwSetKeyCallback(window, onKeyPress);
@@ -607,59 +531,44 @@ int main(int argc, char* argv[])
     glfwSetCursorPosCallback(window, onMouseMove);
     glfwSetScrollCallback(window, onMouseWheel);
     glfwSetWindowCloseCallback(window, onClose);
+}
 
-    AutoCalibration* ac  = (AutoCalibration*)AppWAISingleton::instance()->wc;
-    WAI::WAI*        wai = AppWAISingleton::instance()->wai;
+/*!
+The C main procedure running the GLFW GUI application.
+*/
+int main(int argc, char* argv[])
+{
+    GLFWInit();
 
-#if AUTO_CALIBRATION
-    if (ac->getState() == CalibrationState_Guess && wai->getCurrentMode()->getType() == WAI::ModeType_ORB_SLAM2)
-    {
-        WAI::ModeOrbSlam2* mode = (WAI::ModeOrbSlam2*)wai->getCurrentMode();
-        mode->disableMapping();
-        WAI_LOG("disable mapping");
-    }
-#endif
+    AppWAIDirectories dirs;
+    dirs.waiDataRoot = SLstring(WAI_ROOT) + "/data";
+    dirs.slDataRoot  = SLstring(WAI_ROOT) + "/thirdparty/SLProject/data";
+    dirs.writableDir = Utils::getAppsWritableDir();
+
+    CVCapture::instance()->open(0);
+    svIndex = WAIApp::load(scrWidth, scrHeight, scr2fbX, scr2fbY, dpi, &dirs);
+
+    CVCapture::instance()->videoType(VT_MAIN);
+    CVCapture::instance()->start(scrWdivH);
 
     // Event loop
     while (!slShouldClose())
     {
-        // If live video image is requested grab it and copy it
-        if (slGetVideoType() != VT_NONE)
+        if (CVCapture::instance()->videoType() != VT_NONE)
         {
-            SLCVCapture::grabAndAdjustForSL();
+            CVCapture::instance()->grabAndAdjustForSL(scrWdivH);
 
             WAI::CameraData cameraData = {};
-            cameraData.imageGray       = &SLCVCapture::lastFrameGray;
-            cameraData.imageRGB        = &SLCVCapture::lastFrame;
-
-            sceneView->updateCamera(&cameraData);
-
-#if AUTO_CALIBRATION
-            if (ac->getState() == CalibrationState_Guess)
-            {
-                std::vector<cv::Point2f> vP2D;
-                std::vector<cv::Point3f> vP3Dw;
-                ((WAI::ModeOrbSlam2*)wai->getCurrentMode())->findMatches(vP2D, vP3Dw);
-                WAI::CameraCalibration calibration;
-
-                if (ac->tryCalibrateRansac(vP2D, vP3Dw))
-                {
-                    if (ac->getError() < 80.0)
-                    {
-                        WAI_LOG("find calibration with error = %f", ac->getError());
-                        wai->activateSensor(WAI::SensorType_Camera, &calibration);
-                        ((WAI::ModeOrbSlam2*)wai->getCurrentMode())->enableMapping();
-                    }
-                }
-            }
-#endif
+            cameraData.imageGray       = &CVCapture::instance()->lastFrameGray;
+            cameraData.imageRGB        = &CVCapture::instance()->lastFrame;
+            WAIApp::updateCamera(&cameraData);
         }
 
-        sceneView->update();
+        WAIApp::update();
 
-        /////////////////////////////
-        SLbool doRepaint = onPaint();
-        /////////////////////////////
+        SLbool doRepaint = slPaintAllViews();
+        glfwSwapBuffers(window);
+        glfwSetWindowTitle(window, slGetWindowTitle(svIndex).c_str());
 
         // if no updated occurred wait for the next event (power saving)
         if (!doRepaint)
@@ -667,8 +576,6 @@ int main(int argc, char* argv[])
         else
             glfwPollEvents();
     }
-
-    AppDemoGui::saveConfig();
 
     slTerminate();
     glfwDestroyWindow(window);

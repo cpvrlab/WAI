@@ -26,6 +26,7 @@
 #include <opencv/cv.h>
 
 #include <WAIHelper.h>
+#include <KPextractor.h>
 
 namespace ORB_SLAM2
 {
@@ -43,7 +44,7 @@ class ExtractorNode
     bool                               bNoMore;
 };
 
-class WAI_API ORBextractor
+class WAI_API ORBextractor : public KPextractor
 {
     public:
     enum
@@ -59,40 +60,8 @@ class WAI_API ORBextractor
     // Compute the ORB features and descriptors on an image.
     // ORB are dispersed on the image using an octree.
     // Mask is ignored in the current implementation.
-    void operator()(cv::InputArray image, cv::InputArray mask, std::vector<cv::KeyPoint>& keypoints, cv::OutputArray descriptors);
+    void operator()(cv::InputArray image, std::vector<cv::KeyPoint>& keypoints, cv::OutputArray descriptors);
     void computeKeyPointDescriptors(const cv::Mat& image, std::vector<cv::KeyPoint>& keypoints, cv::Mat& descriptors);
-
-    int inline GetLevels()
-    {
-        return nlevels;
-    }
-
-    float inline GetScaleFactor()
-    {
-        return scaleFactor;
-    }
-
-    std::vector<float> inline GetScaleFactors()
-    {
-        return mvScaleFactor;
-    }
-
-    std::vector<float> inline GetInverseScaleFactors()
-    {
-        return mvInvScaleFactor;
-    }
-
-    std::vector<float> inline GetScaleSigmaSquares()
-    {
-        return mvLevelSigma2;
-    }
-
-    std::vector<float> inline GetInverseScaleSigmaSquares()
-    {
-        return mvInvLevelSigma2;
-    }
-
-    std::vector<cv::Mat> mvImagePyramid;
 
     protected:
     void                      ComputePyramid(cv::Mat image);
@@ -102,20 +71,8 @@ class WAI_API ORBextractor
     void                   ComputeKeyPointsOld(std::vector<std::vector<cv::KeyPoint>>& allKeypoints);
     std::vector<cv::Point> pattern;
 
-    int    nfeatures;
-    double scaleFactor;
-    int    nlevels;
-    int    iniThFAST;
-    int    minThFAST;
-
-    std::vector<int> mnFeaturesPerLevel;
-
-    std::vector<int> umax;
-
-    std::vector<float> mvScaleFactor;
-    std::vector<float> mvInvScaleFactor;
-    std::vector<float> mvLevelSigma2;
-    std::vector<float> mvInvLevelSigma2;
+    int iniThFAST;
+    int minThFAST;
 };
 
 } //namespace ORB_SLAM

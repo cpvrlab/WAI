@@ -54,8 +54,8 @@ class WAI_API WAIFrame
     //!copy constructor
     WAIFrame(const WAIFrame& frame);
     //!constructor used for detection in tracking
-    WAIFrame(const cv::Mat& imGray, const double& timeStamp, ORBextractor* extractor, cv::Mat& K, cv::Mat& distCoef, ORBVocabulary* orbVocabulary, bool retainImg = false);
-    WAIFrame(const cv::Mat& imGray, ORBextractor* extractor, cv::Mat& K, cv::Mat& distCoef, std::vector<cv::KeyPoint>& vKeys, ORBVocabulary* orbVocabulary, bool retainImg = false);
+    WAIFrame(const cv::Mat& imGray, const double& timeStamp, KPextractor* extractor, cv::Mat& K, cv::Mat& distCoef, ORBVocabulary* orbVocabulary, bool retainImg = false);
+    WAIFrame(const cv::Mat& imGray, KPextractor* extractor, cv::Mat& K, cv::Mat& distCoef, std::vector<cv::KeyPoint>& vKeys, ORBVocabulary* orbVocabulary, bool retainImg = false);
 
     // Extract ORB on the image
     void ExtractORB(const cv::Mat& im);
@@ -107,7 +107,7 @@ class WAI_API WAIFrame
     ORBVocabulary* mpORBvocabulary = NULL;
 
     // Feature extractor. The right is used only in the stereo case.
-    ORBextractor* mpORBextractorLeft = NULL;
+    KPextractor* mpORBextractorLeft = NULL;
 
     // Frame timestamp.
     double mTimeStamp;

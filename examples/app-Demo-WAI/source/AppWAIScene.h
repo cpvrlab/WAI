@@ -5,7 +5,7 @@
 #include <SLPoints.h>
 #include <SLPolyline.h>
 
-#include <SLCVCalibration.h>
+#include <CVCalibration.h>
 
 #include <WAI.h>
 
@@ -13,6 +13,7 @@ class AppWAIScene
 {
     public:
     AppWAIScene();
+    SLNode*   rootNode          = nullptr;
     SLCamera* cameraNode        = nullptr;
     SLNode*   mapNode           = nullptr;
     SLNode*   mapPC             = nullptr;

@@ -91,7 +91,7 @@ WAIFrame::WAIFrame(const WAIFrame& frame)
         imgGray = frame.imgGray.clone();
 }
 //-----------------------------------------------------------------------------
-WAIFrame::WAIFrame(const cv::Mat& imGray, const double& timeStamp, ORBextractor* extractor, cv::Mat& K, cv::Mat& distCoef, ORBVocabulary* orbVocabulary, bool retainImg)
+WAIFrame::WAIFrame(const cv::Mat& imGray, const double& timeStamp, KPextractor* extractor, cv::Mat& K, cv::Mat& distCoef, ORBVocabulary* orbVocabulary, bool retainImg)
   : mpORBextractorLeft(extractor), mTimeStamp(timeStamp), /*mK(K.clone()),*/ /*mDistCoef(distCoef.clone()),*/
     mpORBvocabulary(orbVocabulary)
 {
@@ -149,7 +149,7 @@ WAIFrame::WAIFrame(const cv::Mat& imGray, const double& timeStamp, ORBextractor*
         imgGray = imGray.clone();
 }
 
-WAIFrame::WAIFrame(const cv::Mat& imGray, ORBextractor* extractor, cv::Mat& K, cv::Mat& distCoef, std::vector<cv::KeyPoint>& vKeys, ORBVocabulary* orbVocabulary, bool retainImg)
+WAIFrame::WAIFrame(const cv::Mat& imGray, KPextractor* extractor, cv::Mat& K, cv::Mat& distCoef, std::vector<cv::KeyPoint>& vKeys, ORBVocabulary* orbVocabulary, bool retainImg)
   : mpORBextractorLeft(extractor), mvKeys(vKeys), mpORBvocabulary(orbVocabulary)
 {
     //ghm1: ORB_SLAM uses float precision
@@ -226,7 +226,7 @@ void WAIFrame::AssignFeaturesToGrid()
 //-----------------------------------------------------------------------------
 void WAIFrame::ExtractORB(const cv::Mat& im)
 {
-    (*mpORBextractorLeft)(im, cv::Mat(), mvKeys, mDescriptors);
+    (*mpORBextractorLeft)(im, mvKeys, mDescriptors);
 }
 //-----------------------------------------------------------------------------
 void WAIFrame::SetPose(cv::Mat Tcw)
