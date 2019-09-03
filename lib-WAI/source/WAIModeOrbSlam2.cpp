@@ -105,7 +105,7 @@ WAI::ModeOrbSlam2::ModeOrbSlam2(SensorCamera* camera,
     }
 
     // TODO(jan): make this editable
-    _relocalizeFromMarkerMap = false;
+    _relocalizeFromMarkerMap = true;
 }
 
 WAI::ModeOrbSlam2::~ModeOrbSlam2()

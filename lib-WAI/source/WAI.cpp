@@ -35,7 +35,7 @@ WAI::Mode* WAI::WAI::setMode(ModeType modeType)
                                          false,
                                          false,
                                          false,
-                                         true,
+                                         false,
                                          _dataRoot + "/calibrations/ORBvoc.bin");
             }
         }
